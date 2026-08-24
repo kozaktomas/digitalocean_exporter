@@ -19,8 +19,8 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/panbotka/digitalocean_exporter/internal/version.Version={{.Version}}
-      - -X github.com/panbotka/digitalocean_exporter/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/kozaktomas/digitalocean_exporter/internal/version.Version={{.Version}}
+      - -X github.com/kozaktomas/digitalocean_exporter/internal/version.Commit={{.ShortCommit}}
 
 archives:
   - id: tarball
@@ -39,9 +39,9 @@ nfpms:
   # digitalocean-exporter while the binary keeps the Prometheus convention.
   - id: deb
     package_name: digitalocean-exporter
-    vendor: Pan Botka
-    homepage: https://github.com/panbotka/digitalocean_exporter
-    maintainer: Pan Botka <panbotka@seznam.cz>
+    vendor: Tomas Kozak
+    homepage: https://github.com/kozaktomas/digitalocean_exporter
+    maintainer: Tomas Kozak <kozak@talko.cz>
     description: |
       Prometheus exporter for DigitalOcean. Exposes account, billing and
       infrastructure metrics collected from the DigitalOcean API.

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/panbotka/digitalocean_exporter/internal/config"
+	"github.com/kozaktomas/digitalocean_exporter/internal/config"
 )
 
 func TestParseDefaults(t *testing.T) {

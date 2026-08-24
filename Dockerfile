@@ -15,8 +15,8 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
       -ldflags "-s -w \
-        -X github.com/panbotka/digitalocean_exporter/internal/version.Version=${VERSION} \
-        -X github.com/panbotka/digitalocean_exporter/internal/version.Commit=${COMMIT_SHA}" \
+        -X github.com/kozaktomas/digitalocean_exporter/internal/version.Version=${VERSION} \
+        -X github.com/kozaktomas/digitalocean_exporter/internal/version.Commit=${COMMIT_SHA}" \
       -o /out/digitalocean_exporter ./cmd/digitalocean_exporter
 
 # distroless/static ships CA certificates (needed for api.digitalocean.com)

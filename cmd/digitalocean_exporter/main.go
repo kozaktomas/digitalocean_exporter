@@ -18,11 +18,11 @@ import (
 	"github.com/prometheus/common/promslog"
 	"github.com/prometheus/exporter-toolkit/web"
 
-	"github.com/panbotka/digitalocean_exporter/internal/collector"
-	"github.com/panbotka/digitalocean_exporter/internal/collector/account"
-	"github.com/panbotka/digitalocean_exporter/internal/config"
-	"github.com/panbotka/digitalocean_exporter/internal/doclient"
-	"github.com/panbotka/digitalocean_exporter/internal/version"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/account"
+	"github.com/kozaktomas/digitalocean_exporter/internal/config"
+	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
+	"github.com/kozaktomas/digitalocean_exporter/internal/version"
 )
 
 func main() {

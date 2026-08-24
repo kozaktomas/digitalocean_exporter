@@ -8,7 +8,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
-	"github.com/panbotka/digitalocean_exporter/internal/version"
+	"github.com/kozaktomas/digitalocean_exporter/internal/version"
 )
 
 func TestCollectorEmitsBuildInfo(t *testing.T) {

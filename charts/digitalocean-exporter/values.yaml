@@ -1,5 +1,5 @@
 image:
-  repository: ghcr.io/panbotka/digitalocean_exporter
+  repository: ghcr.io/kozaktomas/digitalocean_exporter
   tag: ""            # defaults to .Chart.AppVersion
   pullPolicy: IfNotPresent
 

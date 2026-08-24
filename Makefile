@@ -1,5 +1,5 @@
 APP_NAME    := digitalocean_exporter
-PKG         := github.com/panbotka/digitalocean_exporter
+PKG         := github.com/kozaktomas/digitalocean_exporter
 VERSION     ?= dev
 COMMIT      ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 LDFLAGS     := -s -w -X $(PKG)/internal/version.Version=$(VERSION) -X $(PKG)/internal/version.Commit=$(COMMIT)

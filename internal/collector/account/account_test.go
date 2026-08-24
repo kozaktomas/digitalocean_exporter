@@ -11,8 +11,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
-	"github.com/panbotka/digitalocean_exporter/internal/collector/account"
-	"github.com/panbotka/digitalocean_exporter/internal/doclient"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/account"
+	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
 )
 
 const accountJSON = `{"account":{"droplet_limit":25,"floating_ip_limit":3,"reserved_ip_limit":3,` +

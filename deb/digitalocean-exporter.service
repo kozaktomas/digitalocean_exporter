@@ -1,6 +1,6 @@
 [Unit]
 Description=Prometheus exporter for DigitalOcean
-Documentation=https://github.com/panbotka/digitalocean_exporter
+Documentation=https://github.com/kozaktomas/digitalocean_exporter
 After=network-online.target
 Wants=network-online.target
 

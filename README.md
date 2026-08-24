@@ -34,7 +34,7 @@ one collector:
 ```bash
 docker run --rm -p 9212:9212 \
   -e DIGITALOCEAN_TOKEN=dop_v1_... \
-  ghcr.io/panbotka/digitalocean_exporter:latest
+  ghcr.io/kozaktomas/digitalocean_exporter:latest
 ```
 
 The image is published for `linux/amd64` and `linux/arm64`.
@@ -42,7 +42,7 @@ The image is published for `linux/amd64` and `linux/arm64`.
 ### Debian package
 
 Download the `.deb` for your architecture from the
-[releases page](https://github.com/panbotka/digitalocean_exporter/releases), then:
+[releases page](https://github.com/kozaktomas/digitalocean_exporter/releases), then:
 
 ```bash
 sudo dpkg -i digitalocean-exporter_*_linux_arm64.deb
@@ -54,7 +54,7 @@ sudo systemctl start digitalocean-exporter
 
 ```bash
 helm install digitalocean-exporter \
-  oci://ghcr.io/panbotka/chart/digitalocean-exporter \
+  oci://ghcr.io/kozaktomas/chart/digitalocean-exporter \
   --set digitalocean.token=dop_v1_...
 ```
 

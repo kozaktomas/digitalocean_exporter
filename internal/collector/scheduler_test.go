@@ -15,7 +15,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
-	"github.com/panbotka/digitalocean_exporter/internal/collector"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector"
 )
 
 // fake is a Collector whose refresh behaviour the test controls.

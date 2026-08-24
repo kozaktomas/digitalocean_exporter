@@ -1,4 +1,4 @@
-module github.com/panbotka/digitalocean_exporter
+module github.com/kozaktomas/digitalocean_exporter
 
 go 1.26.1
 
