@@ -7,6 +7,22 @@ Orientation for an AI session working in this repository.
 A Prometheus exporter for DigitalOcean, written in Go. One binary, no state, no database.
 It reads the DigitalOcean API and exposes metrics on `:9212`.
 
+## The API token is read-only — never mutate anything
+
+`.env` holds a real DigitalOcean token (`DIGITALOCEAN_TOKEN`) for a live account. It is
+gitignored and must stay that way; never print it, commit it, or send it anywhere except
+the DigitalOcean API.
+
+**Only ever issue read operations against the DigitalOcean API — `GET` (and `HEAD`) and
+nothing else.** Never `POST`, `PUT`, `PATCH` or `DELETE`; never create, resize, power-cycle,
+tag, rename or destroy a droplet, volume, snapshot, database, Kubernetes cluster, load
+balancer, domain record, firewall, project, bucket or object; never upload to or delete
+from Spaces. This applies to `curl`, `doctl`, the godo client and anything else. If a task
+seems to need a write, stop and ask instead of trying it.
+
+This is an exporter: it observes. There is no legitimate reason for any code path or any
+ad-hoc command in this repository to change the state of the account.
+
 ## The one architectural idea
 
 **Refreshing is separate from scraping.** Every collector implements
