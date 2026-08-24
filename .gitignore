@@ -1,0 +1,6 @@
+digitalocean_exporter
+dist/
+coverage.out
+*.deb
+*.tar.gz
+.env
