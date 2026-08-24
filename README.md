@@ -18,11 +18,12 @@ actually deserves.
 ## Status
 
 Early. This release ships the exporter skeleton, the full build and release pipeline, and
-one collector:
+two collectors:
 
 | Collector | State |
 |---|---|
-| `account` — limits, balance, month-to-date usage | available |
+| `account` — status and resource limits | available |
+| `balance` — balance and month-to-date usage (needs a billing-scoped token) | available |
 | `spaces` — bucket size and object count | planned, next |
 | `registry` — Container Registry storage usage | planned |
 | droplets, load balancers, databases, domains | planned |
@@ -81,15 +82,22 @@ Every flag has an environment-variable equivalent. Flags win over the environmen
 |---|---|---|---|
 | `--web.listen-address` | `WEB_LISTEN_ADDRESS` | `:9212` | Address to expose metrics on |
 | `--web.config.file` | `WEB_CONFIG_FILE` | — | [exporter-toolkit](https://github.com/prometheus/exporter-toolkit) web config (TLS, basic auth) |
-| `--do.token` | `DIGITALOCEAN_TOKEN` | — | API token; read-only is enough |
+| `--do.token` | `DIGITALOCEAN_TOKEN` | — | API token; read-only is enough, plus the billing scope for `balance` |
 | `--do.token-file` | `DIGITALOCEAN_TOKEN_FILE` | — | File holding the API token |
 | `--do.timeout` | `DO_TIMEOUT` | `30s` | Timeout of a single collector refresh |
 | `--collector.account` | `COLLECTOR_ACCOUNT` | `true` | Enable the account collector |
 | `--collector.account.interval` | `COLLECTOR_ACCOUNT_INTERVAL` | `5m` | Its refresh interval |
+| `--collector.balance` | `COLLECTOR_BALANCE` | `true` | Enable the balance collector |
+| `--collector.balance.interval` | `COLLECTOR_BALANCE_INTERVAL` | `5m` | Its refresh interval |
 | `--log.level` | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
 | `--log.format` | `LOG_FORMAT` | `logfmt` | `logfmt` or `json` |
 
 `--do.token` and `--do.token-file` are mutually exclusive; exactly one must be set.
+
+A collector is switched off with the negated flag — `--no-collector.balance`, not
+`--collector.balance=false`, which the flag parser rejects. The environment variable does
+take a value: `COLLECTOR_BALANCE=false`. Reach for this when the token cannot read billing:
+the balance endpoint answers `403 Forbidden` to a token without the billing scope.
 
 ## Scraping
 

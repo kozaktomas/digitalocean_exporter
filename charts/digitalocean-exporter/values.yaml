@@ -18,6 +18,12 @@ collectors:
   account:
     enabled: true
     interval: 5m
+  # The balance collector reads /v2/customers/my/balance, which needs a token
+  # with the billing scope. A token scoped to resources alone gets 403 there;
+  # set enabled to false for such a token.
+  balance:
+    enabled: true
+    interval: 5m
 
 log:
   level: info

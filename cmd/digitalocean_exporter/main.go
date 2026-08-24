@@ -20,6 +20,7 @@ import (
 
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/account"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/balance"
 	"github.com/kozaktomas/digitalocean_exporter/internal/config"
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
 	"github.com/kozaktomas/digitalocean_exporter/internal/version"
@@ -71,6 +72,9 @@ func run(args []string) error {
 	scheduler := collector.NewScheduler(cfg.Timeout, logger, reg)
 	if cfg.Collectors["account"].Enabled {
 		scheduler.Register(account.New(client), cfg.Collectors["account"].Interval)
+	}
+	if cfg.Collectors["balance"].Enabled {
+		scheduler.Register(balance.New(client), cfg.Collectors["balance"].Interval)
 	}
 	reg.MustRegister(scheduler)
 

@@ -87,3 +87,34 @@ func TestParseHelpIsReportedNotTreatedAsMissingToken(t *testing.T) {
 		t.Fatalf("error = %v, want ErrHelpShown", err)
 	}
 }
+
+func TestParseRegistersTheBalanceCollector(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	balance, ok := cfg.Collectors["balance"]
+	if !ok {
+		t.Fatal("balance collector missing from config")
+	}
+	if !balance.Enabled || balance.Interval != 5*time.Minute {
+		t.Errorf("balance = %+v, want enabled with a 5m interval", balance)
+	}
+}
+
+// A token without the billing scope is forbidden from reading the balance, so
+// operators must be able to switch that collector off on its own.
+func TestParseDisablesTheBalanceCollectorAlone(t *testing.T) {
+	// kingpin negates a boolean flag with --no-<name>; --collector.balance=false
+	// is a parse error, which is why the Helm chart renders the negated form.
+	cfg, err := config.Parse([]string{"--do.token", "secret", "--no-collector.balance"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Collectors["balance"].Enabled {
+		t.Error("balance collector = enabled, want disabled")
+	}
+	if !cfg.Collectors["account"].Enabled {
+		t.Error("account collector = disabled, want it untouched")
+	}
+}

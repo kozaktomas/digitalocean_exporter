@@ -4,7 +4,7 @@ All metrics are gauges unless stated otherwise.
 
 ## Account
 
-Collected by `account` from `/v2/account` and `/v2/customers/my/balance`.
+Collected by `account` from `/v2/account`.
 
 | Metric | Description |
 |---|---|
@@ -14,10 +14,23 @@ Collected by `account` from `/v2/account` and `/v2/customers/my/balance`.
 | `digitalocean_account_floating_ip_limit` | Maximum number of floating IPs allowed |
 | `digitalocean_account_reserved_ip_limit` | Maximum number of reserved IPs allowed |
 | `digitalocean_account_volume_limit` | Maximum number of volumes allowed |
+
+## Balance
+
+Collected by `balance` from `/v2/customers/my/balance`.
+
+| Metric | Description |
+|---|---|
 | `digitalocean_account_balance` | Current account balance |
 | `digitalocean_month_to_date_balance` | Month-to-date balance |
 | `digitalocean_month_to_date_usage` | Month-to-date usage |
 | `digitalocean_balance_generated_at` | Unix timestamp the balance figures were generated at |
+
+**This collector needs a token with the billing scope.** A token that can read every
+resource still gets `403 Forbidden` from the balance endpoint unless billing is among its
+scopes. That is why billing is a collector of its own: with such a token only
+`digitalocean_exporter_collector_success{collector="balance"}` drops to 0, while the
+account metrics keep flowing. Run with `--no-collector.balance` to switch it off entirely.
 
 The three money metrics and `digitalocean_balance_generated_at` deliberately omit an
 `account_` infix so that they match the names used by the older, unmaintained exporter.

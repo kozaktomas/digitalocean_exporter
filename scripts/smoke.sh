@@ -47,7 +47,7 @@ done
 
 DO_API_BASE_URL="http://127.0.0.1:${API_PORT}/" \
   "$BIN" --do.token=smoke-token --web.listen-address="127.0.0.1:${PORT}" \
-         --collector.account.interval=1s &
+         --collector.account.interval=1s --collector.balance.interval=1s &
 EXPORTER_PID=$!
 
 for _ in $(seq 1 50); do
@@ -59,7 +59,7 @@ done
 METRICS=""
 for _ in $(seq 1 50); do
   METRICS="$(curl -sf "http://127.0.0.1:${PORT}/metrics")"
-  grep -q "^digitalocean_account_active" <<<"$METRICS" && break
+  grep -q "^digitalocean_month_to_date_usage" <<<"$METRICS" && break
   sleep 0.2
 done
 

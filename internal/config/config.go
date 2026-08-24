@@ -79,6 +79,10 @@ func Parse(args []string) (*Config, error) {
 		Envar("COLLECTOR_ACCOUNT").Default("true").Bool()
 	accountInterval := app.Flag("collector.account.interval", "Refresh interval of the account collector.").
 		Envar("COLLECTOR_ACCOUNT_INTERVAL").Default("5m").Duration()
+	balanceEnabled := app.Flag("collector.balance", "Enable the balance collector, which needs a billing-scoped token.").
+		Envar("COLLECTOR_BALANCE").Default("true").Bool()
+	balanceInterval := app.Flag("collector.balance.interval", "Refresh interval of the balance collector.").
+		Envar("COLLECTOR_BALANCE_INTERVAL").Default("5m").Duration()
 
 	if _, err := app.Parse(args); err != nil {
 		return nil, fmt.Errorf("parse flags: %w", err)
@@ -101,6 +105,7 @@ func Parse(args []string) (*Config, error) {
 		LogFormat:     *logFormat,
 		Collectors: map[string]CollectorConfig{
 			"account": {Enabled: *accountEnabled, Interval: *accountInterval},
+			"balance": {Enabled: *balanceEnabled, Interval: *balanceInterval},
 		},
 	}, nil
 }

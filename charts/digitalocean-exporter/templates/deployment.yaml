@@ -29,8 +29,18 @@ spec:
             - --do.token-file=/etc/digitalocean-exporter/token
             - --log.level={{ .Values.log.level }}
             - --log.format={{ .Values.log.format }}
-            - --collector.account={{ .Values.collectors.account.enabled }}
+            {{- if .Values.collectors.account.enabled }}
+            - --collector.account
             - --collector.account.interval={{ .Values.collectors.account.interval }}
+            {{- else }}
+            - --no-collector.account
+            {{- end }}
+            {{- if .Values.collectors.balance.enabled }}
+            - --collector.balance
+            - --collector.balance.interval={{ .Values.collectors.balance.interval }}
+            {{- else }}
+            - --no-collector.balance
+            {{- end }}
           ports:
             - name: metrics
               containerPort: {{ .Values.service.port }}

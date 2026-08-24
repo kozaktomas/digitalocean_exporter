@@ -61,6 +61,10 @@ Before its first successful refresh a collector emits nothing, rather than zeros
 - The `.gitignore` entry for the built binary must stay anchored (`/digitalocean_exporter`).
   Unanchored it also matches the `cmd/digitalocean_exporter` directory and silently
   excludes `main.go` from the repository.
+- Collector switches are kingpin booleans: a collector is disabled with
+  `--no-collector.<name>`, never `--collector.<name>=false`, which is a parse error and
+  crashes the process at startup. The environment variable does take a value
+  (`COLLECTOR_BALANCE=false`), and the Helm chart must render the negated flag.
 - Some metric names deliberately lack an `account_` infix
   (`digitalocean_month_to_date_usage`). They match an older, widely deployed exporter so
   dashboards survive a migration. Do not "fix" them.
