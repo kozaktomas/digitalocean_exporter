@@ -70,5 +70,7 @@ Before its first successful refresh a collector emits nothing, rather than zeros
 - `make check` (gofmt, go vet, golangci-lint, tests) must pass before every commit. The
   lint configuration is strict on purpose; do not soften it.
 - `make smoke` runs the exporter end to end against a stub API and needs no token.
+- **Commit and push straight to `main`.** The project is in its development phase: no feature
+  branches, no pull requests. `make check` still has to pass first.
 - Everything committed here is in English, and the repository must stay self-contained:
   no local filesystem paths, no references to unrelated projects or internal hosts.
