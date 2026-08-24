@@ -29,6 +29,10 @@ one collector:
 
 ## Install
 
+> **No tagged release yet.** Only the `latest` container image is published today, built
+> from `main`. The Debian packages and the Helm chart are produced by the release pipeline
+> and become available with the first tag.
+
 ### Docker
 
 ```bash
@@ -41,7 +45,7 @@ The image is published for `linux/amd64` and `linux/arm64`.
 
 ### Debian package
 
-Download the `.deb` for your architecture from the
+Once a release is tagged, download the `.deb` for your architecture from the
 [releases page](https://github.com/kozaktomas/digitalocean_exporter/releases), then:
 
 ```bash
@@ -52,7 +56,14 @@ sudo systemctl start digitalocean-exporter
 
 ### Helm
 
+From a checkout today, or from the OCI registry once a release is tagged:
+
 ```bash
+# today
+helm install digitalocean-exporter ./charts/digitalocean-exporter \
+  --set digitalocean.token=dop_v1_...
+
+# after the first release
 helm install digitalocean-exporter \
   oci://ghcr.io/kozaktomas/chart/digitalocean-exporter \
   --set digitalocean.token=dop_v1_...

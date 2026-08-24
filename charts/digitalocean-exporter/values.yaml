@@ -1,6 +1,8 @@
 image:
   repository: ghcr.io/kozaktomas/digitalocean_exporter
-  tag: ""            # defaults to .Chart.AppVersion
+  # Until the first release is tagged, only `latest` exists in the registry.
+  # Pin this to the release version once one is published.
+  tag: "latest"
   pullPolicy: IfNotPresent
 
 # DigitalOcean API token. Either set `token` (the chart creates a Secret) or
