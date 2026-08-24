@@ -1,0 +1,79 @@
+version: 2
+
+project_name: digitalocean_exporter
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: digitalocean_exporter
+    main: ./cmd/digitalocean_exporter
+    binary: digitalocean_exporter
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/panbotka/digitalocean_exporter/internal/version.Version={{.Version}}
+      - -X github.com/panbotka/digitalocean_exporter/internal/version.Commit={{.ShortCommit}}
+
+archives:
+  - id: tarball
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    files:
+      - README.md
+      - LICENSE
+
+nfpms:
+  # Debian rejects underscores in package names, so the package is
+  # digitalocean-exporter while the binary keeps the Prometheus convention.
+  - id: deb
+    package_name: digitalocean-exporter
+    vendor: Pan Botka
+    homepage: https://github.com/panbotka/digitalocean_exporter
+    maintainer: Pan Botka <panbotka@seznam.cz>
+    description: |
+      Prometheus exporter for DigitalOcean. Exposes account, billing and
+      infrastructure metrics collected from the DigitalOcean API.
+    license: Apache-2.0
+    section: net
+    priority: optional
+    bindir: /usr/bin
+    formats:
+      - deb
+    file_name_template: 'digitalocean-exporter_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    dependencies:
+      - ca-certificates
+    contents:
+      - src: deb/digitalocean-exporter.service
+        dst: /lib/systemd/system/digitalocean-exporter.service
+      - src: deb/digitalocean-exporter.env
+        dst: /etc/digitalocean-exporter/digitalocean-exporter.env
+        type: config|noreplace
+    scripts:
+      postinstall: deb/postinstall.sh
+      preremove: deb/preremove.sh
+      postremove: deb/postremove.sh
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+
+release:
+  footer: |
+    ---
+    Released by [GoReleaser](https://goreleaser.com).

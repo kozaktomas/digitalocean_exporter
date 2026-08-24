@@ -1,0 +1,68 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - lll
+    - misspell
+    - whitespace
+    - cyclop
+    - funlen
+    - gocognit
+    - nestif
+    - bodyclose
+    - durationcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - copyloopvar
+    - makezero
+    - nilerr
+    - noctx
+    - predeclared
+    - dupl
+    - godot
+    - revive
+    - gosec
+    - prealloc
+
+  settings:
+    cyclop:
+      max-complexity: 10
+    funlen:
+      lines: 60
+      statements: 40
+    gocognit:
+      min-complexity: 15
+    nestif:
+      min-complexity: 3
+    lll:
+      line-length: 120
+    dupl:
+      threshold: 100
+    godot:
+      scope: all
+      period: true
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - "checkPrivateReceivers"
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - funlen
+          - dupl
+          - cyclop
+          - gocognit
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

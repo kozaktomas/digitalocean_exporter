@@ -1,0 +1,11 @@
+.git
+.github
+.internal
+dist
+docs
+charts
+deb
+scripts
+coverage.out
+digitalocean_exporter
+*.md

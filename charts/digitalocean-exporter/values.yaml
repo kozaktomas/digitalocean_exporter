@@ -1,0 +1,43 @@
+image:
+  repository: ghcr.io/panbotka/digitalocean_exporter
+  tag: ""            # defaults to .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+# DigitalOcean API token. Either set `token` (the chart creates a Secret) or
+# point `existingSecret` at a Secret you manage yourself. The token reaches the
+# pod as a mounted file, never as an environment variable, so it cannot leak
+# through `kubectl describe pod`.
+digitalocean:
+  token: ""
+  existingSecret: ""
+  existingSecretKey: token
+
+collectors:
+  account:
+    enabled: true
+    interval: 5m
+
+log:
+  level: info
+  format: logfmt
+
+service:
+  type: ClusterIP
+  port: 9212
+
+serviceMonitor:
+  enabled: false
+  interval: 60s
+  scrapeTimeout: 10s
+  labels: {}
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 128Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

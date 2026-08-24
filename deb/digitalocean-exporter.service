@@ -1,0 +1,33 @@
+[Unit]
+Description=Prometheus exporter for DigitalOcean
+Documentation=https://github.com/panbotka/digitalocean_exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=digitalocean-exporter
+Group=digitalocean-exporter
+EnvironmentFile=/etc/digitalocean-exporter/digitalocean-exporter.env
+ExecStart=/usr/bin/digitalocean_exporter
+Restart=always
+RestartSec=5s
+TimeoutStopSec=30s
+
+# The exporter is stateless: it writes nothing and needs no filesystem access
+# beyond reading its own configuration.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

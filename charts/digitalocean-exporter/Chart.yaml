@@ -1,0 +1,12 @@
+apiVersion: v2
+name: digitalocean-exporter
+description: Prometheus exporter for DigitalOcean
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/panbotka/digitalocean_exporter
+sources:
+  - https://github.com/panbotka/digitalocean_exporter
+maintainers:
+  - name: Pan Botka
+    email: panbotka@seznam.cz

@@ -1,6 +1,9 @@
-digitalocean_exporter
+/digitalocean_exporter
 dist/
 coverage.out
 *.deb
 *.tar.gz
 .env
+
+# Internal working documents (design notes, plan) — never published.
+.internal/

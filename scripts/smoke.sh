@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# End-to-end smoke test: start the exporter against a fake DigitalOcean API,
+# scrape /metrics, and assert the metrics that prove the whole chain works.
+set -euo pipefail
+
+BIN="${BIN:-./digitalocean_exporter}"
+PORT="${PORT:-19212}"
+API_PORT="${API_PORT:-19213}"
+WORKDIR="$(mktemp -d)"
+trap 'kill "${API_PID:-}" "${EXPORTER_PID:-}" 2>/dev/null || true; rm -rf "$WORKDIR"' EXIT
+
+# A fake DigitalOcean API so the smoke test needs no real token.
+cat > "$WORKDIR/api.py" <<'PY'
+import http.server, json, sys
+
+ACCOUNT = {"account": {"droplet_limit": 25, "floating_ip_limit": 3, "reserved_ip_limit": 3,
+                       "volume_limit": 100, "email_verified": True, "status": "active"}}
+BALANCE = {"month_to_date_balance": "23.44", "account_balance": "12.23",
+           "month_to_date_usage": "11.21", "generated_at": "2026-08-24T12:00:00Z"}
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        body = BALANCE if self.path.endswith("/balance") else ACCOUNT
+        payload = json.dumps(body).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("RateLimit-Remaining", "4999")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def log_message(self, *_):
+        pass
+
+http.server.HTTPServer(("127.0.0.1", int(sys.argv[1])), Handler).serve_forever()
+PY
+
+python3 "$WORKDIR/api.py" "$API_PORT" &
+API_PID=$!
+
+# Wait for the stub API before starting the exporter: the first refresh happens
+# immediately at startup and would otherwise race the stub and fail.
+for _ in $(seq 1 50); do
+  curl -sf "http://127.0.0.1:${API_PORT}/v2/account" >/dev/null && break
+  sleep 0.2
+done
+
+DO_API_BASE_URL="http://127.0.0.1:${API_PORT}/" \
+  "$BIN" --do.token=smoke-token --web.listen-address="127.0.0.1:${PORT}" \
+         --collector.account.interval=1s &
+EXPORTER_PID=$!
+
+for _ in $(seq 1 50); do
+  curl -sf "http://127.0.0.1:${PORT}/healthz" >/dev/null && break
+  sleep 0.2
+done
+
+# Poll until the first collector refresh has landed.
+METRICS=""
+for _ in $(seq 1 50); do
+  METRICS="$(curl -sf "http://127.0.0.1:${PORT}/metrics")"
+  grep -q "^digitalocean_account_active" <<<"$METRICS" && break
+  sleep 0.2
+done
+
+fail=0
+for metric in \
+  digitalocean_exporter_build_info \
+  digitalocean_exporter_collector_success \
+  digitalocean_account_active \
+  digitalocean_month_to_date_usage
+do
+  if grep -q "^${metric}" <<<"$METRICS"; then
+    echo "ok   ${metric}"
+  else
+    echo "FAIL ${metric} missing"
+    fail=1
+  fi
+done
+
+exit "$fail"

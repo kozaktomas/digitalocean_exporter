@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "digitalocean-exporter.fullname" . }}
+  labels:
+    {{- include "digitalocean-exporter.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "digitalocean-exporter.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "digitalocean-exporter.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "digitalocean-exporter.fullname" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: exporter
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --web.listen-address=:{{ .Values.service.port }}
+            - --do.token-file=/etc/digitalocean-exporter/token
+            - --log.level={{ .Values.log.level }}
+            - --log.format={{ .Values.log.format }}
+            - --collector.account={{ .Values.collectors.account.enabled }}
+            - --collector.account.interval={{ .Values.collectors.account.interval }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.service.port }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: token
+              mountPath: /etc/digitalocean-exporter
+              readOnly: true
+      volumes:
+        - name: token
+          secret:
+            secretName: {{ include "digitalocean-exporter.secretName" . }}
+            items:
+              - key: {{ .Values.digitalocean.existingSecretKey }}
+                path: token
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
