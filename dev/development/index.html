@@ -1425,6 +1425,19 @@ at the same version and attaches it to the release, then publishes the documenta
 <p>Semantic versioning, with one number for everything: exporter, chart, <code>appVersion</code> and the
 documentation directory. While the project is <code>0.x</code>, a minor bump is allowed to break
 compatibility.</p>
+<div class="admonition warning">
+<p class="admonition-title">One repository setting the release depends on</p>
+<p>Publishing Pages from a release means deploying from a <strong>tag</strong>, and the <code>github-pages</code>
+environment only accepts the refs it is told to. Under <em>Settings → Environments →
+github-pages → Deployment branches and tags</em> there has to be a rule of type <strong>Tag</strong>
+matching <code>v*.*.*</code>, alongside the <code>main</code> branch rule.</p>
+<p>Without it the release's deploy job fails before its first step, with no log to explain
+why — the documentation and the chart asset are published, but the site is never
+refreshed. Adding the rule as a <em>branch</em> pattern looks identical in the list and does
+not work; the ref type has to be Tag.</p>
+<p>The recovery, if a release ever lands without it: run the Pages workflow by hand from
+<code>main</code> with <code>ref</code> set to the tag, <code>version</code> to the minor and <code>alias</code> to <code>latest</code>.</p>
+</div>
 <p>How that pipeline is put together, and why, is written up in
 <a href="../design/2026-08-25-documentation-site-and-chart-repository/">the design note</a>.</p>
 
