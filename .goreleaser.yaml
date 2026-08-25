@@ -74,6 +74,10 @@ changelog:
       - '^chore:'
 
 release:
+  # The chart is packaged by the release workflow before goreleaser runs. Attaching it
+  # here makes it a release asset, which is what the Pages workflow builds index.yaml from.
+  extra_files:
+    - glob: ./dist-chart/*.tgz
   footer: |
     ---
     Released by [GoReleaser](https://goreleaser.com).

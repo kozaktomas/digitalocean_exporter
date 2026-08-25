@@ -1,134 +1,177 @@
 image:
+  # -- Container image repository.
   repository: ghcr.io/kozaktomas/digitalocean_exporter
-  # Until the first release is tagged, only `latest` exists in the registry.
-  # Pin this to the release version once one is published.
-  tag: "latest"
+  # -- Image tag. Empty means the chart's appVersion, which is the exporter release
+  # this chart version was published with. Set it only to pin something else.
+  tag: ""
+  # -- Image pull policy.
   pullPolicy: IfNotPresent
 
-# DigitalOcean API token. Either set `token` (the chart creates a Secret) or
-# point `existingSecret` at a Secret you manage yourself. The token reaches the
-# pod as a mounted file, never as an environment variable, so it cannot leak
-# through `kubectl describe pod`.
 digitalocean:
+  # -- DigitalOcean API token. The chart puts it in a Secret it owns and mounts it
+  # into the pod as a file, never as an environment variable, so it cannot leak
+  # through `kubectl describe pod`. Mutually exclusive with `existingSecret`.
   token: ""
+  # -- Name of a Secret you manage yourself holding the API token. Preferred over
+  # `token` in real clusters, because it keeps the token out of your Helm values.
   existingSecret: ""
+  # -- Key inside `digitalocean.existingSecret` that holds the token.
   existingSecretKey: token
 
-# Spaces access key pair, used only by the spaces collector. Like the token, it
-# reaches the pod as mounted files rather than environment variables.
 spaces:
+  # -- Spaces access key, used only by the spaces collector. This is an S3
+  # credential, unrelated to the API token.
   accessKey: ""
+  # -- Spaces secret key that pairs with `spaces.accessKey`.
   secretKey: ""
+  # -- Name of a Secret you manage yourself holding both Spaces keys. Mutually
+  # exclusive with `spaces.accessKey` and `spaces.secretKey`.
   existingSecret: ""
+  # -- Key inside `spaces.existingSecret` that holds the access key.
   existingSecretAccessKeyKey: spaces-access-key
+  # -- Key inside `spaces.existingSecret` that holds the secret key.
   existingSecretSecretKeyKey: spaces-secret-key
 
 collectors:
   account:
+    # -- Report account status and the account's resource limits.
     enabled: true
+    # -- How often the account collector refreshes.
     interval: 5m
-  # The balance collector reads /v2/customers/my/balance, which needs a token
-  # with the billing scope. A token scoped to resources alone gets 403 there;
-  # set enabled to false for such a token.
   balance:
+    # -- Report account balance and month-to-date usage. Reads
+    # `/v2/customers/my/balance`, which needs a token with the billing scope; a
+    # token scoped to resources alone gets 403 there and the collector reports
+    # `collector_success 0`. Disable it for such a token.
     enabled: true
+    # -- How often the balance collector refreshes.
     interval: 5m
-  # The databases collector reports the state of the managed database
-  # clusters, not their load: connections and queries come from a Prometheus
-  # endpoint DigitalOcean runs per cluster, with credentials of its own.
   databases:
+    # -- Report the state, node count and storage of every managed database
+    # cluster. This is inventory, not load: connections and queries come from a
+    # per-cluster Prometheus endpoint DigitalOcean runs with credentials of its own.
     enabled: true
+    # -- How often the databases collector refreshes.
     interval: 5m
-  # The droplets collector reports one set of metrics per droplet, including
-  # the droplets a managed Kubernetes cluster runs.
   droplets:
+    # -- Report the state, size and price of every droplet, including the droplets
+    # that make up a managed Kubernetes cluster.
     enabled: true
+    # -- How often the droplets collector refreshes.
     interval: 5m
-  # The kubernetes collector reports the cluster and its node pools from the
-  # outside. What runs inside is kube-state-metrics' job.
   kubernetes:
+    # -- Report managed Kubernetes clusters and their node pools from the outside.
+    # What runs inside a cluster is kube-state-metrics' job, not this exporter's.
     enabled: true
+    # -- How often the kubernetes collector refreshes.
     interval: 5m
-  # The limits collector counts the droplets, reserved IPs and volumes the
-  # account uses, which pair with the limits the account collector reports.
   limits:
+    # -- Report droplets, reserved IPs and volumes in use, which pair with the
+    # account limits the account collector reports.
     enabled: true
+    # -- How often the limits collector refreshes.
     interval: 5m
-  # The registry collector reads the account's container registry. An account
-  # that has none is not a failure: the collector then reports no metrics and
-  # its collector_success stays 1, so it can be left enabled everywhere.
   registry:
+    # -- Report Container Registry storage, subscription tier and repositories. An
+    # account without a registry is not a failure: the collector reports no metrics
+    # and keeps `collector_success 1`, so it is safe to leave enabled everywhere.
     enabled: true
+    # -- How often the registry collector refreshes.
     interval: 5m
-  # The spaces collector measures buckets by listing every object in them, so
-  # it refreshes on a long interval and needs a timeout of its own. It
-  # authenticates with a Spaces access key pair, not the API token: set
-  # spaces.accessKey and spaces.secretKey below, or point spaces.existingSecret
-  # at a Secret holding both. Listing all buckets needs a full-access key, so
-  # name the buckets here when using a limited one.
   spaces:
+    # -- Report the size and object count of Spaces buckets. Off by default: sizing
+    # a bucket means listing every object in it, which takes minutes for a large
+    # one. Needs `spaces.accessKey` and `spaces.secretKey`, not the API token.
     enabled: false
+    # -- How often the spaces collector refreshes. Long on purpose — see the
+    # timeout below.
     interval: 6h
+    # -- Timeout of one full Spaces refresh. Separate from the global
+    # `--do.timeout` because listing objects is far slower than an API call.
     timeout: 15m
+    # -- How many buckets are listed at once.
     concurrency: 4
+    # -- Region used for bucket discovery and for buckets named without one.
     region: ""
+    # -- Buckets to measure, each as `name` or `name@region`. Leave empty to
+    # discover them, which needs a full-access Spaces key; with a limited key the
+    # buckets have to be named here.
     buckets: []
-  # The volumes collector reports the size of every block storage volume and
-  # how many droplets it is attached to. A volume attached to none is billed
-  # while serving nothing, which is what makes it worth an alert.
   volumes:
+    # -- Report the size of every block storage volume and how many droplets it is
+    # attached to. A volume attached to none is billed while serving nothing, which
+    # is what makes it worth an alert.
     enabled: true
+    # -- How often the volumes collector refreshes.
     interval: 5m
-  # The loadbalancers collector reports the state, the backend count and the
-  # billed size of every load balancer. Traffic through them is the
-  # loadbalancermetrics collector's job.
   loadbalancers:
+    # -- Report the state, backend count and billed size of every load balancer.
+    # Traffic through them belongs to the loadbalancermetrics collector.
     enabled: true
+    # -- How often the loadbalancers collector refreshes.
     interval: 5m
-  # The cdn collector reports the CDN endpoints and the certificate each one
-  # serves. DigitalOcean exposes no traffic figures for them, so this is
-  # inventory only.
   cdn:
+    # -- Report CDN endpoints, their cache TTL and the certificate each one serves.
+    # DigitalOcean exposes no traffic figures for CDN endpoints, so this is
+    # inventory only.
     enabled: true
+    # -- How often the cdn collector refreshes.
     interval: 5m
-  # The dropletmetrics collector reads DigitalOcean's monitoring API, which
-  # answers one metric of one droplet per request: a refresh costs one droplet
-  # listing plus 10 requests per droplet. Against the limit of 5000 requests an
-  # hour that is fine for a handful of droplets and impossible for a hundred,
-  # so it is off unless asked for. Work out 3600/interval * (1 + droplets*10)
-  # before enabling it. The API samples every 2m, so a shorter interval than
-  # that buys nothing. Droplets without DigitalOcean's monitoring agent report
-  # no readings.
   dropletmetrics:
+    # -- Report CPU, memory, disk and load per droplet from DigitalOcean's
+    # monitoring API. Off by default because that API answers one metric of one
+    # droplet per request: a refresh costs one droplet listing plus 10 requests per
+    # droplet, against an account limit of 5000 requests an hour. Work out
+    # `3600/interval * (1 + droplets*10)` before enabling it.
     enabled: false
+    # -- How often the dropletmetrics collector refreshes. The API samples every
+    # 2m, so anything shorter buys nothing.
     interval: 5m
+    # -- Timeout of one full dropletmetrics refresh.
     timeout: 2m
+    # -- How many droplets are queried at once.
     concurrency: 4
-  # The loadbalancermetrics collector reads the same monitoring API, at 7
-  # requests per load balancer per refresh. An account has far fewer load
-  # balancers than droplets, so the cost is small — but a load balancer cannot
-  # run node_exporter, which makes this the only source for its traffic and for
-  # which individual backend droplet is failing its health check.
   loadbalancermetrics:
+    # -- Report traffic and per-backend health per load balancer, at 7 monitoring
+    # API requests per load balancer per refresh. Off by default, but an account
+    # has far fewer load balancers than droplets, so the cost is usually small —
+    # and a load balancer cannot run node_exporter, which makes this the only
+    # source for its traffic and for which backend droplet is failing its check.
     enabled: false
+    # -- How often the loadbalancermetrics collector refreshes.
     interval: 5m
+    # -- Timeout of one full loadbalancermetrics refresh.
     timeout: 2m
+    # -- How many load balancers are queried at once.
     concurrency: 4
 
 log:
+  # -- Log level: `debug`, `info`, `warn` or `error`.
   level: info
+  # -- Log format: `logfmt` or `json`.
   format: logfmt
 
 service:
+  # -- Service type.
   type: ClusterIP
+  # -- Port the service exposes. The container always listens on 9212.
   port: 9212
 
 serviceMonitor:
+  # -- Create a Prometheus Operator ServiceMonitor. Requires the CRD to exist in
+  # the cluster.
   enabled: false
+  # -- Scrape interval. Collectors refresh in the background, so this is
+  # independent of how often the DigitalOcean API is called.
   interval: 60s
+  # -- Scrape timeout. Serving `/metrics` only reads an in-memory snapshot, so it
+  # never waits on the API.
   scrapeTimeout: 10s
+  # -- Extra labels for the ServiceMonitor, for whatever your Prometheus selects on.
   labels: {}
 
+# -- Container resources. The exporter holds one snapshot per collector in memory
+# and does nothing between refreshes.
 resources:
   requests:
     cpu: 10m
@@ -136,6 +179,9 @@ resources:
   limits:
     memory: 128Mi
 
+# -- Node selector for the pod.
 nodeSelector: {}
+# -- Tolerations for the pod.
 tolerations: []
+# -- Affinity rules for the pod.
 affinity: {}

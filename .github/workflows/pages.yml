@@ -1,0 +1,183 @@
+name: Pages
+
+# Publishes two things to one GitHub Pages site: the versioned documentation, and the Helm
+# chart repository that `helm repo add` and Terraform's helm_release consume.
+#
+# They are kept apart on purpose. mike owns the documentation and stores every built
+# version on the `docs-versions` branch, because old documentation must keep working
+# without being rebuilt. The chart index owns nothing: it is regenerated from the release
+# assets on every deploy, so it cannot drift from the set of releases that actually exist.
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "docs/**"
+      - "charts/**"
+      - "mkdocs.yml"
+      - "requirements-docs.txt"
+      - ".github/workflows/pages.yml"
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to build the documentation from. Empty means the caller's ref."
+        type: string
+        required: false
+      version:
+        description: "Documentation version to publish, e.g. 0.2. Empty publishes dev."
+        type: string
+        required: false
+      alias:
+        description: "Alias to move onto that version, e.g. latest."
+        type: string
+        required: false
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build the documentation from. Empty means this branch."
+        type: string
+        required: false
+      version:
+        description: "Documentation version to publish, e.g. 0.2. Empty publishes dev."
+        type: string
+        required: false
+      alias:
+        description: "Alias to move onto that version, e.g. latest."
+        type: string
+        required: false
+
+# One Pages deployment at a time, and never cancel one in flight: a half-finished deploy
+# would publish a site missing either the documentation or the chart index.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  DOCS_BRANCH: docs-versions
+  PAGES_URL: https://kozaktomas.github.io/digitalocean_exporter
+  KEEP_MINORS: "5"
+
+jobs:
+  docs:
+    name: Build documentation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # mike commits the built site to DOCS_BRANCH
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0 # mike needs the docs branch, not just this commit
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - run: pip install -r requirements-docs.txt
+
+      - name: Commit as the actions bot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy this version
+        env:
+          VERSION: ${{ inputs.version }}
+          ALIAS: ${{ inputs.alias }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VERSION}" ]; then
+            # A push to main documents the unreleased state.
+            mike deploy --push --branch "${DOCS_BRANCH}" --update-aliases dev
+            # Until the first release exists there is no `latest` for the site root to
+            # redirect to, so point it at dev and let the first release take it over.
+            if ! mike list --branch "${DOCS_BRANCH}" 2>/dev/null | grep -q '\blatest\b'; then
+              mike set-default --push --branch "${DOCS_BRANCH}" dev
+            fi
+          else
+            mike deploy --push --branch "${DOCS_BRANCH}" --update-aliases "${VERSION}" ${ALIAS:+"${ALIAS}"}
+            if [ -n "${ALIAS}" ]; then
+              mike set-default --push --branch "${DOCS_BRANCH}" "${ALIAS}"
+            fi
+          fi
+
+      - name: Keep only the newest minors
+        run: |
+          set -euo pipefail
+          stale=$( { mike list --branch "${DOCS_BRANCH}" --json 2>/dev/null || echo "[]"; } | python3 -c '
+          import json, sys
+
+          def semver(v):
+              try:
+                  return tuple(int(part) for part in v.split("."))
+              except ValueError:
+                  return None  # a named version such as dev, never pruned
+
+          raw = sys.stdin.read().strip()
+          entries = json.loads(raw) if raw else []
+          numbered = sorted(
+              (e["version"] for e in entries if semver(e["version"])),
+              key=semver,
+              reverse=True,
+          )
+          print(" ".join(numbered[int(sys.argv[1]):]))
+          ' "${KEEP_MINORS}")
+          if [ -n "${stale}" ]; then
+            echo "Pruning documentation versions: ${stale}"
+            # shellcheck disable=SC2086
+            mike delete --push --branch "${DOCS_BRANCH}" ${stale}
+          fi
+
+  deploy:
+    name: Assemble and deploy
+    needs: docs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the built documentation
+        uses: actions/checkout@v7
+        with:
+          ref: docs-versions
+          path: site
+
+      - uses: azure/setup-helm@v5
+
+      - name: Collect every released chart package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p site/charts
+          for tag in $(gh release list --limit 200 --json tagName --jq '.[].tagName'); do
+            # A release without a chart asset is not an error: the first releases predate
+            # the chart, and goreleaser attaches the package only from now on.
+            gh release download "${tag}" --dir site/charts --pattern '*.tgz' --clobber || true
+          done
+          ls -l site/charts
+
+      - name: Build the chart repository index
+        run: |
+          set -euo pipefail
+          # Absolute URLs, so the index works from the site root while the packages sit
+          # under /charts. With no releases yet this writes a valid, empty index, which
+          # `helm repo add` accepts — the bootstrap case is not a special case.
+          helm repo index site/charts --url "${PAGES_URL}/charts"
+          mv site/charts/index.yaml site/index.yaml
+
+      - name: Drop the git metadata
+        run: rm -rf site/.git
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v5

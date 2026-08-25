@@ -13,6 +13,8 @@ concurrency:
 env:
   GO_VERSION: "1.26"
   GOLANGCI_LINT_VERSION: "v2.11.4"
+  HELM_DOCS_VERSION: "1.14.2"
+  PYTHON_VERSION: "3.13"
 
 jobs:
   check:
@@ -45,8 +47,40 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: azure/setup-helm@v5
+
       - name: Lint and render the chart
         run: make chart-lint
+
+      - name: Install helm-docs
+        run: |
+          set -euo pipefail
+          curl -sSfL "https://github.com/norwoodj/helm-docs/releases/download/v${HELM_DOCS_VERSION}/helm-docs_${HELM_DOCS_VERSION}_Linux_x86_64.tar.gz" \
+            | tar -xz -C /usr/local/bin helm-docs
+
+      # The values reference on the documentation site is this generated file. If the two
+      # are allowed to diverge, the site quietly documents a chart that no longer exists.
+      - name: Check the generated chart README is up to date
+        run: |
+          make chart-docs
+          git diff --exit-code -- charts/digitalocean-exporter/README.md
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - run: pip install -r requirements-docs.txt
+
+      # --strict turns a broken link or a page missing from the nav into a failure here,
+      # rather than a 404 discovered on the published site.
+      - name: Build the documentation
+        run: make docs
 
   image:
     # Validates the Dockerfile on every pull request without publishing.

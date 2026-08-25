@@ -1,0 +1,98 @@
+site_name: digitalocean_exporter
+site_description: A Prometheus exporter for DigitalOcean
+site_url: https://kozaktomas.github.io/digitalocean_exporter/
+site_author: Tomas Kozak
+
+repo_url: https://github.com/kozaktomas/digitalocean_exporter
+repo_name: kozaktomas/digitalocean_exporter
+edit_uri: edit/main/docs/
+
+copyright: Apache License 2.0
+
+theme:
+  name: material
+  language: en
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - content.action.edit
+    - content.code.copy
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.suggest
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+plugins:
+  - search
+  - include-markdown
+  # `alias_type: copy` because GitHub Pages does not follow symlinks, which is mike's
+  # default and would leave /latest/ returning 404. `canonical_version` then tells search
+  # engines which of the identical copies to index.
+  - mike:
+      alias_type: copy
+      canonical_version: latest
+
+extra:
+  version:
+    provider: mike
+    default: latest
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - tables
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Install:
+      - install/index.md
+      - Docker: install/docker.md
+      - Kubernetes and Helm: install/kubernetes.md
+      - Terraform: install/terraform.md
+      - Debian package: install/debian.md
+      - Binary: install/binary.md
+  - Configuration:
+      - configuration/index.md
+      - Collectors: configuration/collectors.md
+      - Spaces: configuration/spaces.md
+      - Monitoring API: configuration/monitoring-api.md
+  - Helm chart:
+      - helm/index.md
+      - Values reference: helm/values.md
+      - Secrets: helm/secrets.md
+  - Metrics: metrics.md
+  - Operations: operations.md
+  - Development: development.md
+  - Design notes:
+      - design/2026-08-24-spaces-collector.md
+      - design/2026-08-25-documentation-site-and-chart-repository.md

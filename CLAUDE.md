@@ -57,7 +57,34 @@ Before its first successful refresh a collector emits nothing, rather than zeros
    bucket is.
 5. Tests: drive `Refresh` against an `httptest` server, compare `Collect` against golden
    exposition text with `testutil.CollectAndCompare`. Cover the failure path.
-6. Document the metrics in `docs/metrics.md`.
+6. Add it to the chart: `values.yaml` and the `args` block in `templates/deployment.yaml`,
+   remembering the `--no-collector.<name>` branch. Every value needs a `# --` comment —
+   that is what generates the values reference; a plain `#` comment is invisible to it.
+   Then `make chart-docs`, and commit the regenerated `charts/*/README.md`. CI fails if it
+   is stale.
+7. Document it: the metrics in `docs/metrics.md`, and what it costs and when to switch it
+   off in `docs/configuration/collectors.md` (or its own page, as `spaces` and the
+   monitoring-API collectors have). Every page must be in the `nav` of `mkdocs.yml`, and
+   `make docs` builds with `--strict`, so a broken link fails.
+
+## Publishing
+
+One GitHub Pages site carries two things, and they have separate owners:
+
+- **Versioned documentation**, owned by `mike`, which stores every built version on the
+  `docs-versions` branch. Pages is *not* served from that branch — it stays on
+  `build_type: workflow`, and the deploy job assembles the site from it.
+- **The Helm chart repository** (`index.yaml` + `charts/*.tgz`), which is regenerated from
+  the GitHub Release assets on every deploy and never committed. Do not add a step that
+  commits `index.yaml`; the whole point is that it cannot drift from the releases.
+
+A release is cut by pushing a tag. `release.yml` packages the chart at the tag's version,
+hands it to goreleaser as a release asset, then calls `pages.yml`. Nothing else is manual.
+The tag must be plain `vMAJOR.MINOR.PATCH` — the workflow rejects anything else, because
+one number drives the binary, the chart, the `appVersion` and the documentation directory.
+
+`docs/design/2026-08-25-documentation-site-and-chart-repository.md` explains why it is
+arranged this way.
 
 ## Naming traps
 
@@ -78,7 +105,8 @@ Before its first successful refresh a collector emits nothing, rather than zeros
 ## Working rules
 
 - `make check` (gofmt, go vet, golangci-lint, tests, race detector) must pass before every
-  commit. The lint configuration is strict on purpose; do not soften it. The race detector
+  commit. Touching the chart also means `make chart-docs`; touching `docs/` means
+  `make docs`. The lint configuration is strict on purpose; do not soften it. The race detector
   is part of the gate because CI runs it and a collector that fans out over buckets can
   race in its own test stub, which the plain test run will not notice.
 - `make smoke` runs the exporter end to end against a stub API and needs no token.

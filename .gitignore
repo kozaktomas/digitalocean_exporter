@@ -1,6 +1,10 @@
 /digitalocean_exporter
 dist/
+dist-chart/
 coverage.out
+
+# Built documentation site.
+site/
 *.deb
 *.tar.gz
 .env

@@ -5,21 +5,53 @@ on:
     tags: ["v*.*.*"]
 
 permissions:
-  contents: write   # goreleaser creates the GitHub Release
-  packages: write   # helm push writes the chart to GHCR
+  contents: write # goreleaser creates the GitHub Release
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      minor: ${{ steps.version.outputs.minor }}
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 0   # full history for the changelog
+          fetch-depth: 0 # full history for the changelog
+
+      - id: version
+        name: Derive the version from the tag
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/}"
+          version="${tag#v}"
+          # The tag filter above still admits things like v1.2.beta. One number drives the
+          # binary, the chart, the appVersion and the documentation directory, so a tag
+          # that is not plain semver has to fail here rather than halfway through.
+          if ! printf '%s' "${version}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::tag ${tag} is not a plain semantic version (expected vMAJOR.MINOR.PATCH)"
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "minor=${version%.*}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26"
 
+      - uses: azure/setup-helm@v5
+
+      - name: Package the Helm chart
+        run: |
+          set -euo pipefail
+          mkdir -p dist-chart
+          helm package charts/digitalocean-exporter \
+            --version "${{ steps.version.outputs.version }}" \
+            --app-version "${{ steps.version.outputs.version }}" \
+            --destination dist-chart
+
+      # goreleaser attaches dist-chart/*.tgz to the release through release.extra_files.
+      # The Pages workflow builds the chart repository index from those assets, so this
+      # upload is what actually publishes the chart.
       - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
@@ -28,13 +60,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: azure/setup-helm@v5
-
-      - name: Publish the Helm chart
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
-          helm package charts/digitalocean-exporter --version "$VERSION" --app-version "$VERSION"
-          echo "$GH_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
-          helm push "digitalocean-exporter-${VERSION}.tgz" oci://ghcr.io/kozaktomas/chart
+  # Publishes documentation for this minor, moves `latest` onto it, and regenerates the
+  # chart repository index so the new package appears in index.yaml.
+  #
+  # Called directly rather than triggered by `on: release`, because GitHub does not fire
+  # workflow events for actions taken with GITHUB_TOKEN — and goreleaser creates the
+  # release with exactly that token.
+  pages:
+    needs: release
+    uses: ./.github/workflows/pages.yml
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    with:
+      version: ${{ needs.release.outputs.minor }}
+      alias: latest

@@ -4,7 +4,7 @@ VERSION     ?= dev
 COMMIT      ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 LDFLAGS     := -s -w -X $(PKG)/internal/version.Version=$(VERSION) -X $(PKG)/internal/version.Commit=$(COMMIT)
 
-.PHONY: build run fmt vet lint test test-race check smoke docker snapshot chart-lint clean
+.PHONY: build run fmt vet lint test test-race check smoke docker snapshot chart-lint chart-docs docs docs-serve clean
 
 ## build: Compile the exporter binary.
 build:
@@ -56,6 +56,18 @@ chart-lint:
 	helm lint charts/digitalocean-exporter --set digitalocean.token=dummy
 	helm template charts/digitalocean-exporter --set digitalocean.token=dummy >/dev/null
 
+## chart-docs: Regenerate the chart README from the comments in values.yaml.
+chart-docs:
+	helm-docs --chart-search-root=charts --template-files=README.md.gotmpl
+
+## docs: Build the documentation site into site/.
+docs:
+	mkdocs build --strict
+
+## docs-serve: Serve the documentation locally with live reload.
+docs-serve:
+	mkdocs serve
+
 ## clean: Remove build artifacts.
 clean:
-	rm -rf $(APP_NAME) coverage.out dist/
+	rm -rf $(APP_NAME) coverage.out dist/ dist-chart/ site/

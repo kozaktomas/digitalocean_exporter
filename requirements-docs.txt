@@ -1,0 +1,6 @@
+# Toolchain for the documentation site. Pinned so that a build in CI, a build on a
+# maintainer's machine and a rebuild of an old version years from now all agree.
+mkdocs==1.6.1
+mkdocs-material==9.7.7
+mike==2.2.0
+mkdocs-include-markdown-plugin==7.3.0
