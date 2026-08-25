@@ -287,3 +287,25 @@ func TestParseRegistersTheLimitsCollector(t *testing.T) {
 		t.Error("limits collector = enabled, want disabled")
 	}
 }
+
+func TestParseRegistersTheDropletsCollector(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	d, ok := cfg.Collectors["droplets"]
+	if !ok {
+		t.Fatal("droplets collector missing from config")
+	}
+	if !d.Enabled || d.Interval != 5*time.Minute {
+		t.Errorf("droplets = %+v, want enabled with a 5m interval", d)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--no-collector.droplets"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Collectors["droplets"].Enabled {
+		t.Error("droplets collector = enabled, want disabled")
+	}
+}

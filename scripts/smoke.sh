@@ -25,7 +25,11 @@ SUBSCRIPTION = {"subscription": {"tier": {"name": "Basic", "slug": "basic",
                                           "monthly_price_in_cents": 500},
                                  "created_at": "2026-01-01T00:00:00Z",
                                  "updated_at": "2026-01-01T00:00:00Z"}}
-DROPLETS = {"droplets": [{"id": 1, "name": "web-1", "status": "active"}], "meta": {"total": 5}}
+DROPLETS = {"droplets": [{"id": 1, "name": "web-1", "status": "active", "vcpus": 2, "memory": 4096,
+                          "disk": 80, "region": {"slug": "fra1"},
+                          "size": {"slug": "s-2vcpu-4gb", "price_hourly": 0.02679, "price_monthly": 18},
+                          "image": {"slug": "ubuntu-24-04"}}],
+            "meta": {"total": 5}}
 RESERVED_IPS = {"reserved_ips": [], "meta": {"total": 0}}
 VOLUMES = {"volumes": [{"id": "vol", "name": "data"}], "meta": {"total": 13}}
 REPOSITORIES = {"repositories": [{"registry_name": "smoke", "name": "app", "tag_count": 3,
@@ -88,6 +92,7 @@ DO_SPACES_ENDPOINT="http://127.0.0.1:${API_PORT}" \
   "$BIN" --do.token=smoke-token --web.listen-address="127.0.0.1:${PORT}" \
          --collector.account.interval=1s --collector.balance.interval=1s \
          --collector.registry.interval=1s --collector.limits.interval=1s \
+         --collector.droplets.interval=1s \
          --collector.spaces --collector.spaces.interval=1s \
          --spaces.access-key=smoke --spaces.secret-key=smoke \
          --spaces.region=fra1 --collector.spaces.bucket=smoke &
@@ -117,7 +122,9 @@ for metric in \
   digitalocean_registry_storage_usage_bytes \
   digitalocean_registry_repository_tags \
   digitalocean_account_droplets \
-  digitalocean_account_volumes
+  digitalocean_account_volumes \
+  digitalocean_droplet_up \
+  digitalocean_droplet_price_monthly
 do
   if grep -q "^${metric}" <<<"$METRICS"; then
     echo "ok   ${metric}"

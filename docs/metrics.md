@@ -15,6 +15,45 @@ Collected by `account` from `/v2/account`.
 | `digitalocean_account_reserved_ip_limit` | Maximum number of reserved IPs allowed |
 | `digitalocean_account_volume_limit` | Maximum number of volumes allowed |
 
+## Droplets
+
+Collected by `droplets` from `/v2/droplets`, one set of metrics per droplet.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_droplet_up` | `id`, `name`, `region` | 1 if the droplet's status is `active`, else 0 |
+| `digitalocean_droplet_cpus` | `id`, `name`, `region` | Number of virtual CPUs |
+| `digitalocean_droplet_memory_bytes` | `id`, `name`, `region` | Memory of the droplet |
+| `digitalocean_droplet_disk_bytes` | `id`, `name`, `region` | Disk of the droplet |
+| `digitalocean_droplet_price_hourly` | `id`, `name`, `region` | Price per hour in US dollars |
+| `digitalocean_droplet_price_monthly` | `id`, `name`, `region` | Price per month in US dollars |
+| `digitalocean_droplet_info` | `id`, `name`, `region`, `size`, `status`, `image` | Always 1 |
+
+The first six names and their label sets are those of the older, unmaintained exporter, so
+dashboards survive a migration. The size, the exact status and the image are the labels it
+does not carry; widening the metrics would have broken that compatibility, so they live on
+`digitalocean_droplet_info` instead. Join on `id` to break a bill down by size:
+
+```promql
+sum by (size) (
+  digitalocean_droplet_price_monthly * on (id) group_left(size) digitalocean_droplet_info
+)
+```
+
+**One figure deliberately differs from the older exporter.** It reads DigitalOcean's disk
+gigabytes as decimal and its memory megabytes as binary; this collector reads both as
+binary, which makes `digitalocean_droplet_disk_bytes` about 7% larger. A droplet sold as
+160 GB reports 160 GiB, matching what the operating system on it will show.
+
+Droplets that belong to a managed Kubernetes cluster are ordinary droplets and are reported
+like any other. They run a custom image, which carries no slug, so `image` falls back to the
+image name — `do-kube-1.35.5-do.1`, which names the cluster version. Their names are
+generated and change when a node is replaced, so the series churn; read them through
+`sum()` rather than by name.
+
+Droplet tags are not exported. A droplet carries any number of them, and a label per tag
+would multiply the series of every droplet by the tags it happens to have.
+
 ## Limits in use
 
 Collected by `limits` from `/v2/droplets`, `/v2/reserved_ips` and `/v2/volumes`. Each is

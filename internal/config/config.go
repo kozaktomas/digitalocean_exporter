@@ -111,6 +111,8 @@ type flags struct {
 	registryInterval *time.Duration
 	limits           *bool
 	limitsInterval   *time.Duration
+	droplets         *bool
+	dropletsInterval *time.Duration
 	spaces           *bool
 	spacesInterval   *time.Duration
 	spacesTimeout    *time.Duration
@@ -179,6 +181,10 @@ func bind(app *kingpin.Application) *flags {
 		Envar("COLLECTOR_LIMITS").Default("true").Bool()
 	f.limitsInterval = app.Flag("collector.limits.interval", "Refresh interval of the limits collector.").
 		Envar("COLLECTOR_LIMITS_INTERVAL").Default("5m").Duration()
+	f.droplets = app.Flag("collector.droplets", "Enable the droplets collector.").
+		Envar("COLLECTOR_DROPLETS").Default("true").Bool()
+	f.dropletsInterval = app.Flag("collector.droplets.interval", "Refresh interval of the droplets collector.").
+		Envar("COLLECTOR_DROPLETS_INTERVAL").Default("5m").Duration()
 	bindSpaces(app, f)
 	return f
 }
@@ -233,6 +239,7 @@ func (f *flags) config() (*Config, error) {
 			"balance":  {Enabled: *f.balance, Interval: *f.balanceInterval},
 			"registry": {Enabled: *f.registry, Interval: *f.registryInterval},
 			"limits":   {Enabled: *f.limits, Interval: *f.limitsInterval},
+			"droplets": {Enabled: *f.droplets, Interval: *f.dropletsInterval},
 			"spaces": {
 				Enabled:  *f.spaces,
 				Interval: *f.spacesInterval,

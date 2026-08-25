@@ -33,6 +33,11 @@ collectors:
   balance:
     enabled: true
     interval: 5m
+  # The droplets collector reports one set of metrics per droplet, including
+  # the droplets a managed Kubernetes cluster runs.
+  droplets:
+    enabled: true
+    interval: 5m
   # The limits collector counts the droplets, reserved IPs and volumes the
   # account uses, which pair with the limits the account collector reports.
   limits:
