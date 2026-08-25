@@ -120,5 +120,20 @@ Semantic versioning, with one number for everything: exporter, chart, `appVersio
 documentation directory. While the project is `0.x`, a minor bump is allowed to break
 compatibility.
 
+!!! warning "One repository setting the release depends on"
+
+    Publishing Pages from a release means deploying from a **tag**, and the `github-pages`
+    environment only accepts the refs it is told to. Under *Settings → Environments →
+    github-pages → Deployment branches and tags* there has to be a rule of type **Tag**
+    matching `v*.*.*`, alongside the `main` branch rule.
+
+    Without it the release's deploy job fails before its first step, with no log to explain
+    why — the documentation and the chart asset are published, but the site is never
+    refreshed. Adding the rule as a *branch* pattern looks identical in the list and does
+    not work; the ref type has to be Tag.
+
+    The recovery, if a release ever lands without it: run the Pages workflow by hand from
+    `main` with `ref` set to the tag, `version` to the minor and `alias` to `latest`.
+
 How that pipeline is put together, and why, is written up in
 [the design note](design/2026-08-25-documentation-site-and-chart-repository.md).
