@@ -28,6 +28,7 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/limits"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/registry"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/spaces"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/volumes"
 	"github.com/kozaktomas/digitalocean_exporter/internal/config"
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
 	"github.com/kozaktomas/digitalocean_exporter/internal/spacesclient"
@@ -115,6 +116,9 @@ func registerCollectors(
 	}
 	if c := cfg.Collectors["spaces"]; c.Enabled {
 		scheduler.Register(newSpaces(cfg.Spaces, logger), c.Interval, c.Timeout)
+	}
+	if c := cfg.Collectors["volumes"]; c.Enabled {
+		scheduler.Register(volumes.New(client), c.Interval, c.Timeout)
 	}
 }
 

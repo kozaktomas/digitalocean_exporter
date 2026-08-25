@@ -18,7 +18,7 @@ actually deserves.
 ## Status
 
 Early. This release ships the exporter skeleton, the full build and release pipeline, and
-eight collectors:
+nine collectors:
 
 | Collector | State |
 |---|---|
@@ -30,6 +30,7 @@ eight collectors:
 | `limits` — droplets, reserved IPs and volumes in use against the account limits | available |
 | `registry` — Container Registry storage, subscription and repositories | available |
 | `spaces` — bucket size and object count (needs a Spaces access key) | available |
+| `volumes` — size of every block storage volume and what it is attached to | available |
 | load balancers, domains, firewalls | planned |
 
 ## Install

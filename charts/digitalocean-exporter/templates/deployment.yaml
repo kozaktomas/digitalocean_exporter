@@ -87,6 +87,12 @@ spec:
             {{- else }}
             - --no-collector.spaces
             {{- end }}
+            {{- if .Values.collectors.volumes.enabled }}
+            - --collector.volumes
+            - --collector.volumes.interval={{ .Values.collectors.volumes.interval }}
+            {{- else }}
+            - --no-collector.volumes
+            {{- end }}
           ports:
             - name: metrics
               containerPort: {{ .Values.service.port }}

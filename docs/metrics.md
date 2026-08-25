@@ -54,6 +54,32 @@ generated and change when a node is replaced, so the series churn; read them thr
 Droplet tags are not exported. A droplet carries any number of them, and a label per tag
 would multiply the series of every droplet by the tags it happens to have.
 
+## Volumes
+
+Collected by `volumes` from `/v2/volumes`, one set of metrics per block storage volume.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_volume_size_bytes` | `id`, `name`, `region` | Size of the volume |
+| `digitalocean_volume_droplets` | `id`, `name`, `region` | Number of droplets the volume is attached to |
+| `digitalocean_volume_info` | `id`, `name`, `region`, `filesystem_type`, `filesystem_label` | Always 1 |
+
+`digitalocean_volume_size_bytes` and its labels are those of the older exporter, including
+its reading of the API's gigabytes as binary, so a volume sold as 100 GB reports 100 GiB.
+
+Attachment is a count, not a boolean. A volume can be attached to more than one droplet, so
+a single `droplet_id` label would have to pick one arbitrarily. The number answers the
+question that matters, which is whether anything is using the volume at all:
+
+```promql
+digitalocean_volume_droplets == 0
+```
+
+An unattached volume is billed at full price while serving nothing, so this is worth an
+alert rather than a panel. Volumes created by a Kubernetes `PersistentVolumeClaim` are the
+usual culprits: deleting a pod does not delete its claim, and a released claim keeps its
+volume until something reaps it.
+
 ## Kubernetes
 
 Collected by `kubernetes` from `/v2/kubernetes/clusters`, one set of metrics per cluster and

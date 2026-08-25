@@ -353,3 +353,25 @@ func TestParseRegistersTheKubernetesCollector(t *testing.T) {
 		t.Error("kubernetes collector = enabled, want disabled")
 	}
 }
+
+func TestVolumesCollectorDefaultsOnAndCanBeDisabled(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	v, ok := cfg.Collectors["volumes"]
+	if !ok {
+		t.Fatal("volumes collector missing from config")
+	}
+	if !v.Enabled || v.Interval != 5*time.Minute {
+		t.Errorf("volumes = %+v, want enabled with a 5m interval", v)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--no-collector.volumes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Collectors["volumes"].Enabled {
+		t.Error("volumes collector = enabled, want disabled")
+	}
+}

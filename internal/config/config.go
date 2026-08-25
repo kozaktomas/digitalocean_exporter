@@ -117,6 +117,8 @@ type flags struct {
 	databasesInterval  *time.Duration
 	kubernetes         *bool
 	kubernetesInterval *time.Duration
+	volumes            *bool
+	volumesInterval    *time.Duration
 	spaces             *bool
 	spacesInterval     *time.Duration
 	spacesTimeout      *time.Duration
@@ -198,8 +200,18 @@ func bind(app *kingpin.Application) *flags {
 	f.kubernetesInterval = app.Flag("collector.kubernetes.interval",
 		"Refresh interval of the Kubernetes collector.").
 		Envar("COLLECTOR_KUBERNETES_INTERVAL").Default("5m").Duration()
+	bindInventory(app, f)
 	bindSpaces(app, f)
 	return f
+}
+
+// bindInventory declares the flags of the collectors that read one list
+// endpoint each. They are grouped here to keep bind short enough to read.
+func bindInventory(app *kingpin.Application, f *flags) {
+	f.volumes = app.Flag("collector.volumes", "Enable the block storage volumes collector.").
+		Envar("COLLECTOR_VOLUMES").Default("true").Bool()
+	f.volumesInterval = app.Flag("collector.volumes.interval", "Refresh interval of the volumes collector.").
+		Envar("COLLECTOR_VOLUMES_INTERVAL").Default("5m").Duration()
 }
 
 // bindSpaces declares the flags of the Spaces collector, which brings its own
@@ -255,6 +267,7 @@ func (f *flags) config() (*Config, error) {
 			"droplets":   {Enabled: *f.droplets, Interval: *f.dropletsInterval},
 			"databases":  {Enabled: *f.databases, Interval: *f.databasesInterval},
 			"kubernetes": {Enabled: *f.kubernetes, Interval: *f.kubernetesInterval},
+			"volumes":    {Enabled: *f.volumes, Interval: *f.volumesInterval},
 			"spaces": {
 				Enabled:  *f.spaces,
 				Interval: *f.spacesInterval,

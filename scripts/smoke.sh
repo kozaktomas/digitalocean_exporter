@@ -31,7 +31,10 @@ DROPLETS = {"droplets": [{"id": 1, "name": "web-1", "status": "active", "vcpus":
                           "image": {"slug": "ubuntu-24-04"}}],
             "meta": {"total": 5}}
 RESERVED_IPS = {"reserved_ips": [], "meta": {"total": 0}}
-VOLUMES = {"volumes": [{"id": "vol", "name": "data"}], "meta": {"total": 13}}
+VOLUMES = {"volumes": [{"id": "vol", "name": "data", "region": {"slug": "fra1"},
+                        "size_gigabytes": 100, "filesystem_type": "ext4",
+                        "filesystem_label": "data", "droplet_ids": [1]}],
+           "meta": {"total": 13}}
 DATABASES = {"databases": [{"id": "1", "name": "main", "engine": "mysql", "version": "8",
                             "num_nodes": 1, "size": "db-2vcpu-4gb", "region": "fra1",
                             "status": "online", "storage_size_mib": 102400,
@@ -145,7 +148,9 @@ for metric in \
   digitalocean_database_status \
   digitalocean_database_storage_bytes \
   digitalocean_kubernetes_cluster_up \
-  digitalocean_kubernetes_node_pool_nodes_running
+  digitalocean_kubernetes_node_pool_nodes_running \
+  digitalocean_volume_size_bytes \
+  digitalocean_volume_droplets
 do
   if grep -q "^${metric}" <<<"$METRICS"; then
     echo "ok   ${metric}"

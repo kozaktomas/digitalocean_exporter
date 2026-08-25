@@ -73,6 +73,12 @@ collectors:
     concurrency: 4
     region: ""
     buckets: []
+  # The volumes collector reports the size of every block storage volume and
+  # how many droplets it is attached to. A volume attached to none is billed
+  # while serving nothing, which is what makes it worth an alert.
+  volumes:
+    enabled: true
+    interval: 5m
 
 log:
   level: info
