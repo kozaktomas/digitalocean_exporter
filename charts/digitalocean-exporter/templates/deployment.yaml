@@ -41,6 +41,12 @@ spec:
             {{- else }}
             - --no-collector.balance
             {{- end }}
+            {{- if .Values.collectors.limits.enabled }}
+            - --collector.limits
+            - --collector.limits.interval={{ .Values.collectors.limits.interval }}
+            {{- else }}
+            - --no-collector.limits
+            {{- end }}
             {{- if .Values.collectors.registry.enabled }}
             - --collector.registry
             - --collector.registry.interval={{ .Values.collectors.registry.interval }}

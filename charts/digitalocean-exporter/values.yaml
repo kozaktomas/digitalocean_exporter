@@ -33,6 +33,11 @@ collectors:
   balance:
     enabled: true
     interval: 5m
+  # The limits collector counts the droplets, reserved IPs and volumes the
+  # account uses, which pair with the limits the account collector reports.
+  limits:
+    enabled: true
+    interval: 5m
   # The registry collector reads the account's container registry. An account
   # that has none is not a failure: the collector then reports no metrics and
   # its collector_success stays 1, so it can be left enabled everywhere.

@@ -265,3 +265,25 @@ func TestParseConfiguresTheRegistryCollectorAlone(t *testing.T) {
 		t.Errorf("registry interval = %v, want 30m", got)
 	}
 }
+
+func TestParseRegistersTheLimitsCollector(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	l, ok := cfg.Collectors["limits"]
+	if !ok {
+		t.Fatal("limits collector missing from config")
+	}
+	if !l.Enabled || l.Interval != 5*time.Minute {
+		t.Errorf("limits = %+v, want enabled with a 5m interval", l)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--no-collector.limits"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Collectors["limits"].Enabled {
+		t.Error("limits collector = enabled, want disabled")
+	}
+}

@@ -25,6 +25,9 @@ SUBSCRIPTION = {"subscription": {"tier": {"name": "Basic", "slug": "basic",
                                           "monthly_price_in_cents": 500},
                                  "created_at": "2026-01-01T00:00:00Z",
                                  "updated_at": "2026-01-01T00:00:00Z"}}
+DROPLETS = {"droplets": [{"id": 1, "name": "web-1", "status": "active"}], "meta": {"total": 5}}
+RESERVED_IPS = {"reserved_ips": [], "meta": {"total": 0}}
+VOLUMES = {"volumes": [{"id": "vol", "name": "data"}], "meta": {"total": 13}}
 REPOSITORIES = {"repositories": [{"registry_name": "smoke", "name": "app", "tag_count": 3,
                                   "manifest_count": 2,
                                   "latest_manifest": {"compressed_size_bytes": 12345678,
@@ -41,6 +44,9 @@ LISTING = b"""<?xml version="1.0" encoding="UTF-8"?>
 </ListBucketResult>"""
 
 ROUTES = {"/v2/customers/my/balance": BALANCE,
+          "/v2/droplets": DROPLETS,
+          "/v2/reserved_ips": RESERVED_IPS,
+          "/v2/volumes": VOLUMES,
           "/v2/registry": REGISTRY,
           "/v2/registry/subscription": SUBSCRIPTION,
           "/v2/registry/smoke/repositoriesV2": REPOSITORIES}
@@ -81,7 +87,7 @@ DO_API_BASE_URL="http://127.0.0.1:${API_PORT}/" \
 DO_SPACES_ENDPOINT="http://127.0.0.1:${API_PORT}" \
   "$BIN" --do.token=smoke-token --web.listen-address="127.0.0.1:${PORT}" \
          --collector.account.interval=1s --collector.balance.interval=1s \
-         --collector.registry.interval=1s \
+         --collector.registry.interval=1s --collector.limits.interval=1s \
          --collector.spaces --collector.spaces.interval=1s \
          --spaces.access-key=smoke --spaces.secret-key=smoke \
          --spaces.region=fra1 --collector.spaces.bucket=smoke &
@@ -109,7 +115,9 @@ for metric in \
   digitalocean_spaces_bucket_size_bytes \
   digitalocean_spaces_bucket_objects \
   digitalocean_registry_storage_usage_bytes \
-  digitalocean_registry_repository_tags
+  digitalocean_registry_repository_tags \
+  digitalocean_account_droplets \
+  digitalocean_account_volumes
 do
   if grep -q "^${metric}" <<<"$METRICS"; then
     echo "ok   ${metric}"

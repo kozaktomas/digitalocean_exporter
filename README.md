@@ -18,12 +18,13 @@ actually deserves.
 ## Status
 
 Early. This release ships the exporter skeleton, the full build and release pipeline, and
-four collectors:
+five collectors:
 
 | Collector | State |
 |---|---|
 | `account` — status and resource limits | available |
 | `balance` — balance and month-to-date usage (needs a billing-scoped token) | available |
+| `limits` — droplets, reserved IPs and volumes in use against the account limits | available |
 | `registry` — Container Registry storage, subscription and repositories | available |
 | `spaces` — bucket size and object count (needs a Spaces access key) | available |
 | droplets, load balancers, databases, domains | planned |
@@ -89,6 +90,8 @@ Every flag has an environment-variable equivalent. Flags win over the environmen
 | `--collector.account.interval` | `COLLECTOR_ACCOUNT_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.balance` | `COLLECTOR_BALANCE` | `true` | Enable the balance collector |
 | `--collector.balance.interval` | `COLLECTOR_BALANCE_INTERVAL` | `5m` | Its refresh interval |
+| `--collector.limits` | `COLLECTOR_LIMITS` | `true` | Enable the limits collector |
+| `--collector.limits.interval` | `COLLECTOR_LIMITS_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.registry` | `COLLECTOR_REGISTRY` | `true` | Enable the container registry collector |
 | `--collector.registry.interval` | `COLLECTOR_REGISTRY_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.spaces` | `COLLECTOR_SPACES` | `false` | Enable the Spaces collector |

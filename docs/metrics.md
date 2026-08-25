@@ -15,6 +15,32 @@ Collected by `account` from `/v2/account`.
 | `digitalocean_account_reserved_ip_limit` | Maximum number of reserved IPs allowed |
 | `digitalocean_account_volume_limit` | Maximum number of volumes allowed |
 
+## Limits in use
+
+Collected by `limits` from `/v2/droplets`, `/v2/reserved_ips` and `/v2/volumes`. Each is
+asked for one item per page, because the figure comes from `meta.total`: the inventory
+itself never travels.
+
+| Metric | Description |
+|---|---|
+| `digitalocean_account_droplets` | Number of droplets on the account |
+| `digitalocean_account_reserved_ips` | Number of reserved IP addresses on the account |
+| `digitalocean_account_volumes` | Number of block storage volumes on the account |
+
+A limit only raises the question of how much of it is left. Paired with the account
+collector's limits, these answer it:
+
+```promql
+digitalocean_account_droplets / digitalocean_account_droplet_limit
+digitalocean_account_reserved_ips / digitalocean_account_reserved_ip_limit
+digitalocean_account_volumes / digitalocean_account_volume_limit
+```
+
+A response without `meta.total` fails the refresh instead of falling back to the length of
+the page — a page holds one item by design, so that fallback would report one droplet for an
+account running a hundred. All three counts are read before the snapshot is replaced, so one
+failing endpoint keeps the previous figures rather than mixing old and new.
+
 ## Balance
 
 Collected by `balance` from `/v2/customers/my/balance`.
@@ -145,6 +171,12 @@ groups:
         for: 15m
         annotations:
           summary: "Collector {{ $labels.collector }} has been failing for 15 minutes"
+
+      - alert: DigitalOceanAccountNearDropletLimit
+        expr: digitalocean_account_droplets / digitalocean_account_droplet_limit > 0.8
+        for: 1h
+        annotations:
+          summary: "The account uses over 80% of its droplet limit"
 
       - alert: DigitalOceanRegistryStorageNearQuota
         expr: >

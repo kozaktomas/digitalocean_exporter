@@ -109,6 +109,8 @@ type flags struct {
 	balanceInterval  *time.Duration
 	registry         *bool
 	registryInterval *time.Duration
+	limits           *bool
+	limitsInterval   *time.Duration
 	spaces           *bool
 	spacesInterval   *time.Duration
 	spacesTimeout    *time.Duration
@@ -172,6 +174,11 @@ func bind(app *kingpin.Application) *flags {
 		Envar("COLLECTOR_REGISTRY").Default("true").Bool()
 	f.registryInterval = app.Flag("collector.registry.interval", "Refresh interval of the registry collector.").
 		Envar("COLLECTOR_REGISTRY_INTERVAL").Default("5m").Duration()
+	f.limits = app.Flag("collector.limits",
+		"Enable the limits collector, which counts droplets, reserved IPs and volumes.").
+		Envar("COLLECTOR_LIMITS").Default("true").Bool()
+	f.limitsInterval = app.Flag("collector.limits.interval", "Refresh interval of the limits collector.").
+		Envar("COLLECTOR_LIMITS_INTERVAL").Default("5m").Duration()
 	bindSpaces(app, f)
 	return f
 }
@@ -225,6 +232,7 @@ func (f *flags) config() (*Config, error) {
 			"account":  {Enabled: *f.account, Interval: *f.accountInterval},
 			"balance":  {Enabled: *f.balance, Interval: *f.balanceInterval},
 			"registry": {Enabled: *f.registry, Interval: *f.registryInterval},
+			"limits":   {Enabled: *f.limits, Interval: *f.limitsInterval},
 			"spaces": {
 				Enabled:  *f.spaces,
 				Interval: *f.spacesInterval,
