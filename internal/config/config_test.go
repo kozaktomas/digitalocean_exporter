@@ -227,3 +227,41 @@ func TestParseSpacesRejectsBothSecretSources(t *testing.T) {
 		t.Fatalf("error = %v, want ErrSpacesCredentialConflict", err)
 	}
 }
+
+func TestParseRegistersTheRegistryCollector(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	registry, ok := cfg.Collectors["registry"]
+	if !ok {
+		t.Fatal("registry collector missing from config")
+	}
+	if !registry.Enabled || registry.Interval != 5*time.Minute {
+		t.Errorf("registry = %+v, want enabled with a 5m interval", registry)
+	}
+}
+
+// An account with no container registry has nothing to collect, so the
+// collector must be switchable on its own, and its interval must be settable
+// for a registry whose storage figure DigitalOcean updates rarely.
+func TestParseConfiguresTheRegistryCollectorAlone(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret", "--no-collector.registry"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Collectors["registry"].Enabled {
+		t.Error("registry collector = enabled, want disabled")
+	}
+	if !cfg.Collectors["account"].Enabled {
+		t.Error("account collector = disabled, want it untouched")
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--collector.registry.interval", "30m"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := cfg.Collectors["registry"].Interval; got != 30*time.Minute {
+		t.Errorf("registry interval = %v, want 30m", got)
+	}
+}

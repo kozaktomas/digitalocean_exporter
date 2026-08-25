@@ -22,6 +22,7 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/account"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/balance"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/registry"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/spaces"
 	"github.com/kozaktomas/digitalocean_exporter/internal/config"
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
@@ -92,6 +93,9 @@ func registerCollectors(
 	}
 	if c := cfg.Collectors["balance"]; c.Enabled {
 		scheduler.Register(balance.New(client), c.Interval, c.Timeout)
+	}
+	if c := cfg.Collectors["registry"]; c.Enabled {
+		scheduler.Register(registry.New(client, logger), c.Interval, c.Timeout)
 	}
 	if c := cfg.Collectors["spaces"]; c.Enabled {
 		scheduler.Register(newSpaces(cfg.Spaces, logger), c.Interval, c.Timeout)

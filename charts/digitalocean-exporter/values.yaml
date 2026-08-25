@@ -33,6 +33,12 @@ collectors:
   balance:
     enabled: true
     interval: 5m
+  # The registry collector reads the account's container registry. An account
+  # that has none is not a failure: the collector then reports no metrics and
+  # its collector_success stays 1, so it can be left enabled everywhere.
+  registry:
+    enabled: true
+    interval: 5m
   # The spaces collector measures buckets by listing every object in them, so
   # it refreshes on a long interval and needs a timeout of its own. It
   # authenticates with a Spaces access key pair, not the API token: set

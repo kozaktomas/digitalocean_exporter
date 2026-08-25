@@ -40,6 +40,47 @@ Note that the DigitalOcean API returns balances as strings. A value that does no
 a number fails the refresh rather than being reported as zero — zero is a legitimate
 balance, and conflating the two would break billing dashboards silently.
 
+## Container registry
+
+Collected by `registry` from `/v2/registry`, `/v2/registry/subscription` and
+`/v2/registry/{name}/repositoriesV2`: three GETs per refresh, plus one for every further
+page of repositories.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_registry_storage_usage_bytes` | `registry`, `region` | Storage the registry uses, as last measured by DigitalOcean |
+| `digitalocean_registry_storage_included_bytes` | `registry`, `region` | Storage included in the subscription tier |
+| `digitalocean_registry_bandwidth_included_bytes` | `registry`, `region` | Outbound transfer included in the subscription tier each month |
+| `digitalocean_registry_subscription_monthly_price_usd` | `registry`, `tier` | Monthly price of the subscription tier in US dollars |
+| `digitalocean_registry_info` | `registry`, `region`, `tier`, `tier_name` | Always 1; the labels carry the tier slug and its display name |
+| `digitalocean_registry_repositories` | `registry` | Number of repositories in the registry |
+| `digitalocean_registry_repository_tags` | `registry`, `repository` | Number of tags in the repository |
+| `digitalocean_registry_repository_manifests` | `registry`, `repository` | Number of manifests in the repository |
+| `digitalocean_registry_repository_latest_manifest_size_bytes` | `registry`, `repository` | Compressed size of the repository's newest manifest |
+| `digitalocean_registry_repository_last_push_timestamp_seconds` | `registry`, `repository` | Unix timestamp of the last push to the repository |
+
+**An account without a registry is not a failure.** `/v2/registry` answers `404` there, which
+the collector treats as a legitimate state: the refresh succeeds, `collector_success` stays
+1 and no registry metric is emitted at all. It logs that once, at info level. The same
+applies while the exporter runs — a deleted registry stops being reported rather than
+freezing on its last known size. A `403`, on the other hand, means the token lacks the
+registry scope: that is a real failure and drops `collector_success` to 0.
+
+`digitalocean_registry_storage_usage_bytes` is DigitalOcean's own measurement, recomputed on
+its schedule of several hours, not the exporter's. Refreshing more often does not make the
+figure fresher, which is why the default interval of 5m is about the collector staying in
+step with the rest of the exporter rather than about resolution. The API does report when it
+last measured, but under a field name the DigitalOcean Go client does not parse, so there is
+no staleness metric for it.
+
+A repository that has never been pushed to reports its tag and manifest counts and nothing
+else: it has no manifest, and a zero size would read as an image of no size.
+
+Repository names are used as label values verbatim, slashes included
+(`api.example.com/nginx`). The count is bounded by the repositories in the registry, so the
+cardinality is that of a registry, not of a tag list — tags and manifests are counted, never
+enumerated.
+
 ## Spaces
 
 Collected by `spaces` from the S3-compatible API, one `ListObjectsV2` pass per bucket.
@@ -104,6 +145,14 @@ groups:
         for: 15m
         annotations:
           summary: "Collector {{ $labels.collector }} has been failing for 15 minutes"
+
+      - alert: DigitalOceanRegistryStorageNearQuota
+        expr: >
+          digitalocean_registry_storage_usage_bytes
+            / digitalocean_registry_storage_included_bytes > 0.9
+        for: 1h
+        annotations:
+          summary: "Registry {{ $labels.registry }} uses over 90% of its included storage"
 
       - alert: DigitalOceanExporterRateLimitLow
         expr: digitalocean_exporter_api_rate_limit_remaining < 500

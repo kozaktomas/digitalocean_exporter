@@ -17,6 +17,19 @@ ACCOUNT = {"account": {"droplet_limit": 25, "floating_ip_limit": 3, "reserved_ip
                        "volume_limit": 100, "email_verified": True, "status": "active"}}
 BALANCE = {"month_to_date_balance": "23.44", "account_balance": "12.23",
            "month_to_date_usage": "11.21", "generated_at": "2026-08-24T12:00:00Z"}
+REGISTRY = {"registry": {"name": "smoke", "region": "fra1", "storage_usage_bytes": 1073741824,
+                         "created_at": "2026-01-01T00:00:00Z"}}
+SUBSCRIPTION = {"subscription": {"tier": {"name": "Basic", "slug": "basic",
+                                          "included_storage_bytes": 5368709120,
+                                          "included_bandwidth_bytes": 5368709120,
+                                          "monthly_price_in_cents": 500},
+                                 "created_at": "2026-01-01T00:00:00Z",
+                                 "updated_at": "2026-01-01T00:00:00Z"}}
+REPOSITORIES = {"repositories": [{"registry_name": "smoke", "name": "app", "tag_count": 3,
+                                  "manifest_count": 2,
+                                  "latest_manifest": {"compressed_size_bytes": 12345678,
+                                                      "updated_at": "2026-08-24T12:00:00Z"}}],
+                "meta": {"total": 1}}
 
 # One bucket of two objects, served S3-style so the Spaces collector has
 # something to list without any credentials of its own.
@@ -27,12 +40,17 @@ LISTING = b"""<?xml version="1.0" encoding="UTF-8"?>
 <Contents><Key>b</Key><Size>2048</Size><LastModified>2026-08-24T12:00:00.000Z</LastModified></Contents>
 </ListBucketResult>"""
 
+ROUTES = {"/v2/customers/my/balance": BALANCE,
+          "/v2/registry": REGISTRY,
+          "/v2/registry/subscription": SUBSCRIPTION,
+          "/v2/registry/smoke/repositoriesV2": REPOSITORIES}
+
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         if "list-type=2" in self.path:
             self.respond(LISTING, "application/xml")
             return
-        body = BALANCE if self.path.endswith("/balance") else ACCOUNT
+        body = ROUTES.get(self.path.split("?")[0], ACCOUNT)
         self.respond(json.dumps(body).encode(), "application/json")
 
     def respond(self, payload, content_type):
@@ -63,6 +81,7 @@ DO_API_BASE_URL="http://127.0.0.1:${API_PORT}/" \
 DO_SPACES_ENDPOINT="http://127.0.0.1:${API_PORT}" \
   "$BIN" --do.token=smoke-token --web.listen-address="127.0.0.1:${PORT}" \
          --collector.account.interval=1s --collector.balance.interval=1s \
+         --collector.registry.interval=1s \
          --collector.spaces --collector.spaces.interval=1s \
          --spaces.access-key=smoke --spaces.secret-key=smoke \
          --spaces.region=fra1 --collector.spaces.bucket=smoke &
@@ -88,7 +107,9 @@ for metric in \
   digitalocean_account_active \
   digitalocean_month_to_date_usage \
   digitalocean_spaces_bucket_size_bytes \
-  digitalocean_spaces_bucket_objects
+  digitalocean_spaces_bucket_objects \
+  digitalocean_registry_storage_usage_bytes \
+  digitalocean_registry_repository_tags
 do
   if grep -q "^${metric}" <<<"$METRICS"; then
     echo "ok   ${metric}"

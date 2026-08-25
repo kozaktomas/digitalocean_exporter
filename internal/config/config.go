@@ -107,6 +107,8 @@ type flags struct {
 	accountInterval  *time.Duration
 	balance          *bool
 	balanceInterval  *time.Duration
+	registry         *bool
+	registryInterval *time.Duration
 	spaces           *bool
 	spacesInterval   *time.Duration
 	spacesTimeout    *time.Duration
@@ -166,6 +168,10 @@ func bind(app *kingpin.Application) *flags {
 		Envar("COLLECTOR_BALANCE").Default("true").Bool()
 	f.balanceInterval = app.Flag("collector.balance.interval", "Refresh interval of the balance collector.").
 		Envar("COLLECTOR_BALANCE_INTERVAL").Default("5m").Duration()
+	f.registry = app.Flag("collector.registry", "Enable the container registry collector.").
+		Envar("COLLECTOR_REGISTRY").Default("true").Bool()
+	f.registryInterval = app.Flag("collector.registry.interval", "Refresh interval of the registry collector.").
+		Envar("COLLECTOR_REGISTRY_INTERVAL").Default("5m").Duration()
 	bindSpaces(app, f)
 	return f
 }
@@ -216,8 +222,9 @@ func (f *flags) config() (*Config, error) {
 		LogLevel:      *f.logLevel,
 		LogFormat:     *f.logFormat,
 		Collectors: map[string]CollectorConfig{
-			"account": {Enabled: *f.account, Interval: *f.accountInterval},
-			"balance": {Enabled: *f.balance, Interval: *f.balanceInterval},
+			"account":  {Enabled: *f.account, Interval: *f.accountInterval},
+			"balance":  {Enabled: *f.balance, Interval: *f.balanceInterval},
+			"registry": {Enabled: *f.registry, Interval: *f.registryInterval},
 			"spaces": {
 				Enabled:  *f.spaces,
 				Interval: *f.spacesInterval,
