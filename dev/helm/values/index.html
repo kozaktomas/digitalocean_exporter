@@ -1421,6 +1421,12 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>DigitalOcean API token. The chart puts it in a Secret it owns and mounts it into the pod as a file, never as an environment variable, so it cannot leak through <code>kubectl describe pod</code>. Mutually exclusive with <code>existingSecret</code>.</td>
 </tr>
 <tr>
+<td>fullnameOverride</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Replaces the generated resource name outright. The generated name is <code>&lt;release&gt;-&lt;chart&gt;</code>, collapsed to just the release name when the release name already contains the chart name, so the common <code>helm install digitalocean-exporter</code> needs nothing here.</td>
+</tr>
+<tr>
 <td>image.pullPolicy</td>
 <td>string</td>
 <td><code>"IfNotPresent"</code></td>
@@ -1449,6 +1455,12 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>string</td>
 <td><code>"info"</code></td>
 <td>Log level: <code>debug</code>, <code>info</code>, <code>warn</code> or <code>error</code>.</td>
+</tr>
+<tr>
+<td>nameOverride</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Overrides the chart name used in resource names and in the <code>app.kubernetes.io/name</code> label.</td>
 </tr>
 <tr>
 <td>nodeSelector</td>
@@ -1540,6 +1552,13 @@ out of date — so it cannot drift from the chart it documents.</p>
 <p><strong><code>image.tag</code></strong> is empty by default, which means the chart's <code>appVersion</code> — the exporter
 release this chart version shipped with. Set it only to pin something else, and remember
 that doing so decouples the two version numbers that otherwise move together.</p>
+<p><strong><code>nameOverride</code> and <code>fullnameOverride</code></strong> shape the names of the objects the chart
+creates. The default is <code>&lt;release&gt;-&lt;chart&gt;</code>, collapsed to just the release name when the
+release name already contains the chart name — so <code>helm install digitalocean-exporter</code>
+gives a Deployment called <code>digitalocean-exporter</code>, not
+<code>digitalocean-exporter-digitalocean-exporter</code>. Setting <code>fullnameOverride</code> on a release that
+already exists renames every object in it, which for Helm means creating the new ones and
+deleting the old.</p>
 <p><strong><code>collectors.*.interval</code></strong> spends from a budget of 5000 API requests an hour. For the ten
 collectors that are on by default the total is a few per cent at <code>5m</code>; for <code>spaces</code>,
 <code>dropletmetrics</code> and <code>loadbalancermetrics</code> it is not, which is why they are off. See
