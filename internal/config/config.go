@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
+
+	"github.com/kozaktomas/digitalocean_exporter/internal/version"
 )
 
 // ErrNoToken reports that no DigitalOcean API token was configured.
@@ -18,10 +20,11 @@ var ErrNoToken = errors.New("no DigitalOcean API token: set --do.token or --do.t
 // ErrTokenConflict reports that both token sources were configured at once.
 var ErrTokenConflict = errors.New("--do.token and --do.token-file are mutually exclusive")
 
-// ErrHelpShown reports that usage was printed and the process should exit
-// successfully. Parsing deliberately never terminates the process itself, so
-// the caller decides; without this the help flag would fall through to token
-// validation and exit 1 with a confusing message.
+// ErrHelpShown reports that kingpin printed what it was asked for — usage, or
+// the version — and the process should exit successfully. Parsing deliberately
+// never terminates the process itself, so the caller decides; without this
+// --help and --version would fall through to token validation and exit 1 with a
+// confusing message.
 var ErrHelpShown = errors.New("help shown")
 
 // ErrNoSpacesCredentials reports that the Spaces collector was enabled without
@@ -153,6 +156,7 @@ type flags struct {
 // It never terminates the process: every failure is returned as an error.
 func Parse(args []string) (*Config, error) {
 	app := kingpin.New("digitalocean_exporter", "Prometheus exporter for DigitalOcean.")
+	app.Version(version.String())
 
 	// Capture the exit kingpin would have made instead of killing the process,
 	// so Parse stays callable from tests.

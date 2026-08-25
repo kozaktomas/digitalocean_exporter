@@ -88,6 +88,16 @@ func TestParseHelpIsReportedNotTreatedAsMissingToken(t *testing.T) {
 	}
 }
 
+func TestParseVersionIsReportedNotTreatedAsMissingToken(t *testing.T) {
+	// --version must not fall through to token validation and exit 1, the same
+	// trap --help would hit.
+	t.Setenv("DIGITALOCEAN_TOKEN", "")
+	_, err := config.Parse([]string{"--version"})
+	if !errors.Is(err, config.ErrHelpShown) {
+		t.Fatalf("error = %v, want ErrHelpShown", err)
+	}
+}
+
 func TestParseRegistersTheBalanceCollector(t *testing.T) {
 	cfg, err := config.Parse([]string{"--do.token", "secret"})
 	if err != nil {

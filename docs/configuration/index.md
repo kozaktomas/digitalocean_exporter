@@ -2,7 +2,15 @@
 
 Every setting has both a command-line flag and an environment variable. **Flags win over
 the environment.** `--help` prints the same list the binary actually has, which is the
-authority if this page ever falls behind.
+authority if this page ever falls behind, and `--version` reports which build you are
+holding:
+
+```console
+$ digitalocean_exporter --version
+digitalocean_exporter, version 0.1.0 (commit e67249b, go1.26.1)
+```
+
+Both print and exit 0 without needing a token.
 
 ## Credentials
 

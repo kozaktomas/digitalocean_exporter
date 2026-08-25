@@ -3,6 +3,7 @@
 package version
 
 import (
+	"fmt"
 	"runtime"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -13,6 +14,15 @@ var Version = "dev"
 
 // Commit is the short commit the binary was built from, overridden at link time.
 var Commit = "none"
+
+// String returns the single line printed by --version: the binary name, the
+// release it was built as, the commit it came from and the Go toolchain that
+// built it. Version and Commit read "dev" and "none" in a build that was not
+// stamped at link time, which is what a plain `go build` produces.
+func String() string {
+	return fmt.Sprintf("digitalocean_exporter, version %s (commit %s, %s)",
+		Version, Commit, runtime.Version())
+}
 
 // buildInfoDesc describes the build metadata metric.
 var buildInfoDesc = prometheus.NewDesc(
