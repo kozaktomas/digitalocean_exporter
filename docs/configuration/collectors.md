@@ -159,4 +159,7 @@ endpoints anywhere in its API, so there are none here.
 What it is genuinely useful for is certificates: the endpoint that quietly serves an
 expiring certificate is easier to catch here than in the control panel.
 
-**Cost:** one request per refresh.
+**Cost:** one request per refresh. Note that CDN endpoints carry a
+[stricter limit of their own](https://docs.digitalocean.com/reference/api/reference/public-apis/) —
+5 requests per 10 seconds, independent of the account-wide limits. One request every 5
+minutes is nowhere near it, but do not set this interval to seconds.

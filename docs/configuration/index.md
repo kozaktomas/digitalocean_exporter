@@ -62,13 +62,42 @@ This trips people up once each, so it is worth stating plainly.
 
 ## Intervals, timeouts and the API budget
 
-Each collector refreshes on its own interval, independent of scraping. The DigitalOcean API
-allows **5000 requests an hour**, which is the budget every interval spends from.
+**A scrape costs nothing.** Serving `/metrics` reads an in-memory snapshot and issues no API
+requests at all — measured: twenty consecutive scrapes moved
+`digitalocean_exporter_api_requests_total` by zero. The API budget is spent by collector
+refreshes alone, on their own intervals.
 
-Most collectors cost one or two requests per refresh, so at the default `5m` the ten
-enabled-by-default collectors use a couple of hundred requests an hour — a few per cent of
-the budget. The three that are off by default are off because they are not like that; see
+DigitalOcean applies [two limits at once](https://docs.digitalocean.com/reference/api/reference/public-apis/):
+
+| Limit | Value |
+|---|---|
+| Hourly | **5,000 requests per hour** |
+| Burst | **250 requests per minute** |
+
+The burst limit can be tripped while the hourly budget is nearly untouched, which is the
+trap worth knowing about — see [the monitoring API](monitoring-api.md#the-budget).
+
+The ten collectors that are on by default cost one to three requests each per refresh. On a
+real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database and a
+registry, one full refresh measured **14 requests**:
+
+```
+account 1 · cdn 1 · databases 1 · droplets 2 · kubernetes 1
+load_balancers 1 · registry 3 · reserved_ips 1 · volumes 2 · balance 1
+```
+
+At the default `5m` that is 12 refreshes an hour — **168 requests, 3.4% of the hourly
+budget**, and 14 in a burst, 5.6% of the per-minute one. Comfortable, and it scales with how
+much you own rather than with how often Prometheus scrapes.
+
+The three collectors that are off by default are off because they are not like that; see
 [Spaces](spaces.md) and [the monitoring API](monitoring-api.md).
+
+!!! note "One endpoint has a stricter limit of its own"
+
+    CDN endpoints allow only **5 requests per 10 seconds**, independently of the two limits
+    above. The `cdn` collector makes one request per refresh, so the default `5m` is nowhere
+    near it — but an interval under 2 seconds would be.
 
 `--do.timeout` bounds a single collector refresh, and defaults to `30s`. Collectors whose
 work is genuinely slower carry a timeout of their own instead — `spaces`,

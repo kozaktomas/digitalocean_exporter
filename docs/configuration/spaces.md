@@ -28,6 +28,22 @@ this collector carries a timeout of its own (`15m`) rather than the global `--do
 The defaults follow from that: refresh every **6h**, not every 5m. Bucket size is not a
 number that moves meaningfully in five minutes, and pretending otherwise costs real time.
 
+## It does not touch the API budget, and it is not billed
+
+Spaces is an S3-compatible endpoint, not the DigitalOcean API, so the LIST requests this
+collector makes count against **neither** the 5,000-per-hour nor the 250-per-minute API
+limit. Nothing else in the exporter is affected by turning it on.
+
+Nor do those requests cost money. [Spaces is billed](https://docs.digitalocean.com/products/spaces/details/pricing/)
+on storage and outbound transfer only — $5/month including 250 GiB and 1 TiB of transfer,
+then $0.02/GiB and $0.01/GiB — with no per-request or per-operation charge, unlike S3. The
+collector only ever lists metadata and never downloads an object, so it generates no
+outbound transfer worth counting either.
+
+The one exception to watch is **cold storage**, where each read operation carries a 128 KiB
+minimum retrieval charge. Listing is not a read of object data, but if you keep buckets in
+cold storage, confirm your own bill rather than taking this page's word for it.
+
 ## Credentials
 
 Spaces authenticates with an **access key pair**, created under *API → Spaces Keys*. It has

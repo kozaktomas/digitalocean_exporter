@@ -8,7 +8,8 @@ constant.
 
 ## The budget
 
-The DigitalOcean API allows **5000 requests an hour**. A refresh of these collectors costs:
+DigitalOcean applies **5,000 requests per hour and 250 requests per minute**. A refresh of
+these collectors costs:
 
 | Collector | Requests per refresh |
 |---|---|
@@ -36,6 +37,18 @@ account before enabling it**, and if the number is uncomfortable, lengthen the i
 
 Load balancers are different in practice only because accounts have far fewer of them. Ten
 load balancers at `5m` is 12 × 70 = 840 requests an hour, which is affordable.
+
+!!! danger "The per-minute limit bites first"
+
+    A refresh fires its requests back to back, so a large account can trip the burst limit
+    while the hourly budget looks fine. Fifty droplets is 501 requests in **one** refresh —
+    twice the 250-per-minute allowance, spent in seconds, regardless of how long the
+    interval is. Lengthening the interval does not help with this; it is the size of a
+    single refresh that matters. Lowering `--collector.dropletmetrics.concurrency` spreads
+    the same requests over more time, which does.
+
+    A burst rejection comes back with a `retry-after` header, and the refresh fails and
+    keeps its previous snapshot.
 
 Watch the result rather than trusting the arithmetic:
 
