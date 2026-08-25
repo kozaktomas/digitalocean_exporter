@@ -703,6 +703,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#it-does-not-touch-the-api-budget-and-it-is-not-billed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        It does not touch the API budget, and it is not billed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#credentials" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1167,6 +1178,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#it-does-not-touch-the-api-budget-and-it-is-not-billed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        It does not touch the API budget, and it is not billed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#credentials" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1286,6 +1308,18 @@ whole exporter refreshes in the background instead of collecting on scrape, and 
 this collector carries a timeout of its own (<code>15m</code>) rather than the global <code>--do.timeout</code>.</p>
 <p>The defaults follow from that: refresh every <strong>6h</strong>, not every 5m. Bucket size is not a
 number that moves meaningfully in five minutes, and pretending otherwise costs real time.</p>
+<h2 id="it-does-not-touch-the-api-budget-and-it-is-not-billed">It does not touch the API budget, and it is not billed<a class="headerlink" href="#it-does-not-touch-the-api-budget-and-it-is-not-billed" title="Permanent link">&para;</a></h2>
+<p>Spaces is an S3-compatible endpoint, not the DigitalOcean API, so the LIST requests this
+collector makes count against <strong>neither</strong> the 5,000-per-hour nor the 250-per-minute API
+limit. Nothing else in the exporter is affected by turning it on.</p>
+<p>Nor do those requests cost money. <a href="https://docs.digitalocean.com/products/spaces/details/pricing/">Spaces is billed</a>
+on storage and outbound transfer only — $5/month including 250 GiB and 1 TiB of transfer,
+then $0.02/GiB and $0.01/GiB — with no per-request or per-operation charge, unlike S3. The
+collector only ever lists metadata and never downloads an object, so it generates no
+outbound transfer worth counting either.</p>
+<p>The one exception to watch is <strong>cold storage</strong>, where each read operation carries a 128 KiB
+minimum retrieval charge. Listing is not a read of object data, but if you keep buckets in
+cold storage, confirm your own bill rather than taking this page's word for it.</p>
 <h2 id="credentials">Credentials<a class="headerlink" href="#credentials" title="Permanent link">&para;</a></h2>
 <p>Spaces authenticates with an <strong>access key pair</strong>, created under <em>API → Spaces Keys</em>. It has
 nothing to do with the DigitalOcean API token — a valid token grants no access to Spaces,

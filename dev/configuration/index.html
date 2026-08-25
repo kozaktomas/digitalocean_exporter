@@ -1379,12 +1379,48 @@ one on the command line.</p>
 </div>
 </div>
 <h2 id="intervals-timeouts-and-the-api-budget">Intervals, timeouts and the API budget<a class="headerlink" href="#intervals-timeouts-and-the-api-budget" title="Permanent link">&para;</a></h2>
-<p>Each collector refreshes on its own interval, independent of scraping. The DigitalOcean API
-allows <strong>5000 requests an hour</strong>, which is the budget every interval spends from.</p>
-<p>Most collectors cost one or two requests per refresh, so at the default <code>5m</code> the ten
-enabled-by-default collectors use a couple of hundred requests an hour — a few per cent of
-the budget. The three that are off by default are off because they are not like that; see
+<p><strong>A scrape costs nothing.</strong> Serving <code>/metrics</code> reads an in-memory snapshot and issues no API
+requests at all — measured: twenty consecutive scrapes moved
+<code>digitalocean_exporter_api_requests_total</code> by zero. The API budget is spent by collector
+refreshes alone, on their own intervals.</p>
+<p>DigitalOcean applies <a href="https://docs.digitalocean.com/reference/api/reference/public-apis/">two limits at once</a>:</p>
+<table>
+<thead>
+<tr>
+<th>Limit</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hourly</td>
+<td><strong>5,000 requests per hour</strong></td>
+</tr>
+<tr>
+<td>Burst</td>
+<td><strong>250 requests per minute</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The burst limit can be tripped while the hourly budget is nearly untouched, which is the
+trap worth knowing about — see <a href="monitoring-api/#the-budget">the monitoring API</a>.</p>
+<p>The ten collectors that are on by default cost one to three requests each per refresh. On a
+real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database and a
+registry, one full refresh measured <strong>14 requests</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>account 1 · cdn 1 · databases 1 · droplets 2 · kubernetes 1
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>load_balancers 1 · registry 3 · reserved_ips 1 · volumes 2 · balance 1
+</code></pre></div>
+<p>At the default <code>5m</code> that is 12 refreshes an hour — <strong>168 requests, 3.4% of the hourly
+budget</strong>, and 14 in a burst, 5.6% of the per-minute one. Comfortable, and it scales with how
+much you own rather than with how often Prometheus scrapes.</p>
+<p>The three collectors that are off by default are off because they are not like that; see
 <a href="spaces/">Spaces</a> and <a href="monitoring-api/">the monitoring API</a>.</p>
+<div class="admonition note">
+<p class="admonition-title">One endpoint has a stricter limit of its own</p>
+<p>CDN endpoints allow only <strong>5 requests per 10 seconds</strong>, independently of the two limits
+above. The <code>cdn</code> collector makes one request per refresh, so the default <code>5m</code> is nowhere
+near it — but an interval under 2 seconds would be.</p>
+</div>
 <p><code>--do.timeout</code> bounds a single collector refresh, and defaults to <code>30s</code>. Collectors whose
 work is genuinely slower carry a timeout of their own instead — <code>spaces</code>,
 <code>dropletmetrics</code> and <code>loadbalancermetrics</code>. Raising the global timeout to accommodate a
@@ -1394,13 +1430,13 @@ slow collector is the wrong lever.</p>
 <a href="https://github.com/prometheus/prometheus/wiki/Default-port-allocations">allocated to this exporter</a>.</p>
 <p><code>--web.config.file</code> takes an <a href="https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md">exporter-toolkit</a>
 web configuration, which is how you get TLS and basic auth:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># web-config.yml</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nt">tls_server_config</span><span class="p">:</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="nt">cert_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/digitalocean-exporter/tls.crt</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span><span class="nt">key_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/digitalocean-exporter/tls.key</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="nt">basic_auth_users</span><span class="p">:</span>
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">  </span><span class="nt">prometheus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$2y$10$...</span><span class="w">   </span><span class="c1"># bcrypt, e.g. from `htpasswd -nBC 10 "" | tr -d ':\n'`</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># web-config.yml</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nt">tls_server_config</span><span class="p">:</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="nt">cert_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/digitalocean-exporter/tls.crt</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span><span class="nt">key_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/digitalocean-exporter/tls.key</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="nt">basic_auth_users</span><span class="p">:</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">  </span><span class="nt">prometheus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$2y$10$...</span><span class="w">   </span><span class="c1"># bcrypt, e.g. from `htpasswd -nBC 10 "" | tr -d ':\n'`</span>
 </code></pre></div>
 <h2 id="full-reference">Full reference<a class="headerlink" href="#full-reference" title="Permanent link">&para;</a></h2>
 <h3 id="server-and-credentials">Server and credentials<a class="headerlink" href="#server-and-credentials" title="Permanent link">&para;</a></h3>

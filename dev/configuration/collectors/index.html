@@ -1446,7 +1446,10 @@ check, come from <a href="../monitoring-api/#loadbalancermetrics"><code>loadbala
 endpoints anywhere in its API, so there are none here.</p>
 <p>What it is genuinely useful for is certificates: the endpoint that quietly serves an
 expiring certificate is easier to catch here than in the control panel.</p>
-<p><strong>Cost:</strong> one request per refresh.</p>
+<p><strong>Cost:</strong> one request per refresh. Note that CDN endpoints carry a
+<a href="https://docs.digitalocean.com/reference/api/reference/public-apis/">stricter limit of their own</a> —
+5 requests per 10 seconds, independent of the account-wide limits. One request every 5
+minutes is nowhere near it, but do not set this interval to seconds.</p>
 
 
 
