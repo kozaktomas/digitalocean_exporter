@@ -42,11 +42,17 @@ Needs Go 1.26 or newer.
 git clone https://github.com/kozaktomas/digitalocean_exporter.git
 cd digitalocean_exporter
 make build
-./digitalocean_exporter --version
 ```
 
 `make build` stamps the version and commit into the binary. A plain `go build` produces a
 working exporter that reports `dev` as its version.
+
+There is no `--version` flag. The binary reports what it is in its first log line at
+startup, and as a metric:
+
+```
+digitalocean_exporter_build_info{commit="e40d35f",goversion="go1.26.1",version="dev"} 1
+```
 
 ## Supervising it yourself
 
