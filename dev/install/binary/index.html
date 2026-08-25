@@ -1243,12 +1243,15 @@ between you and a truncated download.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/kozaktomas/digitalocean_exporter.git
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">cd</span><span class="w"> </span>digitalocean_exporter
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>make<span class="w"> </span>build
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>./digitalocean_exporter<span class="w"> </span>--version
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>digitalocean_exporter, version 0.1.0 (commit e67249b, go1.26.1)
 </code></pre></div>
 <p><code>make build</code> stamps the version and commit into the binary. A plain <code>go build</code> produces a
-working exporter that reports <code>dev</code> as its version.</p>
-<p>There is no <code>--version</code> flag. The binary reports what it is in its first log line at
-startup, and as a metric:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>digitalocean_exporter_build_info{commit="e40d35f",goversion="go1.26.1",version="dev"} 1
+working exporter that reports <code>dev</code> as its version and <code>none</code> as its commit.</p>
+<p>The same build metadata is in the first log line at startup and in a metric, which is how
+you check what a running exporter is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>digitalocean_exporter_build_info{commit="e67249b",goversion="go1.26.1",version="0.1.0"} 1
 </code></pre></div>
 <h2 id="supervising-it-yourself">Supervising it yourself<a class="headerlink" href="#supervising-it-yourself" title="Permanent link">&para;</a></h2>
 <p>Whatever runs it should:</p>
