@@ -119,6 +119,8 @@ type flags struct {
 	kubernetesInterval *time.Duration
 	volumes            *bool
 	volumesInterval    *time.Duration
+	loadBalancers      *bool
+	lbInterval         *time.Duration
 	spaces             *bool
 	spacesInterval     *time.Duration
 	spacesTimeout      *time.Duration
@@ -212,6 +214,11 @@ func bindInventory(app *kingpin.Application, f *flags) {
 		Envar("COLLECTOR_VOLUMES").Default("true").Bool()
 	f.volumesInterval = app.Flag("collector.volumes.interval", "Refresh interval of the volumes collector.").
 		Envar("COLLECTOR_VOLUMES_INTERVAL").Default("5m").Duration()
+	f.loadBalancers = app.Flag("collector.loadbalancers", "Enable the load balancers collector.").
+		Envar("COLLECTOR_LOADBALANCERS").Default("true").Bool()
+	f.lbInterval = app.Flag("collector.loadbalancers.interval",
+		"Refresh interval of the load balancers collector.").
+		Envar("COLLECTOR_LOADBALANCERS_INTERVAL").Default("5m").Duration()
 }
 
 // bindSpaces declares the flags of the Spaces collector, which brings its own
@@ -260,14 +267,15 @@ func (f *flags) config() (*Config, error) {
 		LogLevel:      *f.logLevel,
 		LogFormat:     *f.logFormat,
 		Collectors: map[string]CollectorConfig{
-			"account":    {Enabled: *f.account, Interval: *f.accountInterval},
-			"balance":    {Enabled: *f.balance, Interval: *f.balanceInterval},
-			"registry":   {Enabled: *f.registry, Interval: *f.registryInterval},
-			"limits":     {Enabled: *f.limits, Interval: *f.limitsInterval},
-			"droplets":   {Enabled: *f.droplets, Interval: *f.dropletsInterval},
-			"databases":  {Enabled: *f.databases, Interval: *f.databasesInterval},
-			"kubernetes": {Enabled: *f.kubernetes, Interval: *f.kubernetesInterval},
-			"volumes":    {Enabled: *f.volumes, Interval: *f.volumesInterval},
+			"account":       {Enabled: *f.account, Interval: *f.accountInterval},
+			"balance":       {Enabled: *f.balance, Interval: *f.balanceInterval},
+			"registry":      {Enabled: *f.registry, Interval: *f.registryInterval},
+			"limits":        {Enabled: *f.limits, Interval: *f.limitsInterval},
+			"droplets":      {Enabled: *f.droplets, Interval: *f.dropletsInterval},
+			"databases":     {Enabled: *f.databases, Interval: *f.databasesInterval},
+			"kubernetes":    {Enabled: *f.kubernetes, Interval: *f.kubernetesInterval},
+			"volumes":       {Enabled: *f.volumes, Interval: *f.volumesInterval},
+			"loadbalancers": {Enabled: *f.loadBalancers, Interval: *f.lbInterval},
 			"spaces": {
 				Enabled:  *f.spaces,
 				Interval: *f.spacesInterval,

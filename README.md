@@ -18,7 +18,7 @@ actually deserves.
 ## Status
 
 Early. This release ships the exporter skeleton, the full build and release pipeline, and
-nine collectors:
+ten collectors:
 
 | Collector | State |
 |---|---|
@@ -31,7 +31,8 @@ nine collectors:
 | `registry` — Container Registry storage, subscription and repositories | available |
 | `spaces` — bucket size and object count (needs a Spaces access key) | available |
 | `volumes` — size of every block storage volume and what it is attached to | available |
-| load balancers, domains, firewalls | planned |
+| `loadbalancers` — state, backends and billed size of every load balancer | available |
+| domains, firewalls, certificates | planned |
 
 ## Install
 

@@ -93,6 +93,12 @@ spec:
             {{- else }}
             - --no-collector.volumes
             {{- end }}
+            {{- if .Values.collectors.loadbalancers.enabled }}
+            - --collector.loadbalancers
+            - --collector.loadbalancers.interval={{ .Values.collectors.loadbalancers.interval }}
+            {{- else }}
+            - --no-collector.loadbalancers
+            {{- end }}
           ports:
             - name: metrics
               containerPort: {{ .Values.service.port }}

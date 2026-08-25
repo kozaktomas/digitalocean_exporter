@@ -79,6 +79,12 @@ collectors:
   volumes:
     enabled: true
     interval: 5m
+  # The loadbalancers collector reports the state, the backend count and the
+  # billed size of every load balancer. Traffic through them is the
+  # loadbalancermetrics collector's job.
+  loadbalancers:
+    enabled: true
+    interval: 5m
 
 log:
   level: info

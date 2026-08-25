@@ -35,6 +35,13 @@ VOLUMES = {"volumes": [{"id": "vol", "name": "data", "region": {"slug": "fra1"},
                         "size_gigabytes": 100, "filesystem_type": "ext4",
                         "filesystem_label": "data", "droplet_ids": [1]}],
            "meta": {"total": 13}}
+LOAD_BALANCERS = {"load_balancers": [{"id": "lb", "name": "public", "ip": "10.0.0.1",
+                                      "status": "active", "size_unit": 1,
+                                      "type": "REGIONAL", "algorithm": "round_robin",
+                                      "size": "lb-small", "vpc_uuid": "vpc",
+                                      "region": {"slug": "fra1"}, "droplet_ids": [1],
+                                      "forwarding_rules": [{"entry_port": 443}]}],
+                  "meta": {"total": 1}}
 DATABASES = {"databases": [{"id": "1", "name": "main", "engine": "mysql", "version": "8",
                             "num_nodes": 1, "size": "db-2vcpu-4gb", "region": "fra1",
                             "status": "online", "storage_size_mib": 102400,
@@ -70,6 +77,7 @@ ROUTES = {"/v2/customers/my/balance": BALANCE,
           "/v2/kubernetes/clusters": CLUSTERS,
           "/v2/reserved_ips": RESERVED_IPS,
           "/v2/volumes": VOLUMES,
+          "/v2/load_balancers": LOAD_BALANCERS,
           "/v2/registry": REGISTRY,
           "/v2/registry/subscription": SUBSCRIPTION,
           "/v2/registry/smoke/repositoriesV2": REPOSITORIES}
@@ -93,7 +101,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
 
-http.server.HTTPServer(("127.0.0.1", int(sys.argv[1])), Handler).serve_forever()
+# Threading: the exporter refreshes every collector concurrently at startup,
+# and a serialising server would make that first round take longer than the
+# scrape below waits for.
+http.server.ThreadingHTTPServer(("127.0.0.1", int(sys.argv[1])), Handler).serve_forever()
 PY
 
 python3 "$WORKDIR/api.py" "$API_PORT" &
@@ -123,11 +134,16 @@ for _ in $(seq 1 50); do
   sleep 0.2
 done
 
-# Poll until the first collector refresh has landed.
+# Poll until every collector has refreshed successfully. Waiting on one metric
+# would let the assertions race the collectors that are still on their first
+# refresh, which is a flake that looks exactly like a broken collector.
 METRICS=""
 for _ in $(seq 1 50); do
   METRICS="$(curl -sf "http://127.0.0.1:${PORT}/metrics")"
-  grep -q "^digitalocean_spaces_bucket_size_bytes" <<<"$METRICS" && break
+  if grep -q "^digitalocean_spaces_bucket_size_bytes" <<<"$METRICS" &&
+     ! grep -q "^digitalocean_exporter_collector_success.* 0$" <<<"$METRICS"; then
+    break
+  fi
   sleep 0.2
 done
 
@@ -150,7 +166,9 @@ for metric in \
   digitalocean_kubernetes_cluster_up \
   digitalocean_kubernetes_node_pool_nodes_running \
   digitalocean_volume_size_bytes \
-  digitalocean_volume_droplets
+  digitalocean_volume_droplets \
+  digitalocean_loadbalancer_status \
+  digitalocean_loadbalancer_droplets
 do
   if grep -q "^${metric}" <<<"$METRICS"; then
     echo "ok   ${metric}"

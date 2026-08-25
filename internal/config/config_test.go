@@ -375,3 +375,25 @@ func TestVolumesCollectorDefaultsOnAndCanBeDisabled(t *testing.T) {
 		t.Error("volumes collector = enabled, want disabled")
 	}
 }
+
+func TestLoadBalancersCollectorDefaultsOnAndCanBeDisabled(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	lb, ok := cfg.Collectors["loadbalancers"]
+	if !ok {
+		t.Fatal("loadbalancers collector missing from config")
+	}
+	if !lb.Enabled || lb.Interval != 5*time.Minute {
+		t.Errorf("loadbalancers = %+v, want enabled with a 5m interval", lb)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--no-collector.loadbalancers"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Collectors["loadbalancers"].Enabled {
+		t.Error("loadbalancers collector = enabled, want disabled")
+	}
+}

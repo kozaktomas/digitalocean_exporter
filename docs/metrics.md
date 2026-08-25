@@ -80,6 +80,40 @@ alert rather than a panel. Volumes created by a Kubernetes `PersistentVolumeClai
 usual culprits: deleting a pod does not delete its claim, and a released claim keeps its
 volume until something reaps it.
 
+## Load balancers
+
+Collected by `loadbalancers` from `/v2/load_balancers`, one set of metrics per load balancer.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_loadbalancer_status` | `id`, `name`, `ip` | 1 if the load balancer's status is `active`, else 0 |
+| `digitalocean_loadbalancer_droplets` | `id`, `name`, `ip` | Number of droplets it proxies to |
+| `digitalocean_loadbalancer_size_units` | `id`, `name`, `ip` | Size units the load balancer is billed for |
+| `digitalocean_loadbalancer_forwarding_rules` | `id`, `name`, `ip` | Number of forwarding rules configured |
+| `digitalocean_loadbalancer_info` | `id`, `name`, `ip`, `region`, `size`, `type`, `algorithm`, `vpc_uuid` | Always 1 |
+
+The prefix is `digitalocean_loadbalancer_`, without the underscore the rest of the exporter
+would suggest, because that is what the older exporter used. Its two metrics — `status` and
+`droplets` — keep their names and label sets here exactly.
+
+A load balancer with no backends is the case worth alerting on:
+
+```promql
+digitalocean_loadbalancer_status == 1 and digitalocean_loadbalancer_droplets == 0
+```
+
+That reads "active but proxying to nothing", which returns 503 to every request. Note that a
+load balancer selecting its backends by tag reports zero until something carries the tag, so
+a newly created one trips this too.
+
+`size_units` is what the load balancer costs: DigitalOcean bills a node-based load balancer
+per unit, and a balancer scaled up for a traffic spike and never scaled back down is a
+standing charge that nothing else in the account makes visible.
+
+Traffic through the load balancer is not here. It comes from the monitoring API, which is a
+different kind of request with a different cost, and lives in the `loadbalancermetrics`
+collector.
+
 ## Kubernetes
 
 Collected by `kubernetes` from `/v2/kubernetes/clusters`, one set of metrics per cluster and

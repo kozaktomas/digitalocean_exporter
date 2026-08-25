@@ -26,6 +26,7 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/droplets"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/kubernetes"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/limits"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/loadbalancers"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/registry"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/spaces"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/volumes"
@@ -90,35 +91,33 @@ func run(args []string) error {
 }
 
 // registerCollectors enables the collectors the configuration asks for.
+//
+// The table is ordered rather than a map so registration order, and with it the
+// order collectors appear in the scheduler, stays the same between runs. A
+// collector is built only when it is enabled, so a disabled one costs nothing.
 func registerCollectors(
 	scheduler *collector.Scheduler, cfg *config.Config, client *godo.Client, logger *slog.Logger,
 ) {
-	if c := cfg.Collectors["account"]; c.Enabled {
-		scheduler.Register(account.New(client), c.Interval, c.Timeout)
+	available := []struct {
+		name  string
+		build func() collector.Collector
+	}{
+		{"account", func() collector.Collector { return account.New(client) }},
+		{"balance", func() collector.Collector { return balance.New(client) }},
+		{"databases", func() collector.Collector { return databases.New(client) }},
+		{"droplets", func() collector.Collector { return droplets.New(client) }},
+		{"kubernetes", func() collector.Collector { return kubernetes.New(client) }},
+		{"limits", func() collector.Collector { return limits.New(client) }},
+		{"registry", func() collector.Collector { return registry.New(client, logger) }},
+		{"spaces", func() collector.Collector { return newSpaces(cfg.Spaces, logger) }},
+		{"volumes", func() collector.Collector { return volumes.New(client) }},
+		{"loadbalancers", func() collector.Collector { return loadbalancers.New(client) }},
 	}
-	if c := cfg.Collectors["balance"]; c.Enabled {
-		scheduler.Register(balance.New(client), c.Interval, c.Timeout)
-	}
-	if c := cfg.Collectors["databases"]; c.Enabled {
-		scheduler.Register(databases.New(client), c.Interval, c.Timeout)
-	}
-	if c := cfg.Collectors["droplets"]; c.Enabled {
-		scheduler.Register(droplets.New(client), c.Interval, c.Timeout)
-	}
-	if c := cfg.Collectors["kubernetes"]; c.Enabled {
-		scheduler.Register(kubernetes.New(client), c.Interval, c.Timeout)
-	}
-	if c := cfg.Collectors["limits"]; c.Enabled {
-		scheduler.Register(limits.New(client), c.Interval, c.Timeout)
-	}
-	if c := cfg.Collectors["registry"]; c.Enabled {
-		scheduler.Register(registry.New(client, logger), c.Interval, c.Timeout)
-	}
-	if c := cfg.Collectors["spaces"]; c.Enabled {
-		scheduler.Register(newSpaces(cfg.Spaces, logger), c.Interval, c.Timeout)
-	}
-	if c := cfg.Collectors["volumes"]; c.Enabled {
-		scheduler.Register(volumes.New(client), c.Interval, c.Timeout)
+
+	for _, a := range available {
+		if c := cfg.Collectors[a.name]; c.Enabled {
+			scheduler.Register(a.build(), c.Interval, c.Timeout)
+		}
 	}
 }
 
