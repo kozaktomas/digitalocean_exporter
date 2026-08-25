@@ -18,7 +18,7 @@ actually deserves.
 ## Status
 
 Early. This release ships the exporter skeleton, the full build and release pipeline, and
-twelve collectors:
+thirteen collectors:
 
 | Collector | State |
 |---|---|
@@ -34,6 +34,7 @@ twelve collectors:
 | `loadbalancers` — state, backends and billed size of every load balancer | available |
 | `cdn` — CDN endpoints, their cache TTL and certificate | available |
 | `dropletmetrics` — CPU, memory, disk and load per droplet (off by default) | available |
+| `loadbalancermetrics` — traffic and backend health per load balancer (off by default) | available |
 | domains, firewalls, certificates | planned |
 
 ## Install

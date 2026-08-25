@@ -113,6 +113,14 @@ spec:
             {{- else }}
             - --no-collector.dropletmetrics
             {{- end }}
+            {{- if .Values.collectors.loadbalancermetrics.enabled }}
+            - --collector.loadbalancermetrics
+            - --collector.loadbalancermetrics.interval={{ .Values.collectors.loadbalancermetrics.interval }}
+            - --collector.loadbalancermetrics.timeout={{ .Values.collectors.loadbalancermetrics.timeout }}
+            - --collector.loadbalancermetrics.concurrency={{ .Values.collectors.loadbalancermetrics.concurrency }}
+            {{- else }}
+            - --no-collector.loadbalancermetrics
+            {{- end }}
           ports:
             - name: metrics
               containerPort: {{ .Values.service.port }}

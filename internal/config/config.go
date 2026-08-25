@@ -95,6 +95,9 @@ type Config struct {
 	// DropletMetricsConcurrency caps how many droplets the droplet metrics
 	// collector measures at once.
 	DropletMetricsConcurrency int
+	// LoadBalancerMetricsConcurrency caps how many load balancers the load
+	// balancer metrics collector measures at once.
+	LoadBalancerMetricsConcurrency int
 }
 
 // flags holds every bound flag before validation turns them into a Config.
@@ -130,6 +133,10 @@ type flags struct {
 	dmInterval         *time.Duration
 	dmTimeout          *time.Duration
 	dmConcurrency      *int
+	lbMetrics          *bool
+	lbmInterval        *time.Duration
+	lbmTimeout         *time.Duration
+	lbmConcurrency     *int
 	spaces             *bool
 	spacesInterval     *time.Duration
 	spacesTimeout      *time.Duration
@@ -252,6 +259,18 @@ func bindMonitoring(app *kingpin.Application, f *flags) {
 	f.dmConcurrency = app.Flag("collector.dropletmetrics.concurrency",
 		"How many droplets to measure at once.").
 		Envar("COLLECTOR_DROPLETMETRICS_CONCURRENCY").Default("4").Int()
+	f.lbMetrics = app.Flag("collector.loadbalancermetrics",
+		"Enable the load balancer metrics collector. Costs 7 API requests per load balancer.").
+		Envar("COLLECTOR_LOADBALANCERMETRICS").Default("false").Bool()
+	f.lbmInterval = app.Flag("collector.loadbalancermetrics.interval",
+		"Refresh interval of the load balancer metrics collector. The API samples every 2m.").
+		Envar("COLLECTOR_LOADBALANCERMETRICS_INTERVAL").Default("5m").Duration()
+	f.lbmTimeout = app.Flag("collector.loadbalancermetrics.timeout",
+		"Timeout of one full load balancer metrics refresh.").
+		Envar("COLLECTOR_LOADBALANCERMETRICS_TIMEOUT").Default("2m").Duration()
+	f.lbmConcurrency = app.Flag("collector.loadbalancermetrics.concurrency",
+		"How many load balancers to measure at once.").
+		Envar("COLLECTOR_LOADBALANCERMETRICS_CONCURRENCY").Default("4").Int()
 }
 
 // bindSpaces declares the flags of the Spaces collector, which brings its own
@@ -315,14 +334,20 @@ func (f *flags) config() (*Config, error) {
 				Interval: *f.dmInterval,
 				Timeout:  *f.dmTimeout,
 			},
+			"loadbalancermetrics": {
+				Enabled:  *f.lbMetrics,
+				Interval: *f.lbmInterval,
+				Timeout:  *f.lbmTimeout,
+			},
 			"spaces": {
 				Enabled:  *f.spaces,
 				Interval: *f.spacesInterval,
 				Timeout:  *f.spacesTimeout,
 			},
 		},
-		Spaces:                    spaces,
-		DropletMetricsConcurrency: *f.dmConcurrency,
+		Spaces:                         spaces,
+		DropletMetricsConcurrency:      *f.dmConcurrency,
+		LoadBalancerMetricsConcurrency: *f.lbmConcurrency,
 	}, nil
 }
 

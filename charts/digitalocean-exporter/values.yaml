@@ -104,6 +104,16 @@ collectors:
     interval: 5m
     timeout: 2m
     concurrency: 4
+  # The loadbalancermetrics collector reads the same monitoring API, at 7
+  # requests per load balancer per refresh. An account has far fewer load
+  # balancers than droplets, so the cost is small — but a load balancer cannot
+  # run node_exporter, which makes this the only source for its traffic and for
+  # which individual backend droplet is failing its health check.
+  loadbalancermetrics:
+    enabled: false
+    interval: 5m
+    timeout: 2m
+    concurrency: 4
 
 log:
   level: info

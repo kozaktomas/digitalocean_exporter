@@ -208,6 +208,66 @@ sets its own `digitalocean_droplet_metrics_up` to 0 and logs why, without costin
 droplets that succeeded; only a failure to list the droplets, or every droplet failing,
 fails the refresh and sets `collector_success` to 0.
 
+## Load balancer metrics
+
+Collected by `loadbalancermetrics` from `/v2/monitoring/metrics/load_balancer/*`, one set of
+metrics per load balancer. **Off by default.**
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_loadbalancer_frontend_connections_current` | `id`, `name` | Active connections to the frontend |
+| `digitalocean_loadbalancer_frontend_connections_limit` | `id`, `name` | Maximum connections the frontend allows |
+| `digitalocean_loadbalancer_frontend_cpu_utilization_percent` | `id`, `name` | Frontend CPU utilization, in percent |
+| `digitalocean_loadbalancer_frontend_http_responses_per_second` | `id`, `name`, `code` | Rate of HTTP responses, by code class |
+| `digitalocean_loadbalancer_droplets_health_checks` | `id`, `name`, `server` | Health check status of one backend |
+| `digitalocean_loadbalancer_droplets_downtime` | `id`, `name`, `server` | Downtime status of one backend |
+| `digitalocean_loadbalancer_droplets_http_response_time_p95_seconds` | `id`, `name` | 95th percentile backend response time |
+| `digitalocean_loadbalancer_metrics_up` | `id`, `name` | 1 if the last fetch succeeded |
+| `digitalocean_loadbalancer_metrics_timestamp_seconds` | `id`, `name` | Unix time of the newest sample |
+
+Unlike droplet metrics, none of this is available anywhere else: a load balancer cannot run
+`node_exporter`. The metric that earns the collector its keep is
+`digitalocean_loadbalancer_droplets_health_checks`, which names the **individual backend**
+that is failing rather than only showing that the pool has shrunk:
+
+```promql
+digitalocean_loadbalancer_droplets_health_checks < 100
+```
+
+The `server` label is the backend droplet, as `node-<droplet id>`.
+
+`frontend_http_responses` is a **rate**, not a running total — DigitalOcean's API
+specification calls it the "rate of response code" — so it is a gauge of responses per
+second and must not be wrapped in `rate()`. Error ratio:
+
+```promql
+sum by (id) (digitalocean_loadbalancer_frontend_http_responses_per_second{code="5xx"})
+  / ignoring(code) sum by (id) (digitalocean_loadbalancer_frontend_http_responses_per_second)
+```
+
+Nothing this API returns for a load balancer is cumulative, so every metric here is a gauge.
+
+### Units
+
+The units are those DigitalOcean's own API specification states: percent for frontend CPU,
+seconds for the 95th percentile response time. For the backend health check and downtime the
+specification says only "status" and gives no unit, so none is claimed here either — the
+observed values are 100 for a healthy backend and 0 for downtime on one that is up.
+
+### Cost, and what an empty result means
+
+Seven requests per load balancer per refresh, plus one listing. That is far cheaper than the
+droplet equivalent simply because an account has far fewer load balancers; three of them at
+the default interval cost 264 requests an hour against the limit of 5000. It is off by
+default anyway, so that enabling monitoring is always deliberate.
+
+An empty result is normal rather than exceptional here. A load balancer with no traffic has
+no HTTP response series at all, and a network load balancer never has the HTTP metrics. Such
+a load balancer reports `digitalocean_loadbalancer_metrics_up` at 1 with fewer series, not a
+failure. As with droplets, one load balancer failing keeps its previous readings, sets its
+own `_metrics_up` to 0 and logs why; only failing to list them, or every one failing, sets
+`collector_success` to 0.
+
 ## Kubernetes
 
 Collected by `kubernetes` from `/v2/kubernetes/clusters`, one set of metrics per cluster and

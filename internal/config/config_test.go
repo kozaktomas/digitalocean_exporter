@@ -453,3 +453,33 @@ func TestDropletMetricsCollectorDefaultsOff(t *testing.T) {
 		t.Errorf("DropletMetricsConcurrency = %d, want 8", cfg.DropletMetricsConcurrency)
 	}
 }
+
+// The load balancer metrics collector also costs API requests per resource, so
+// it is off until it is asked for.
+func TestLoadBalancerMetricsCollectorDefaultsOff(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	lb, ok := cfg.Collectors["loadbalancermetrics"]
+	if !ok {
+		t.Fatal("loadbalancermetrics collector missing from config")
+	}
+	if lb.Enabled {
+		t.Error("loadbalancermetrics collector = enabled by default, want disabled")
+	}
+	if lb.Interval != 5*time.Minute || lb.Timeout != 2*time.Minute {
+		t.Errorf("loadbalancermetrics = %+v, want a 5m interval and a 2m timeout", lb)
+	}
+	if cfg.LoadBalancerMetricsConcurrency != 4 {
+		t.Errorf("LoadBalancerMetricsConcurrency = %d, want 4", cfg.LoadBalancerMetricsConcurrency)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--collector.loadbalancermetrics"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !cfg.Collectors["loadbalancermetrics"].Enabled {
+		t.Error("loadbalancermetrics collector = disabled, want enabled")
+	}
+}
