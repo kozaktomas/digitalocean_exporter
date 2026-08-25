@@ -13,17 +13,20 @@ binary, the same flags and the same `:9212` in every case.
 
 ## What you need first
 
-**A DigitalOcean API token.** Create one under *API → Tokens* in the control panel. A
-**read-only** token is enough for every collector but one — the exporter never writes.
+**A DigitalOcean API token.** Create one under *API → Tokens* in the control panel. The
+exporter only ever reads, so a token with the single scope `api:read` — every read
+permission and no write permission — covers every collector. You can scope it more tightly
+than that; [token permissions](../configuration/permissions.md) lists what each collector
+needs and how to switch off the ones you scoped the token out of.
 
 **A billing scope, if you want the `balance` collector.** Balance and month-to-date usage
-come from `/v2/customers/my/balance`, which a resource-scoped token cannot read: it answers
-`403 Forbidden`. If your token cannot have the billing scope, disable that one collector.
-See [collectors](../configuration/collectors.md#balance).
+come from `/v2/customers/my/balance`, which needs `billing:read`; a token without it answers
+`403 Forbidden`. That scope is not available on every team role. If yours cannot have it,
+disable that one collector and nothing else changes.
 
 **A Spaces access key, only for the `spaces` collector.** That is an S3 credential, created
-separately under *API → Spaces Keys*, and unrelated to the API token. See
-[Spaces](../configuration/spaces.md).
+separately under *API → Spaces Keys*, and unrelated to the API token — a Read-only limited
+key is enough. See [Spaces](../configuration/spaces.md).
 
 !!! danger "Treat the token as a secret"
 

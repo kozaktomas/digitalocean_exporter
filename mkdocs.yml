@@ -39,6 +39,14 @@ theme:
         icon: material/weather-sunny
         name: Switch to light mode
 
+# --strict turns these into build failures. anchors catches a link to a heading that
+# was renamed or never existed, which plain link checking misses.
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
 plugins:
   - search
   - include-markdown
@@ -83,6 +91,7 @@ nav:
       - Binary: install/binary.md
   - Configuration:
       - configuration/index.md
+      - Token permissions: configuration/permissions.md
       - Collectors: configuration/collectors.md
       - Spaces: configuration/spaces.md
       - Monitoring API: configuration/monitoring-api.md

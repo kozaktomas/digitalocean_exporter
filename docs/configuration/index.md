@@ -25,6 +25,10 @@ than running half-configured.
 Prefer the file form anywhere real. A token on a command line is visible in `ps` to every
 user on the host, and lands in shell history.
 
+Which scopes that token needs — and how to narrow it deliberately — is
+[its own page](permissions.md). The short version: `api:read` covers everything the exporter
+does, and it can do nothing else.
+
 ## Turning a collector off
 
 This trips people up once each, so it is worth stating plainly.

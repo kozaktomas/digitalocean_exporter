@@ -91,13 +91,24 @@ Every flag has an environment-variable equivalent, and flags win over the enviro
 [full reference](https://kozaktomas.github.io/digitalocean_exporter/configuration/) lists
 all of them; `--help` prints the same list from the binary itself.
 
-Two things catch everyone once:
+### Token
+
+The exporter only ever reads, so a token with the single scope **`api:read`** — every read
+permission, no write permission — runs every collector. You can scope it more tightly and
+switch off the collectors you scoped it out of; see
+[token permissions](https://kozaktomas.github.io/digitalocean_exporter/configuration/permissions/).
+
+The `spaces` collector is the exception: it uses a Spaces access key, which is an S3
+credential unrelated to the API token, and a Read-only limited key is enough.
+
+### Two things that catch everyone once
 
 - A collector is disabled with the **negated flag** — `--no-collector.balance`. Writing
   `--collector.balance=false` is a parse error that stops the process at startup. The
   environment variable does take a value: `COLLECTOR_BALANCE=false`.
-- The `balance` collector needs a token with the **billing scope**. A resource-scoped token
-  gets `403 Forbidden` from the balance endpoint; turn that one collector off.
+- The `balance` collector needs `billing:read`, which is not grantable on every team role.
+  A token without it gets `403 Forbidden` from the balance endpoint; turn that one
+  collector off.
 
 ## Scraping
 

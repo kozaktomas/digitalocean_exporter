@@ -68,6 +68,9 @@ requests than the others, or takes far longer. The pages linked above do the ari
 
 Domains, firewalls and certificates are planned.
 
+A token scoped `api:read` runs all of them and can change nothing;
+[token permissions](configuration/permissions.md) covers scoping it more tightly.
+
 ## Versioning
 
 Releases follow [semantic versioning](https://semver.org/), and one number covers
