@@ -77,8 +77,10 @@ Before its first successful refresh a collector emits nothing, rather than zeros
 
 ## Working rules
 
-- `make check` (gofmt, go vet, golangci-lint, tests) must pass before every commit. The
-  lint configuration is strict on purpose; do not soften it.
+- `make check` (gofmt, go vet, golangci-lint, tests, race detector) must pass before every
+  commit. The lint configuration is strict on purpose; do not soften it. The race detector
+  is part of the gate because CI runs it and a collector that fans out over buckets can
+  race in its own test stub, which the plain test run will not notice.
 - `make smoke` runs the exporter end to end against a stub API and needs no token.
 - **Commit and push straight to `main`.** The project is in its development phase: no feature
   branches, no pull requests. `make check` still has to pass first.

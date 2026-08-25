@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/spaces"
@@ -29,9 +30,11 @@ type stubBucket struct {
 // stubAPI is a fake S3-compatible API: enough of ListObjectsV2, ListBuckets
 // and GetBucketLocation to drive the collector, including pagination.
 type stubAPI struct {
-	buckets       map[string]*stubBucket
-	denyListAll   bool
-	listObjectCnt int
+	buckets     map[string]*stubBucket
+	denyListAll bool
+	// listObjectCnt is written from several handler goroutines at once: the
+	// collector lists buckets in parallel.
+	listObjectCnt atomic.Int64
 }
 
 // newStubAPI starts the fake API and returns it with a factory pointed at it.
@@ -91,7 +94,7 @@ func (a *stubAPI) listObjects(w http.ResponseWriter, r *http.Request, name strin
 		writeS3Error(w, http.StatusForbidden, "AccessDenied", "Access Denied.")
 		return
 	}
-	a.listObjectCnt++
+	a.listObjectCnt.Add(1)
 
 	start := 0
 	if token := r.URL.Query().Get("continuation-token"); token != "" {

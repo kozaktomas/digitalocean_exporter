@@ -35,8 +35,8 @@ test:
 test-race:
 	CGO_ENABLED=1 go test -race ./...
 
-## check: The full quality gate: fmt, vet, lint, test.
-check: fmt vet lint test
+## check: The full quality gate: fmt, vet, lint, test, race detector.
+check: fmt vet lint test test-race
 
 ## smoke: Run the end-to-end smoke test against a locally built binary.
 smoke: build

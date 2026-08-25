@@ -53,8 +53,8 @@ digitalocean_spaces_bucket_up{bucket="logs",region="ams3"} 1
 	}
 
 	// Three pages for images (2+2+1) and one for logs.
-	if api.listObjectCnt != 4 {
-		t.Errorf("ListObjectsV2 calls = %d, want 4 (three pages plus one)", api.listObjectCnt)
+	if got := api.listObjectCnt.Load(); got != 4 {
+		t.Errorf("ListObjectsV2 calls = %d, want 4 (three pages plus one)", got)
 	}
 }
 
