@@ -1,6 +1,6 @@
 # Spaces collector — design
 
-Status: approved, not yet implemented. Date: 2026-08-24.
+Status: implemented on 2026-08-25. Date: 2026-08-24.
 
 ## Why this collector exists at all
 

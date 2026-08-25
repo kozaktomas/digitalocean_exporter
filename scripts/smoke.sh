@@ -18,12 +18,26 @@ ACCOUNT = {"account": {"droplet_limit": 25, "floating_ip_limit": 3, "reserved_ip
 BALANCE = {"month_to_date_balance": "23.44", "account_balance": "12.23",
            "month_to_date_usage": "11.21", "generated_at": "2026-08-24T12:00:00Z"}
 
+# One bucket of two objects, served S3-style so the Spaces collector has
+# something to list without any credentials of its own.
+LISTING = b"""<?xml version="1.0" encoding="UTF-8"?>
+<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+<Name>smoke</Name><KeyCount>2</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated>
+<Contents><Key>a</Key><Size>1024</Size><LastModified>2026-08-24T12:00:00.000Z</LastModified></Contents>
+<Contents><Key>b</Key><Size>2048</Size><LastModified>2026-08-24T12:00:00.000Z</LastModified></Contents>
+</ListBucketResult>"""
+
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
+        if "list-type=2" in self.path:
+            self.respond(LISTING, "application/xml")
+            return
         body = BALANCE if self.path.endswith("/balance") else ACCOUNT
-        payload = json.dumps(body).encode()
+        self.respond(json.dumps(body).encode(), "application/json")
+
+    def respond(self, payload, content_type):
         self.send_response(200)
-        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Type", content_type)
         self.send_header("RateLimit-Remaining", "4999")
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
@@ -46,8 +60,12 @@ for _ in $(seq 1 50); do
 done
 
 DO_API_BASE_URL="http://127.0.0.1:${API_PORT}/" \
+DO_SPACES_ENDPOINT="http://127.0.0.1:${API_PORT}" \
   "$BIN" --do.token=smoke-token --web.listen-address="127.0.0.1:${PORT}" \
-         --collector.account.interval=1s --collector.balance.interval=1s &
+         --collector.account.interval=1s --collector.balance.interval=1s \
+         --collector.spaces --collector.spaces.interval=1s \
+         --spaces.access-key=smoke --spaces.secret-key=smoke \
+         --spaces.region=fra1 --collector.spaces.bucket=smoke &
 EXPORTER_PID=$!
 
 for _ in $(seq 1 50); do
@@ -59,7 +77,7 @@ done
 METRICS=""
 for _ in $(seq 1 50); do
   METRICS="$(curl -sf "http://127.0.0.1:${PORT}/metrics")"
-  grep -q "^digitalocean_month_to_date_usage" <<<"$METRICS" && break
+  grep -q "^digitalocean_spaces_bucket_size_bytes" <<<"$METRICS" && break
   sleep 0.2
 done
 
@@ -68,7 +86,9 @@ for metric in \
   digitalocean_exporter_build_info \
   digitalocean_exporter_collector_success \
   digitalocean_account_active \
-  digitalocean_month_to_date_usage
+  digitalocean_month_to_date_usage \
+  digitalocean_spaces_bucket_size_bytes \
+  digitalocean_spaces_bucket_objects
 do
   if grep -q "^${metric}" <<<"$METRICS"; then
     echo "ok   ${metric}"

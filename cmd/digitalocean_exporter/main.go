@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -21,8 +22,10 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/account"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/balance"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/spaces"
 	"github.com/kozaktomas/digitalocean_exporter/internal/config"
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
+	"github.com/kozaktomas/digitalocean_exporter/internal/spacesclient"
 	"github.com/kozaktomas/digitalocean_exporter/internal/version"
 )
 
@@ -70,12 +73,7 @@ func run(args []string) error {
 	}
 
 	scheduler := collector.NewScheduler(cfg.Timeout, logger, reg)
-	if cfg.Collectors["account"].Enabled {
-		scheduler.Register(account.New(client), cfg.Collectors["account"].Interval)
-	}
-	if cfg.Collectors["balance"].Enabled {
-		scheduler.Register(balance.New(client), cfg.Collectors["balance"].Interval)
-	}
+	registerCollectors(scheduler, cfg, client, logger)
 	reg.MustRegister(scheduler)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -83,6 +81,39 @@ func run(args []string) error {
 	go scheduler.Run(ctx)
 
 	return serve(ctx, cfg, reg, logger)
+}
+
+// registerCollectors enables the collectors the configuration asks for.
+func registerCollectors(
+	scheduler *collector.Scheduler, cfg *config.Config, client *godo.Client, logger *slog.Logger,
+) {
+	if c := cfg.Collectors["account"]; c.Enabled {
+		scheduler.Register(account.New(client), c.Interval, c.Timeout)
+	}
+	if c := cfg.Collectors["balance"]; c.Enabled {
+		scheduler.Register(balance.New(client), c.Interval, c.Timeout)
+	}
+	if c := cfg.Collectors["spaces"]; c.Enabled {
+		scheduler.Register(newSpaces(cfg.Spaces, logger), c.Interval, c.Timeout)
+	}
+}
+
+// newSpaces builds the Spaces collector from its own configuration.
+//
+// DO_SPACES_ENDPOINT points the S3 client at a stub, mirroring DO_API_BASE_URL;
+// in production it is unset and the regional Spaces endpoints are used.
+func newSpaces(cfg config.SpacesConfig, logger *slog.Logger) *spaces.Collector {
+	buckets := make([]spaces.Bucket, 0, len(cfg.Buckets))
+	for _, b := range cfg.Buckets {
+		buckets = append(buckets, spaces.Bucket{Name: b.Name, Region: b.Region})
+	}
+	return spaces.New(spaces.Config{
+		Factory:     spacesclient.NewFactory(cfg.AccessKey, cfg.SecretKey, os.Getenv("DO_SPACES_ENDPOINT")),
+		Buckets:     buckets,
+		Region:      cfg.Region,
+		Concurrency: cfg.Concurrency,
+		Logger:      logger,
+	})
 }
 
 // newLogger builds the structured logger from the configuration. Both values

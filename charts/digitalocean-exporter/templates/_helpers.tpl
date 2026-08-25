@@ -26,3 +26,11 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- include "digitalocean-exporter.fullname" . -}}
 {{- end -}}
 {{- end -}}
+
+{{- define "digitalocean-exporter.spacesSecretName" -}}
+{{- if .Values.spaces.existingSecret -}}
+{{- .Values.spaces.existingSecret -}}
+{{- else -}}
+{{- printf "%s-spaces" (include "digitalocean-exporter.fullname" .) -}}
+{{- end -}}
+{{- end -}}

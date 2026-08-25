@@ -18,13 +18,13 @@ actually deserves.
 ## Status
 
 Early. This release ships the exporter skeleton, the full build and release pipeline, and
-two collectors:
+three collectors:
 
 | Collector | State |
 |---|---|
 | `account` — status and resource limits | available |
 | `balance` — balance and month-to-date usage (needs a billing-scoped token) | available |
-| `spaces` — bucket size and object count | planned, next |
+| `spaces` — bucket size and object count (needs a Spaces access key) | available |
 | `registry` — Container Registry storage usage | planned |
 | droplets, load balancers, databases, domains | planned |
 
@@ -89,6 +89,16 @@ Every flag has an environment-variable equivalent. Flags win over the environmen
 | `--collector.account.interval` | `COLLECTOR_ACCOUNT_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.balance` | `COLLECTOR_BALANCE` | `true` | Enable the balance collector |
 | `--collector.balance.interval` | `COLLECTOR_BALANCE_INTERVAL` | `5m` | Its refresh interval |
+| `--collector.spaces` | `COLLECTOR_SPACES` | `false` | Enable the Spaces collector |
+| `--collector.spaces.interval` | `COLLECTOR_SPACES_INTERVAL` | `6h` | Its refresh interval |
+| `--collector.spaces.timeout` | `COLLECTOR_SPACES_TIMEOUT` | `15m` | Timeout of one full Spaces refresh |
+| `--collector.spaces.bucket` | `COLLECTOR_SPACES_BUCKET` | — | Bucket as `name` or `name@region`, repeatable |
+| `--collector.spaces.concurrency` | `COLLECTOR_SPACES_CONCURRENCY` | `4` | Buckets listed at once |
+| `--spaces.access-key` | `DIGITALOCEAN_SPACES_KEY` | — | Spaces access key |
+| `--spaces.access-key-file` | `DIGITALOCEAN_SPACES_KEY_FILE` | — | File holding the access key |
+| `--spaces.secret-key` | `DIGITALOCEAN_SPACES_SECRET` | — | Spaces secret key |
+| `--spaces.secret-key-file` | `DIGITALOCEAN_SPACES_SECRET_FILE` | — | File holding the secret key |
+| `--spaces.region` | `SPACES_REGION` | — | Region for discovery and for buckets without one |
 | `--log.level` | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
 | `--log.format` | `LOG_FORMAT` | `logfmt` | `logfmt` or `json` |
 
@@ -98,6 +108,24 @@ A collector is switched off with the negated flag — `--no-collector.balance`, 
 `--collector.balance=false`, which the flag parser rejects. The environment variable does
 take a value: `COLLECTOR_BALANCE=false`. Reach for this when the token cannot read billing:
 the balance endpoint answers `403 Forbidden` to a token without the billing scope.
+
+## Spaces
+
+The Spaces collector authenticates with a Spaces access key pair, which is unrelated to the
+API token, and is off by default. Sizing a bucket means listing every object in it, so it
+refreshes every 6h with a 15m timeout of its own rather than the shared one.
+
+It only ever lists, never downloads, so a **Limited access** key with **Read** on the
+observed buckets is enough:
+
+```
+digitalocean_exporter --collector.spaces --spaces.region=fra1 \
+  --collector.spaces.bucket=assets --collector.spaces.bucket=backups@ams3
+```
+
+Given no bucket the collector discovers them itself, which needs a full-access key —
+listing all buckets is a full-access capability, and a limited key is told to name its
+buckets instead.
 
 ## Scraping
 

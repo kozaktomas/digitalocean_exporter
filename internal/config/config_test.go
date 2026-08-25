@@ -118,3 +118,112 @@ func TestParseDisablesTheBalanceCollectorAlone(t *testing.T) {
 		t.Error("account collector = disabled, want it untouched")
 	}
 }
+
+func TestParseSpacesDefaults(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	spaces, ok := cfg.Collectors["spaces"]
+	if !ok {
+		t.Fatal("spaces collector missing from config")
+	}
+	// It needs credentials the other collectors do not and its refresh costs
+	// minutes, so it stays off until asked for.
+	if spaces.Enabled {
+		t.Error("spaces collector = enabled by default, want disabled")
+	}
+	if spaces.Interval != 6*time.Hour {
+		t.Errorf("spaces interval = %v, want 6h", spaces.Interval)
+	}
+	if spaces.Timeout != 15*time.Minute {
+		t.Errorf("spaces timeout = %v, want 15m", spaces.Timeout)
+	}
+	if cfg.Spaces.Concurrency != 4 {
+		t.Errorf("spaces concurrency = %d, want 4", cfg.Spaces.Concurrency)
+	}
+}
+
+func TestParseSpacesNeedsCredentials(t *testing.T) {
+	_, err := config.Parse([]string{"--do.token", "t", "--collector.spaces", "--spaces.region", "fra1"})
+	if !errors.Is(err, config.ErrNoSpacesCredentials) {
+		t.Fatalf("error = %v, want ErrNoSpacesCredentials", err)
+	}
+}
+
+func TestParseSpacesBuckets(t *testing.T) {
+	cfg, err := config.Parse([]string{
+		"--do.token", "t", "--collector.spaces",
+		"--spaces.access-key", "k", "--spaces.secret-key", "s",
+		"--spaces.region", "fra1",
+		"--collector.spaces.bucket", "images@ams3",
+		"--collector.spaces.bucket", "logs",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []config.SpacesBucket{
+		{Name: "images", Region: "ams3"},
+		{Name: "logs", Region: "fra1"},
+	}
+	if len(cfg.Spaces.Buckets) != len(want) {
+		t.Fatalf("buckets = %+v, want %+v", cfg.Spaces.Buckets, want)
+	}
+	for i, b := range cfg.Spaces.Buckets {
+		if b != want[i] {
+			t.Errorf("bucket %d = %+v, want %+v", i, b, want[i])
+		}
+	}
+}
+
+// A bucket with no region has no endpoint to talk to. Saying so at startup
+// beats a refresh that fails six hours later.
+func TestParseSpacesBucketWithoutRegionFails(t *testing.T) {
+	_, err := config.Parse([]string{
+		"--do.token", "t", "--collector.spaces",
+		"--spaces.access-key", "k", "--spaces.secret-key", "s",
+		"--collector.spaces.bucket", "logs",
+	})
+	if !errors.Is(err, config.ErrNoSpacesRegion) {
+		t.Fatalf("error = %v, want ErrNoSpacesRegion", err)
+	}
+}
+
+func TestParseSpacesDiscoveryNeedsARegion(t *testing.T) {
+	_, err := config.Parse([]string{
+		"--do.token", "t", "--collector.spaces",
+		"--spaces.access-key", "k", "--spaces.secret-key", "s",
+	})
+	if !errors.Is(err, config.ErrNoSpacesRegion) {
+		t.Fatalf("error = %v, want ErrNoSpacesRegion", err)
+	}
+}
+
+func TestParseSpacesSecretFromFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "secret")
+	if err := os.WriteFile(path, []byte("  file-secret\n"), 0o600); err != nil {
+		t.Fatalf("write secret file: %v", err)
+	}
+	cfg, err := config.Parse([]string{
+		"--do.token", "t", "--collector.spaces",
+		"--spaces.access-key", "k", "--spaces.secret-key-file", path,
+		"--spaces.region", "fra1",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Spaces.SecretKey != "file-secret" {
+		t.Errorf("secret = %q, want the trimmed file contents", cfg.Spaces.SecretKey)
+	}
+}
+
+func TestParseSpacesRejectsBothSecretSources(t *testing.T) {
+	_, err := config.Parse([]string{
+		"--do.token", "t", "--collector.spaces",
+		"--spaces.access-key", "k", "--spaces.secret-key", "s", "--spaces.secret-key-file", "/tmp/x",
+		"--spaces.region", "fra1",
+	})
+	if !errors.Is(err, config.ErrSpacesCredentialConflict) {
+		t.Fatalf("error = %v, want ErrSpacesCredentialConflict", err)
+	}
+}

@@ -41,6 +41,22 @@ spec:
             {{- else }}
             - --no-collector.balance
             {{- end }}
+            {{- if .Values.collectors.spaces.enabled }}
+            - --collector.spaces
+            - --collector.spaces.interval={{ .Values.collectors.spaces.interval }}
+            - --collector.spaces.timeout={{ .Values.collectors.spaces.timeout }}
+            - --collector.spaces.concurrency={{ .Values.collectors.spaces.concurrency }}
+            {{- with .Values.collectors.spaces.region }}
+            - --spaces.region={{ . }}
+            {{- end }}
+            {{- range .Values.collectors.spaces.buckets }}
+            - --collector.spaces.bucket={{ . }}
+            {{- end }}
+            - --spaces.access-key-file=/etc/digitalocean-exporter/spaces/access-key
+            - --spaces.secret-key-file=/etc/digitalocean-exporter/spaces/secret-key
+            {{- else }}
+            - --no-collector.spaces
+            {{- end }}
           ports:
             - name: metrics
               containerPort: {{ .Values.service.port }}
@@ -63,6 +79,11 @@ spec:
             - name: token
               mountPath: /etc/digitalocean-exporter
               readOnly: true
+            {{- if .Values.collectors.spaces.enabled }}
+            - name: spaces
+              mountPath: /etc/digitalocean-exporter/spaces
+              readOnly: true
+            {{- end }}
       volumes:
         - name: token
           secret:
@@ -70,6 +91,16 @@ spec:
             items:
               - key: {{ .Values.digitalocean.existingSecretKey }}
                 path: token
+        {{- if .Values.collectors.spaces.enabled }}
+        - name: spaces
+          secret:
+            secretName: {{ include "digitalocean-exporter.spacesSecretName" . }}
+            items:
+              - key: {{ .Values.spaces.existingSecretAccessKeyKey }}
+                path: access-key
+              - key: {{ .Values.spaces.existingSecretSecretKeyKey }}
+                path: secret-key
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

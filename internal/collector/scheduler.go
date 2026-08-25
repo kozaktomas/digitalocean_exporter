@@ -21,10 +21,12 @@ type Scheduler struct {
 	lastOK   *prometheus.GaugeVec
 }
 
-// entry pairs a collector with the interval it refreshes on.
+// entry pairs a collector with the interval it refreshes on and the timeout
+// that bounds one refresh.
 type entry struct {
 	collector Collector
 	interval  time.Duration
+	timeout   time.Duration
 }
 
 // NewScheduler creates a scheduler whose refreshes are bounded by timeout and
@@ -50,10 +52,16 @@ func NewScheduler(timeout time.Duration, logger *slog.Logger, reg prometheus.Reg
 	return s
 }
 
-// Register adds a collector to be refreshed every interval. It must be called
+// Register adds a collector to be refreshed every interval, bounding one
+// refresh by timeout. A timeout of zero means the scheduler's own: a collector
+// whose refresh is a single API call needs nothing special, while listing every
+// object of a Spaces bucket takes minutes and has to say so. It must be called
 // before Run.
-func (s *Scheduler) Register(c Collector, interval time.Duration) {
-	s.entries = append(s.entries, entry{collector: c, interval: interval})
+func (s *Scheduler) Register(c Collector, interval, timeout time.Duration) {
+	if timeout <= 0 {
+		timeout = s.timeout
+	}
+	s.entries = append(s.entries, entry{collector: c, interval: interval, timeout: timeout})
 }
 
 // Run refreshes every registered collector once immediately and then on its
@@ -76,14 +84,14 @@ func (s *Scheduler) loop(ctx context.Context, e entry) {
 	defer ticker.Stop()
 
 	// Refresh straight away so /metrics is useful before the first tick.
-	s.refresh(ctx, e.collector)
+	s.refresh(ctx, e.collector, e.timeout)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			s.refresh(ctx, e.collector)
+			s.refresh(ctx, e.collector, e.timeout)
 		}
 	}
 }
@@ -91,8 +99,8 @@ func (s *Scheduler) loop(ctx context.Context, e entry) {
 // refresh runs one bounded refresh and records how it went. A failure leaves
 // the collector's snapshot untouched, so the metrics go stale rather than
 // disappearing — a gap in a graph reads as an outage of DigitalOcean itself.
-func (s *Scheduler) refresh(ctx context.Context, c Collector) {
-	ctx, cancel := context.WithTimeout(ctx, s.timeout)
+func (s *Scheduler) refresh(ctx context.Context, c Collector, timeout time.Duration) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	name := c.Name()

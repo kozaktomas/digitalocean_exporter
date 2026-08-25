@@ -14,6 +14,15 @@ digitalocean:
   existingSecret: ""
   existingSecretKey: token
 
+# Spaces access key pair, used only by the spaces collector. Like the token, it
+# reaches the pod as mounted files rather than environment variables.
+spaces:
+  accessKey: ""
+  secretKey: ""
+  existingSecret: ""
+  existingSecretAccessKeyKey: spaces-access-key
+  existingSecretSecretKeyKey: spaces-secret-key
+
 collectors:
   account:
     enabled: true
@@ -24,6 +33,19 @@ collectors:
   balance:
     enabled: true
     interval: 5m
+  # The spaces collector measures buckets by listing every object in them, so
+  # it refreshes on a long interval and needs a timeout of its own. It
+  # authenticates with a Spaces access key pair, not the API token: set
+  # spaces.accessKey and spaces.secretKey below, or point spaces.existingSecret
+  # at a Secret holding both. Listing all buckets needs a full-access key, so
+  # name the buckets here when using a limited one.
+  spaces:
+    enabled: false
+    interval: 6h
+    timeout: 15m
+    concurrency: 4
+    region: ""
+    buckets: []
 
 log:
   level: info
