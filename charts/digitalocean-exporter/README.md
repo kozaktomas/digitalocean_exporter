@@ -90,3 +90,7 @@ helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
 
 * <https://github.com/kozaktomas/digitalocean_exporter>
 
+---
+
+The values table above is generated from the comments in `values.yaml` by
+[helm-docs](https://github.com/norwoodj/helm-docs); run `make chart-docs` after editing them.
