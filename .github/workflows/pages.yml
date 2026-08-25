@@ -153,15 +153,33 @@ jobs:
       - name: Collect every released chart package
         env:
           GH_TOKEN: ${{ github.token }}
+          # The documentation is checked out into site/, so the workspace root is not a
+          # git repository and gh cannot infer which repo it is talking to. Without this
+          # it fails, the loop runs zero times and an empty index gets published as if
+          # nothing were wrong.
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           mkdir -p site/charts
-          for tag in $(gh release list --limit 200 --json tagName --jq '.[].tagName'); do
+          tags=$(gh release list --limit 200 --json tagName --jq '.[].tagName')
+          for tag in ${tags}; do
             # A release without a chart asset is not an error: the first releases predate
             # the chart, and goreleaser attaches the package only from now on.
             gh release download "${tag}" --dir site/charts --pattern '*.tgz' --clobber || true
           done
+
+          releases=$(printf '%s' "${tags}" | grep -c . || true)
+          packages=$(find site/charts -name '*.tgz' | wc -l)
+          echo "collected ${packages} chart package(s) from ${releases} release(s)"
           ls -l site/charts
+
+          # Releases that yield no package at all means collection broke rather than that
+          # there is nothing to publish. Fail loudly: an empty index.yaml deployed over a
+          # working one is indistinguishable from success until someone tries to install.
+          if [ "${releases}" -gt 0 ] && [ "${packages}" -eq 0 ]; then
+            echo "::error::${releases} release(s) exist but no chart package was collected"
+            exit 1
+          fi
 
       - name: Build the chart repository index
         run: |
