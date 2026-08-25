@@ -24,6 +24,7 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/balance"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/databases"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/droplets"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/kubernetes"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/limits"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/registry"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/spaces"
@@ -102,6 +103,9 @@ func registerCollectors(
 	}
 	if c := cfg.Collectors["droplets"]; c.Enabled {
 		scheduler.Register(droplets.New(client), c.Interval, c.Timeout)
+	}
+	if c := cfg.Collectors["kubernetes"]; c.Enabled {
+		scheduler.Register(kubernetes.New(client), c.Interval, c.Timeout)
 	}
 	if c := cfg.Collectors["limits"]; c.Enabled {
 		scheduler.Register(limits.New(client), c.Interval, c.Timeout)

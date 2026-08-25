@@ -54,6 +54,44 @@ generated and change when a node is replaced, so the series churn; read them thr
 Droplet tags are not exported. A droplet carries any number of them, and a label per tag
 would multiply the series of every droplet by the tags it happens to have.
 
+## Kubernetes
+
+Collected by `kubernetes` from `/v2/kubernetes/clusters`, one set of metrics per cluster and
+one per node pool in it.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_kubernetes_cluster_up` | `id`, `name`, `region`, `version` | 1 if the cluster state is `running` |
+| `digitalocean_kubernetes_cluster_auto_upgrade` | `id`, `name`, `region` | 1 if the cluster upgrades itself in its maintenance window |
+| `digitalocean_kubernetes_cluster_surge_upgrade` | `id`, `name`, `region` | 1 if it adds a node before replacing one |
+| `digitalocean_kubernetes_cluster_ha` | `id`, `name`, `region` | 1 if the control plane is highly available |
+| `digitalocean_kubernetes_node_pool_nodes` | `cluster`, `pool`, `size` | Nodes the pool is configured to run |
+| `digitalocean_kubernetes_node_pool_nodes_running` | `cluster`, `pool`, `size` | Nodes in the pool reporting `running` |
+| `digitalocean_kubernetes_node_pool_auto_scale` | `cluster`, `pool`, `size` | 1 if the pool scales itself |
+| `digitalocean_kubernetes_node_pool_min_nodes` | `cluster`, `pool`, `size` | Smallest size the pool may scale to |
+| `digitalocean_kubernetes_node_pool_max_nodes` | `cluster`, `pool`, `size` | Largest size the pool may scale to |
+
+The configured count and the running count are kept apart on purpose: a pool that is waiting
+for a node to come up reports the two apart, and that gap is the moment worth alerting on.
+
+```yaml
+      - alert: DigitalOceanKubernetesNodePoolShort
+        expr: >
+          digitalocean_kubernetes_node_pool_nodes_running
+            < digitalocean_kubernetes_node_pool_nodes
+        for: 15m
+        annotations:
+          summary: "Pool {{ $labels.pool }} of {{ $labels.cluster }} is short of nodes"
+```
+
+`digitalocean_kubernetes_cluster_up` keeps the name and labels of the older, unmaintained
+exporter. The node pool metrics do not: that exporter labels a pool by its own id and name
+and leaves the cluster out, so there is no telling whose pool it is.
+
+**This is the view from outside the cluster.** Pods, deployments and the rest are
+kube-state-metrics' job. The worker nodes themselves are ordinary droplets and are also
+reported by the `droplets` collector, from `/v2/droplets`.
+
 ## Limits in use
 
 Collected by `limits` from `/v2/droplets`, `/v2/reserved_ips` and `/v2/volumes`. Each is

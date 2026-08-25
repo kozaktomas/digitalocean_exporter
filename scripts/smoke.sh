@@ -38,6 +38,14 @@ DATABASES = {"databases": [{"id": "1", "name": "main", "engine": "mysql", "versi
                             "maintenance_window": {"day": "sunday", "hour": "03:00:00",
                                                    "pending": False}}],
              "meta": {"total": 1}}
+CLUSTERS = {"kubernetes_clusters": [{"id": "c1", "name": "prod", "region": "fra1",
+                                     "version": "1.35.5-do.1", "status": {"state": "running"},
+                                     "auto_upgrade": True, "surge_upgrade": True, "ha": False,
+                                     "node_pools": [{"id": "p1", "name": "workers",
+                                                     "size": "s-4vcpu-8gb", "count": 1,
+                                                     "nodes": [{"id": "n1",
+                                                                "status": {"state": "running"}}]}]}],
+            "meta": {"total": 1}}
 REPOSITORIES = {"repositories": [{"registry_name": "smoke", "name": "app", "tag_count": 3,
                                   "manifest_count": 2,
                                   "latest_manifest": {"compressed_size_bytes": 12345678,
@@ -56,6 +64,7 @@ LISTING = b"""<?xml version="1.0" encoding="UTF-8"?>
 ROUTES = {"/v2/customers/my/balance": BALANCE,
           "/v2/databases": DATABASES,
           "/v2/droplets": DROPLETS,
+          "/v2/kubernetes/clusters": CLUSTERS,
           "/v2/reserved_ips": RESERVED_IPS,
           "/v2/volumes": VOLUMES,
           "/v2/registry": REGISTRY,
@@ -100,6 +109,7 @@ DO_SPACES_ENDPOINT="http://127.0.0.1:${API_PORT}" \
          --collector.account.interval=1s --collector.balance.interval=1s \
          --collector.registry.interval=1s --collector.limits.interval=1s \
          --collector.droplets.interval=1s --collector.databases.interval=1s \
+         --collector.kubernetes.interval=1s \
          --collector.spaces --collector.spaces.interval=1s \
          --spaces.access-key=smoke --spaces.secret-key=smoke \
          --spaces.region=fra1 --collector.spaces.bucket=smoke &
@@ -133,7 +143,9 @@ for metric in \
   digitalocean_droplet_up \
   digitalocean_droplet_price_monthly \
   digitalocean_database_status \
-  digitalocean_database_storage_bytes
+  digitalocean_database_storage_bytes \
+  digitalocean_kubernetes_cluster_up \
+  digitalocean_kubernetes_node_pool_nodes_running
 do
   if grep -q "^${metric}" <<<"$METRICS"; then
     echo "ok   ${metric}"

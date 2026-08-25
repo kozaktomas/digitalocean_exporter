@@ -331,3 +331,25 @@ func TestParseRegistersTheDatabasesCollector(t *testing.T) {
 		t.Error("databases collector = enabled, want disabled")
 	}
 }
+
+func TestParseRegistersTheKubernetesCollector(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	k, ok := cfg.Collectors["kubernetes"]
+	if !ok {
+		t.Fatal("kubernetes collector missing from config")
+	}
+	if !k.Enabled || k.Interval != 5*time.Minute {
+		t.Errorf("kubernetes = %+v, want enabled with a 5m interval", k)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--no-collector.kubernetes"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Collectors["kubernetes"].Enabled {
+		t.Error("kubernetes collector = enabled, want disabled")
+	}
+}

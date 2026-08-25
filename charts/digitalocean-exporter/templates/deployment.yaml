@@ -53,6 +53,12 @@ spec:
             {{- else }}
             - --no-collector.droplets
             {{- end }}
+            {{- if .Values.collectors.kubernetes.enabled }}
+            - --collector.kubernetes
+            - --collector.kubernetes.interval={{ .Values.collectors.kubernetes.interval }}
+            {{- else }}
+            - --no-collector.kubernetes
+            {{- end }}
             {{- if .Values.collectors.limits.enabled }}
             - --collector.limits
             - --collector.limits.interval={{ .Values.collectors.limits.interval }}

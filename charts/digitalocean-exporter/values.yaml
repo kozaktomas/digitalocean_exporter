@@ -44,6 +44,11 @@ collectors:
   droplets:
     enabled: true
     interval: 5m
+  # The kubernetes collector reports the cluster and its node pools from the
+  # outside. What runs inside is kube-state-metrics' job.
+  kubernetes:
+    enabled: true
+    interval: 5m
   # The limits collector counts the droplets, reserved IPs and volumes the
   # account uses, which pair with the limits the account collector reports.
   limits:
