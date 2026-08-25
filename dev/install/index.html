@@ -673,6 +673,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../configuration/permissions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Token permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../configuration/collectors/" class="md-nav__link">
         
   
@@ -1203,15 +1231,18 @@ binary, the same flags and the same <code>:9212</code> in every case.</p>
 </tbody>
 </table>
 <h2 id="what-you-need-first">What you need first<a class="headerlink" href="#what-you-need-first" title="Permanent link">&para;</a></h2>
-<p><strong>A DigitalOcean API token.</strong> Create one under <em>API → Tokens</em> in the control panel. A
-<strong>read-only</strong> token is enough for every collector but one — the exporter never writes.</p>
+<p><strong>A DigitalOcean API token.</strong> Create one under <em>API → Tokens</em> in the control panel. The
+exporter only ever reads, so a token with the single scope <code>api:read</code> — every read
+permission and no write permission — covers every collector. You can scope it more tightly
+than that; <a href="../configuration/permissions/">token permissions</a> lists what each collector
+needs and how to switch off the ones you scoped the token out of.</p>
 <p><strong>A billing scope, if you want the <code>balance</code> collector.</strong> Balance and month-to-date usage
-come from <code>/v2/customers/my/balance</code>, which a resource-scoped token cannot read: it answers
-<code>403 Forbidden</code>. If your token cannot have the billing scope, disable that one collector.
-See <a href="../configuration/collectors/#balance">collectors</a>.</p>
+come from <code>/v2/customers/my/balance</code>, which needs <code>billing:read</code>; a token without it answers
+<code>403 Forbidden</code>. That scope is not available on every team role. If yours cannot have it,
+disable that one collector and nothing else changes.</p>
 <p><strong>A Spaces access key, only for the <code>spaces</code> collector.</strong> That is an S3 credential, created
-separately under <em>API → Spaces Keys</em>, and unrelated to the API token. See
-<a href="../configuration/spaces/">Spaces</a>.</p>
+separately under <em>API → Spaces Keys</em>, and unrelated to the API token — a Read-only limited
+key is enough. See <a href="../configuration/spaces/">Spaces</a>.</p>
 <div class="admonition danger">
 <p class="admonition-title">Treat the token as a secret</p>
 <p>A read-only token still enumerates your whole account. Every install method below has

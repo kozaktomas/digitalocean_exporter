@@ -18,7 +18,7 @@
         <link rel="prev" href="../install/binary/">
       
       
-        <link rel="next" href="collectors/">
+        <link rel="next" href="permissions/">
       
       
         
@@ -756,6 +756,34 @@
   
   
     <li class="md-nav__item">
+      <a href="permissions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Token permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="collectors/" class="md-nav__link">
         
   
@@ -1352,6 +1380,9 @@ Starting with neither, or with both, is a configuration error and the exporter e
 than running half-configured.</p>
 <p>Prefer the file form anywhere real. A token on a command line is visible in <code>ps</code> to every
 user on the host, and lands in shell history.</p>
+<p>Which scopes that token needs — and how to narrow it deliberately — is
+<a href="permissions/">its own page</a>. The short version: <code>api:read</code> covers everything the exporter
+does, and it can do nothing else.</p>
 <h2 id="turning-a-collector-off">Turning a collector off<a class="headerlink" href="#turning-a-collector-off" title="Permanent link">&para;</a></h2>
 <p>This trips people up once each, so it is worth stating plainly.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Flags</label><label for="__tabbed_1_2">Environment</label><label for="__tabbed_1_3">Helm</label></div>

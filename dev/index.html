@@ -702,6 +702,34 @@
   
   
     <li class="md-nav__item">
+      <a href="configuration/permissions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Token permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="configuration/collectors/" class="md-nav__link">
         
   
@@ -1347,6 +1375,8 @@ snapshot.</p>
 <p>The three that are off by default are off for a reason — each one costs far more API
 requests than the others, or takes far longer. The pages linked above do the arithmetic.</p>
 <p>Domains, firewalls and certificates are planned.</p>
+<p>A token scoped <code>api:read</code> runs all of them and can change nothing;
+<a href="configuration/permissions/">token permissions</a> covers scoping it more tightly.</p>
 <h2 id="versioning">Versioning<a class="headerlink" href="#versioning" title="Permanent link">&para;</a></h2>
 <p>Releases follow <a href="https://semver.org/">semantic versioning</a>, and one number covers
 everything: <code>v0.2.0</code> means exporter 0.2.0, chart 0.2.0, and the documentation you are
