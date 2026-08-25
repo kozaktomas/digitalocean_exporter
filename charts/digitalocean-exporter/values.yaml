@@ -85,6 +85,12 @@ collectors:
   loadbalancers:
     enabled: true
     interval: 5m
+  # The cdn collector reports the CDN endpoints and the certificate each one
+  # serves. DigitalOcean exposes no traffic figures for them, so this is
+  # inventory only.
+  cdn:
+    enabled: true
+    interval: 5m
 
 log:
   level: info

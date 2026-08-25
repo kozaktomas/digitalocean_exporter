@@ -42,6 +42,10 @@ LOAD_BALANCERS = {"load_balancers": [{"id": "lb", "name": "public", "ip": "10.0.
                                       "region": {"slug": "fra1"}, "droplet_ids": [1],
                                       "forwarding_rules": [{"entry_port": 443}]}],
                   "meta": {"total": 1}}
+CDN = {"endpoints": [{"id": "cdn", "origin": "smoke.fra1.digitaloceanspaces.com",
+                      "endpoint": "smoke.fra1.cdn.digitaloceanspaces.com",
+                      "ttl": 3600, "certificate_id": "cert"}],
+       "meta": {"total": 1}}
 DATABASES = {"databases": [{"id": "1", "name": "main", "engine": "mysql", "version": "8",
                             "num_nodes": 1, "size": "db-2vcpu-4gb", "region": "fra1",
                             "status": "online", "storage_size_mib": 102400,
@@ -78,6 +82,7 @@ ROUTES = {"/v2/customers/my/balance": BALANCE,
           "/v2/reserved_ips": RESERVED_IPS,
           "/v2/volumes": VOLUMES,
           "/v2/load_balancers": LOAD_BALANCERS,
+          "/v2/cdn/endpoints": CDN,
           "/v2/registry": REGISTRY,
           "/v2/registry/subscription": SUBSCRIPTION,
           "/v2/registry/smoke/repositoriesV2": REPOSITORIES}
@@ -134,18 +139,31 @@ for _ in $(seq 1 50); do
   sleep 0.2
 done
 
-# Poll until every collector has refreshed successfully. Waiting on one metric
-# would let the assertions race the collectors that are still on their first
-# refresh, which is a flake that looks exactly like a broken collector.
+# Every collector this run enables: the defaults plus spaces. The count is
+# spelled out because collector_success is a GaugeVec whose per-collector
+# sample only appears once that collector's first refresh has finished. Waiting
+# for "no sample equals 0" would therefore pass while a collector had not
+# started yet, and the assertions below would race it — a flake that looks
+# exactly like a broken collector. Bump this when adding a collector.
+EXPECTED_COLLECTORS=11
+
+# Poll until all of them have reported a successful refresh.
 METRICS=""
-for _ in $(seq 1 50); do
+for _ in $(seq 1 100); do
   METRICS="$(curl -sf "http://127.0.0.1:${PORT}/metrics")"
-  if grep -q "^digitalocean_spaces_bucket_size_bytes" <<<"$METRICS" &&
-     ! grep -q "^digitalocean_exporter_collector_success.* 0$" <<<"$METRICS"; then
+  reported="$(grep -c "^digitalocean_exporter_collector_success" <<<"$METRICS" || true)"
+  succeeded="$(grep -c "^digitalocean_exporter_collector_success.* 1$" <<<"$METRICS" || true)"
+  if [ "$reported" -eq "$EXPECTED_COLLECTORS" ] && [ "$succeeded" -eq "$EXPECTED_COLLECTORS" ]; then
     break
   fi
   sleep 0.2
 done
+
+if [ "$succeeded" -ne "$EXPECTED_COLLECTORS" ]; then
+  echo "FAIL only ${succeeded}/${EXPECTED_COLLECTORS} collectors refreshed successfully"
+  grep "^digitalocean_exporter_collector_success" <<<"$METRICS"
+  exit 1
+fi
 
 fail=0
 for metric in \
@@ -168,7 +186,8 @@ for metric in \
   digitalocean_volume_size_bytes \
   digitalocean_volume_droplets \
   digitalocean_loadbalancer_status \
-  digitalocean_loadbalancer_droplets
+  digitalocean_loadbalancer_droplets \
+  digitalocean_cdn_endpoint_ttl_seconds
 do
   if grep -q "^${metric}" <<<"$METRICS"; then
     echo "ok   ${metric}"

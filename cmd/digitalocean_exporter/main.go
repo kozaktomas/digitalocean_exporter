@@ -22,6 +22,7 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/account"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/balance"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/cdn"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/databases"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/droplets"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/kubernetes"
@@ -112,6 +113,7 @@ func registerCollectors(
 		{"spaces", func() collector.Collector { return newSpaces(cfg.Spaces, logger) }},
 		{"volumes", func() collector.Collector { return volumes.New(client) }},
 		{"loadbalancers", func() collector.Collector { return loadbalancers.New(client) }},
+		{"cdn", func() collector.Collector { return cdn.New(client) }},
 	}
 
 	for _, a := range available {

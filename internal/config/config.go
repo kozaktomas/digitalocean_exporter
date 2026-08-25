@@ -121,6 +121,8 @@ type flags struct {
 	volumesInterval    *time.Duration
 	loadBalancers      *bool
 	lbInterval         *time.Duration
+	cdn                *bool
+	cdnInterval        *time.Duration
 	spaces             *bool
 	spacesInterval     *time.Duration
 	spacesTimeout      *time.Duration
@@ -219,6 +221,10 @@ func bindInventory(app *kingpin.Application, f *flags) {
 	f.lbInterval = app.Flag("collector.loadbalancers.interval",
 		"Refresh interval of the load balancers collector.").
 		Envar("COLLECTOR_LOADBALANCERS_INTERVAL").Default("5m").Duration()
+	f.cdn = app.Flag("collector.cdn", "Enable the CDN endpoints collector.").
+		Envar("COLLECTOR_CDN").Default("true").Bool()
+	f.cdnInterval = app.Flag("collector.cdn.interval", "Refresh interval of the CDN collector.").
+		Envar("COLLECTOR_CDN_INTERVAL").Default("5m").Duration()
 }
 
 // bindSpaces declares the flags of the Spaces collector, which brings its own
@@ -276,6 +282,7 @@ func (f *flags) config() (*Config, error) {
 			"kubernetes":    {Enabled: *f.kubernetes, Interval: *f.kubernetesInterval},
 			"volumes":       {Enabled: *f.volumes, Interval: *f.volumesInterval},
 			"loadbalancers": {Enabled: *f.loadBalancers, Interval: *f.lbInterval},
+			"cdn":           {Enabled: *f.cdn, Interval: *f.cdnInterval},
 			"spaces": {
 				Enabled:  *f.spaces,
 				Interval: *f.spacesInterval,

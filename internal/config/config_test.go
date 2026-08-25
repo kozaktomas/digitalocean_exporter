@@ -397,3 +397,25 @@ func TestLoadBalancersCollectorDefaultsOnAndCanBeDisabled(t *testing.T) {
 		t.Error("loadbalancers collector = enabled, want disabled")
 	}
 }
+
+func TestCDNCollectorDefaultsOnAndCanBeDisabled(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	c, ok := cfg.Collectors["cdn"]
+	if !ok {
+		t.Fatal("cdn collector missing from config")
+	}
+	if !c.Enabled || c.Interval != 5*time.Minute {
+		t.Errorf("cdn = %+v, want enabled with a 5m interval", c)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--no-collector.cdn"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Collectors["cdn"].Enabled {
+		t.Error("cdn collector = enabled, want disabled")
+	}
+}

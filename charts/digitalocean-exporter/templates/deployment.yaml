@@ -99,6 +99,12 @@ spec:
             {{- else }}
             - --no-collector.loadbalancers
             {{- end }}
+            {{- if .Values.collectors.cdn.enabled }}
+            - --collector.cdn
+            - --collector.cdn.interval={{ .Values.collectors.cdn.interval }}
+            {{- else }}
+            - --no-collector.cdn
+            {{- end }}
           ports:
             - name: metrics
               containerPort: {{ .Values.service.port }}

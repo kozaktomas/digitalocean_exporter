@@ -114,6 +114,23 @@ Traffic through the load balancer is not here. It comes from the monitoring API,
 different kind of request with a different cost, and lives in the `loadbalancermetrics`
 collector.
 
+## CDN endpoints
+
+Collected by `cdn` from `/v2/cdn/endpoints`, one set of metrics per endpoint.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_cdn_endpoint_ttl_seconds` | `id`, `origin`, `endpoint` | Cache time-to-live |
+| `digitalocean_cdn_endpoint_info` | `id`, `origin`, `endpoint`, `custom_domain`, `certificate_id` | Always 1 |
+
+This is inventory, not traffic. DigitalOcean's API reports no request count, no bandwidth
+and no cache hit ratio for a CDN endpoint, so none of that can be exported here. What an
+endpoint fronts is a Spaces bucket, and the `spaces` collector measures that bucket's size.
+
+`certificate_id` is on the info metric so an endpoint can be joined to the certificate it
+serves once a certificate collector exists. An endpoint with a `custom_domain` and an empty
+`certificate_id` is serving that domain without TLS of its own.
+
 ## Kubernetes
 
 Collected by `kubernetes` from `/v2/kubernetes/clusters`, one set of metrics per cluster and
