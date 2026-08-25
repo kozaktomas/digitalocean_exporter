@@ -131,6 +131,83 @@ endpoint fronts is a Spaces bucket, and the `spaces` collector measures that buc
 serves once a certificate collector exists. An endpoint with a `custom_domain` and an empty
 `certificate_id` is serving that domain without TLS of its own.
 
+## Droplet metrics
+
+Collected by `dropletmetrics` from `/v2/monitoring/metrics/droplet/*`, one set of metrics
+per droplet. **Off by default** — see the request budget below.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_droplet_cpu_seconds_total` | `id`, `name`, `mode` | Cumulative CPU time. **This is a counter** |
+| `digitalocean_droplet_memory_total_bytes` | `id`, `name` | Memory the operating system reports as installed |
+| `digitalocean_droplet_memory_available_bytes` | `id`, `name` | Memory available without swapping |
+| `digitalocean_droplet_memory_free_bytes` | `id`, `name` | Memory used for nothing at all |
+| `digitalocean_droplet_memory_cached_bytes` | `id`, `name` | Memory used by the page cache |
+| `digitalocean_droplet_filesystem_size_bytes` | `id`, `name`, `device`, `mountpoint`, `fstype` | Size of the filesystem |
+| `digitalocean_droplet_filesystem_free_bytes` | `id`, `name`, `device`, `mountpoint`, `fstype` | Free space |
+| `digitalocean_droplet_load1`, `_load5`, `_load15` | `id`, `name` | Load averages |
+| `digitalocean_droplet_metrics_up` | `id`, `name` | 1 if the droplet's last fetch succeeded |
+| `digitalocean_droplet_metrics_timestamp_seconds` | `id`, `name` | Unix time of the newest sample returned |
+
+CPU is a counter, exactly like `node_cpu_seconds_total`, so it is read with `rate()`:
+
+```promql
+sum by (id) (rate(digitalocean_droplet_cpu_seconds_total{mode!="idle"}[5m]))
+```
+
+`digitalocean_droplet_memory_total_bytes` is not the `digitalocean_droplet_memory_bytes` of
+the `droplets` collector. That one is the memory the droplet was *sold*, taken from its
+size; this one is what the operating system reports as installed, which is a little less
+because the hypervisor and the kernel keep some. On a droplet sold with 8 GiB the two read
+8589934592 and about 8333348864.
+
+### The request budget
+
+This is the only collector whose cost grows with the size of the account. The monitoring API
+answers **one metric of one droplet per request**, so a refresh costs one droplet listing
+plus ten requests per droplet:
+
+```
+requests per hour = 3600/interval * (1 + droplets * 10)
+```
+
+Against the limit of 5000 requests an hour, at the default five-minute interval:
+
+| Droplets | Requests per hour | |
+|---|---|---|
+| 5 | 612 | comfortable |
+| 20 | 2412 | fine |
+| 40 | 4812 | at the limit |
+| 100 | 12012 | impossible — raise the interval |
+
+That is why the collector is off unless asked for: no upgrade should quietly multiply
+somebody's API usage. Work the number out before enabling it on a large account, and raise
+`--collector.dropletmetrics.interval` rather than accepting rate limiting, which would take
+every other collector down with it.
+
+**Do not refresh faster than two minutes.** The API samples every 120 seconds, so a shorter
+interval spends requests re-reading a sample that has not changed. That cadence also bounds
+freshness: the newest sample is between zero and 120 seconds old depending on where the
+request lands in the cycle, which is what `digitalocean_droplet_metrics_timestamp_seconds`
+makes visible.
+
+### What it does not report
+
+Bandwidth is deliberately absent. The API splits it by interface and direction and takes one
+request per combination, which would add four requests per droplet — more than a third of
+the budget again — for a figure the bill already summarises.
+
+A droplet reports readings only if DigitalOcean's monitoring agent is installed and running
+on it. A droplet without the agent is **not** a failure: its fetch succeeds and returns no
+series, so it appears with `digitalocean_droplet_metrics_up` at 1, no readings and no
+timestamp. If a droplet runs `node_exporter`, scrape that instead — it is free, more
+detailed and not delayed by two minutes.
+
+Each droplet is measured independently. One droplet failing keeps its previous readings,
+sets its own `digitalocean_droplet_metrics_up` to 0 and logs why, without costing the
+droplets that succeeded; only a failure to list the droplets, or every droplet failing,
+fails the refresh and sets `collector_success` to 0.
+
 ## Kubernetes
 
 Collected by `kubernetes` from `/v2/kubernetes/clusters`, one set of metrics per cluster and

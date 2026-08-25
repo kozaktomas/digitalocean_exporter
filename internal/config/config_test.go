@@ -419,3 +419,37 @@ func TestCDNCollectorDefaultsOnAndCanBeDisabled(t *testing.T) {
 		t.Error("cdn collector = enabled, want disabled")
 	}
 }
+
+// The droplet metrics collector costs API requests in proportion to the size
+// of the account, so it must stay off until it is asked for.
+func TestDropletMetricsCollectorDefaultsOff(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	d, ok := cfg.Collectors["dropletmetrics"]
+	if !ok {
+		t.Fatal("dropletmetrics collector missing from config")
+	}
+	if d.Enabled {
+		t.Error("dropletmetrics collector = enabled by default, want disabled")
+	}
+	if d.Interval != 5*time.Minute || d.Timeout != 2*time.Minute {
+		t.Errorf("dropletmetrics = %+v, want a 5m interval and a 2m timeout", d)
+	}
+	if cfg.DropletMetricsConcurrency != 4 {
+		t.Errorf("DropletMetricsConcurrency = %d, want 4", cfg.DropletMetricsConcurrency)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--collector.dropletmetrics",
+		"--collector.dropletmetrics.concurrency", "8"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !cfg.Collectors["dropletmetrics"].Enabled {
+		t.Error("dropletmetrics collector = disabled, want enabled")
+	}
+	if cfg.DropletMetricsConcurrency != 8 {
+		t.Errorf("DropletMetricsConcurrency = %d, want 8", cfg.DropletMetricsConcurrency)
+	}
+}

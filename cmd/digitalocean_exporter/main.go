@@ -24,6 +24,7 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/balance"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/cdn"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/databases"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/dropletmetrics"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/droplets"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/kubernetes"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/limits"
@@ -114,6 +115,9 @@ func registerCollectors(
 		{"volumes", func() collector.Collector { return volumes.New(client) }},
 		{"loadbalancers", func() collector.Collector { return loadbalancers.New(client) }},
 		{"cdn", func() collector.Collector { return cdn.New(client) }},
+		{"dropletmetrics", func() collector.Collector {
+			return dropletmetrics.New(client, cfg.DropletMetricsConcurrency, logger)
+		}},
 	}
 
 	for _, a := range available {

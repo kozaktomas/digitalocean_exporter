@@ -105,6 +105,14 @@ spec:
             {{- else }}
             - --no-collector.cdn
             {{- end }}
+            {{- if .Values.collectors.dropletmetrics.enabled }}
+            - --collector.dropletmetrics
+            - --collector.dropletmetrics.interval={{ .Values.collectors.dropletmetrics.interval }}
+            - --collector.dropletmetrics.timeout={{ .Values.collectors.dropletmetrics.timeout }}
+            - --collector.dropletmetrics.concurrency={{ .Values.collectors.dropletmetrics.concurrency }}
+            {{- else }}
+            - --no-collector.dropletmetrics
+            {{- end }}
           ports:
             - name: metrics
               containerPort: {{ .Values.service.port }}

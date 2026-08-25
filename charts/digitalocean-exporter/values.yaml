@@ -91,6 +91,19 @@ collectors:
   cdn:
     enabled: true
     interval: 5m
+  # The dropletmetrics collector reads DigitalOcean's monitoring API, which
+  # answers one metric of one droplet per request: a refresh costs one droplet
+  # listing plus 10 requests per droplet. Against the limit of 5000 requests an
+  # hour that is fine for a handful of droplets and impossible for a hundred,
+  # so it is off unless asked for. Work out 3600/interval * (1 + droplets*10)
+  # before enabling it. The API samples every 2m, so a shorter interval than
+  # that buys nothing. Droplets without DigitalOcean's monitoring agent report
+  # no readings.
+  dropletmetrics:
+    enabled: false
+    interval: 5m
+    timeout: 2m
+    concurrency: 4
 
 log:
   level: info

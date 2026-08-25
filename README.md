@@ -18,7 +18,7 @@ actually deserves.
 ## Status
 
 Early. This release ships the exporter skeleton, the full build and release pipeline, and
-eleven collectors:
+twelve collectors:
 
 | Collector | State |
 |---|---|
@@ -33,6 +33,7 @@ eleven collectors:
 | `volumes` — size of every block storage volume and what it is attached to | available |
 | `loadbalancers` — state, backends and billed size of every load balancer | available |
 | `cdn` — CDN endpoints, their cache TTL and certificate | available |
+| `dropletmetrics` — CPU, memory, disk and load per droplet (off by default) | available |
 | domains, firewalls, certificates | planned |
 
 ## Install

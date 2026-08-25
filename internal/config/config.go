@@ -92,6 +92,9 @@ type Config struct {
 	Collectors map[string]CollectorConfig
 	// Spaces holds the Spaces collector's own settings.
 	Spaces SpacesConfig
+	// DropletMetricsConcurrency caps how many droplets the droplet metrics
+	// collector measures at once.
+	DropletMetricsConcurrency int
 }
 
 // flags holds every bound flag before validation turns them into a Config.
@@ -123,6 +126,10 @@ type flags struct {
 	lbInterval         *time.Duration
 	cdn                *bool
 	cdnInterval        *time.Duration
+	dropletMetrics     *bool
+	dmInterval         *time.Duration
+	dmTimeout          *time.Duration
+	dmConcurrency      *int
 	spaces             *bool
 	spacesInterval     *time.Duration
 	spacesTimeout      *time.Duration
@@ -205,6 +212,7 @@ func bind(app *kingpin.Application) *flags {
 		"Refresh interval of the Kubernetes collector.").
 		Envar("COLLECTOR_KUBERNETES_INTERVAL").Default("5m").Duration()
 	bindInventory(app, f)
+	bindMonitoring(app, f)
 	bindSpaces(app, f)
 	return f
 }
@@ -225,6 +233,25 @@ func bindInventory(app *kingpin.Application, f *flags) {
 		Envar("COLLECTOR_CDN").Default("true").Bool()
 	f.cdnInterval = app.Flag("collector.cdn.interval", "Refresh interval of the CDN collector.").
 		Envar("COLLECTOR_CDN_INTERVAL").Default("5m").Duration()
+}
+
+// bindMonitoring declares the flags of the collectors that read the monitoring
+// API. They are off by default: the API answers one metric of one resource per
+// request, so their cost grows with the size of the account and no upgrade
+// should quietly multiply somebody's API usage.
+func bindMonitoring(app *kingpin.Application, f *flags) {
+	f.dropletMetrics = app.Flag("collector.dropletmetrics",
+		"Enable the droplet metrics collector. Costs 10 API requests per droplet per refresh.").
+		Envar("COLLECTOR_DROPLETMETRICS").Default("false").Bool()
+	f.dmInterval = app.Flag("collector.dropletmetrics.interval",
+		"Refresh interval of the droplet metrics collector. The API samples every 2m.").
+		Envar("COLLECTOR_DROPLETMETRICS_INTERVAL").Default("5m").Duration()
+	f.dmTimeout = app.Flag("collector.dropletmetrics.timeout",
+		"Timeout of one full droplet metrics refresh.").
+		Envar("COLLECTOR_DROPLETMETRICS_TIMEOUT").Default("2m").Duration()
+	f.dmConcurrency = app.Flag("collector.dropletmetrics.concurrency",
+		"How many droplets to measure at once.").
+		Envar("COLLECTOR_DROPLETMETRICS_CONCURRENCY").Default("4").Int()
 }
 
 // bindSpaces declares the flags of the Spaces collector, which brings its own
@@ -283,13 +310,19 @@ func (f *flags) config() (*Config, error) {
 			"volumes":       {Enabled: *f.volumes, Interval: *f.volumesInterval},
 			"loadbalancers": {Enabled: *f.loadBalancers, Interval: *f.lbInterval},
 			"cdn":           {Enabled: *f.cdn, Interval: *f.cdnInterval},
+			"dropletmetrics": {
+				Enabled:  *f.dropletMetrics,
+				Interval: *f.dmInterval,
+				Timeout:  *f.dmTimeout,
+			},
 			"spaces": {
 				Enabled:  *f.spaces,
 				Interval: *f.spacesInterval,
 				Timeout:  *f.spacesTimeout,
 			},
 		},
-		Spaces: spaces,
+		Spaces:                    spaces,
+		DropletMetricsConcurrency: *f.dmConcurrency,
 	}, nil
 }
 
