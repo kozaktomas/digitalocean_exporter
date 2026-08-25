@@ -1,3 +1,12 @@
+# -- Overrides the chart name used in resource names and in the
+# `app.kubernetes.io/name` label.
+nameOverride: ""
+# -- Replaces the generated resource name outright. The generated name is
+# `<release>-<chart>`, collapsed to just the release name when the release name
+# already contains the chart name, so the common `helm install
+# digitalocean-exporter` needs nothing here.
+fullnameOverride: ""
+
 image:
   # -- Container image repository.
   repository: ghcr.io/kozaktomas/digitalocean_exporter

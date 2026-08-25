@@ -59,11 +59,13 @@ helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
 | digitalocean.existingSecret | string | `""` | Name of a Secret you manage yourself holding the API token. Preferred over `token` in real clusters, because it keeps the token out of your Helm values. |
 | digitalocean.existingSecretKey | string | `"token"` | Key inside `digitalocean.existingSecret` that holds the token. |
 | digitalocean.token | string | `""` | DigitalOcean API token. The chart puts it in a Secret it owns and mounts it into the pod as a file, never as an environment variable, so it cannot leak through `kubectl describe pod`. Mutually exclusive with `existingSecret`. |
+| fullnameOverride | string | `""` | Replaces the generated resource name outright. The generated name is `<release>-<chart>`, collapsed to just the release name when the release name already contains the chart name, so the common `helm install digitalocean-exporter` needs nothing here. |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy. |
 | image.repository | string | `"ghcr.io/kozaktomas/digitalocean_exporter"` | Container image repository. |
 | image.tag | string | `""` | Image tag. Empty means the chart's appVersion, which is the exporter release this chart version was published with. Set it only to pin something else. |
 | log.format | string | `"logfmt"` | Log format: `logfmt` or `json`. |
 | log.level | string | `"info"` | Log level: `debug`, `info`, `warn` or `error`. |
+| nameOverride | string | `""` | Overrides the chart name used in resource names and in the `app.kubernetes.io/name` label. |
 | nodeSelector | object | `{}` | Node selector for the pod. |
 | resources | object | `{"limits":{"memory":"128Mi"},"requests":{"cpu":"10m","memory":"32Mi"}}` | Container resources. The exporter holds one snapshot per collector in memory and does nothing between refreshes. |
 | service.port | int | `9212` | Port the service exposes. The container always listens on 9212. |

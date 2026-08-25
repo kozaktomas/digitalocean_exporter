@@ -3,7 +3,16 @@
 {{- end -}}
 
 {{- define "digitalocean-exporter.fullname" -}}
-{{- printf "%s-%s" .Release.Name (include "digitalocean-exporter.name" .) | trunc 63 | trimSuffix "-" -}}
+{{- if .Values.fullnameOverride -}}
+{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := include "digitalocean-exporter.name" . -}}
+{{- if contains $name .Release.Name -}}
+{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
 {{- end -}}
 
 {{- define "digitalocean-exporter.labels" -}}
