@@ -33,6 +33,12 @@ collectors:
   balance:
     enabled: true
     interval: 5m
+  # The databases collector reports the state of the managed database
+  # clusters, not their load: connections and queries come from a Prometheus
+  # endpoint DigitalOcean runs per cluster, with credentials of its own.
+  databases:
+    enabled: true
+    interval: 5m
   # The droplets collector reports one set of metrics per droplet, including
   # the droplets a managed Kubernetes cluster runs.
   droplets:

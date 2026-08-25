@@ -18,17 +18,18 @@ actually deserves.
 ## Status
 
 Early. This release ships the exporter skeleton, the full build and release pipeline, and
-six collectors:
+seven collectors:
 
 | Collector | State |
 |---|---|
 | `account` — status and resource limits | available |
 | `balance` — balance and month-to-date usage (needs a billing-scoped token) | available |
+| `databases` — state, nodes and storage of every managed database cluster | available |
 | `droplets` — state, size and price of every droplet | available |
 | `limits` — droplets, reserved IPs and volumes in use against the account limits | available |
 | `registry` — Container Registry storage, subscription and repositories | available |
 | `spaces` — bucket size and object count (needs a Spaces access key) | available |
-| load balancers, databases, Kubernetes, domains | planned |
+| load balancers, Kubernetes, domains | planned |
 
 ## Install
 
@@ -91,6 +92,8 @@ Every flag has an environment-variable equivalent. Flags win over the environmen
 | `--collector.account.interval` | `COLLECTOR_ACCOUNT_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.balance` | `COLLECTOR_BALANCE` | `true` | Enable the balance collector |
 | `--collector.balance.interval` | `COLLECTOR_BALANCE_INTERVAL` | `5m` | Its refresh interval |
+| `--collector.databases` | `COLLECTOR_DATABASES` | `true` | Enable the managed databases collector |
+| `--collector.databases.interval` | `COLLECTOR_DATABASES_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.droplets` | `COLLECTOR_DROPLETS` | `true` | Enable the droplets collector |
 | `--collector.droplets.interval` | `COLLECTOR_DROPLETS_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.limits` | `COLLECTOR_LIMITS` | `true` | Enable the limits collector |

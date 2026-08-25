@@ -309,3 +309,25 @@ func TestParseRegistersTheDropletsCollector(t *testing.T) {
 		t.Error("droplets collector = enabled, want disabled")
 	}
 }
+
+func TestParseRegistersTheDatabasesCollector(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	d, ok := cfg.Collectors["databases"]
+	if !ok {
+		t.Fatal("databases collector missing from config")
+	}
+	if !d.Enabled || d.Interval != 5*time.Minute {
+		t.Errorf("databases = %+v, want enabled with a 5m interval", d)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--no-collector.databases"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Collectors["databases"].Enabled {
+		t.Error("databases collector = enabled, want disabled")
+	}
+}

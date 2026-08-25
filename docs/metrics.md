@@ -105,6 +105,33 @@ Note that the DigitalOcean API returns balances as strings. A value that does no
 a number fails the refresh rather than being reported as zero — zero is a legitimate
 balance, and conflating the two would break billing dashboards silently.
 
+## Managed databases
+
+Collected by `databases` from `/v2/databases`, one set of metrics per cluster.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_database_status` | `id`, `name`, `region`, `size`, `engine`, `version` | 1 if the cluster is `online`, else 0 |
+| `digitalocean_database_nodes` | `id`, `name`, `region`, `size`, `engine`, `version` | Number of nodes in the cluster |
+| `digitalocean_database_storage_bytes` | `id`, `name`, `region` | Storage allocated to the cluster |
+| `digitalocean_database_maintenance_pending` | `id`, `name`, `region` | 1 if maintenance is waiting for the cluster |
+
+`digitalocean_database_status` and `digitalocean_database_nodes` keep the names and the
+descriptive labels of the older, unmaintained exporter. Its three maintenance-window labels
+are deliberately left off: `maintenance_window_pending` flips from `false` to `true` and
+back, and a label that flips ends one series and starts another, which is exactly what a
+gauge is for. Hence `digitalocean_database_maintenance_pending`.
+
+**This is the state of the clusters, not their load.** Connections, queries, cache hits and
+disk actually in use come from a Prometheus endpoint DigitalOcean runs per cluster, reached
+with credentials of its own; that is a separate exporter's job, not this one's.
+
+`storage_bytes` is the storage the plan allocates, again not the storage in use.
+
+godo does not expose the pagination links of this endpoint, so the collector treats a full
+page as the signal that another may follow. An account whose cluster count divides exactly
+by the page size costs one extra empty request per refresh.
+
 ## Container registry
 
 Collected by `registry` from `/v2/registry`, `/v2/registry/subscription` and

@@ -96,33 +96,35 @@ type Config struct {
 
 // flags holds every bound flag before validation turns them into a Config.
 type flags struct {
-	listen           *string
-	webConfig        *string
-	token            *string
-	tokenFile        *string
-	timeout          *time.Duration
-	logLevel         *string
-	logFormat        *string
-	account          *bool
-	accountInterval  *time.Duration
-	balance          *bool
-	balanceInterval  *time.Duration
-	registry         *bool
-	registryInterval *time.Duration
-	limits           *bool
-	limitsInterval   *time.Duration
-	droplets         *bool
-	dropletsInterval *time.Duration
-	spaces           *bool
-	spacesInterval   *time.Duration
-	spacesTimeout    *time.Duration
-	spacesBuckets    *[]string
-	spacesConcurrent *int
-	spacesKey        *string
-	spacesKeyFile    *string
-	spacesSecret     *string
-	spacesSecretFile *string
-	spacesRegion     *string
+	listen            *string
+	webConfig         *string
+	token             *string
+	tokenFile         *string
+	timeout           *time.Duration
+	logLevel          *string
+	logFormat         *string
+	account           *bool
+	accountInterval   *time.Duration
+	balance           *bool
+	balanceInterval   *time.Duration
+	registry          *bool
+	registryInterval  *time.Duration
+	limits            *bool
+	limitsInterval    *time.Duration
+	droplets          *bool
+	dropletsInterval  *time.Duration
+	databases         *bool
+	databasesInterval *time.Duration
+	spaces            *bool
+	spacesInterval    *time.Duration
+	spacesTimeout     *time.Duration
+	spacesBuckets     *[]string
+	spacesConcurrent  *int
+	spacesKey         *string
+	spacesKeyFile     *string
+	spacesSecret      *string
+	spacesSecretFile  *string
+	spacesRegion      *string
 }
 
 // Parse builds a Config from args, falling back to environment variables.
@@ -185,6 +187,10 @@ func bind(app *kingpin.Application) *flags {
 		Envar("COLLECTOR_DROPLETS").Default("true").Bool()
 	f.dropletsInterval = app.Flag("collector.droplets.interval", "Refresh interval of the droplets collector.").
 		Envar("COLLECTOR_DROPLETS_INTERVAL").Default("5m").Duration()
+	f.databases = app.Flag("collector.databases", "Enable the managed databases collector.").
+		Envar("COLLECTOR_DATABASES").Default("true").Bool()
+	f.databasesInterval = app.Flag("collector.databases.interval", "Refresh interval of the databases collector.").
+		Envar("COLLECTOR_DATABASES_INTERVAL").Default("5m").Duration()
 	bindSpaces(app, f)
 	return f
 }
@@ -235,11 +241,12 @@ func (f *flags) config() (*Config, error) {
 		LogLevel:      *f.logLevel,
 		LogFormat:     *f.logFormat,
 		Collectors: map[string]CollectorConfig{
-			"account":  {Enabled: *f.account, Interval: *f.accountInterval},
-			"balance":  {Enabled: *f.balance, Interval: *f.balanceInterval},
-			"registry": {Enabled: *f.registry, Interval: *f.registryInterval},
-			"limits":   {Enabled: *f.limits, Interval: *f.limitsInterval},
-			"droplets": {Enabled: *f.droplets, Interval: *f.dropletsInterval},
+			"account":   {Enabled: *f.account, Interval: *f.accountInterval},
+			"balance":   {Enabled: *f.balance, Interval: *f.balanceInterval},
+			"registry":  {Enabled: *f.registry, Interval: *f.registryInterval},
+			"limits":    {Enabled: *f.limits, Interval: *f.limitsInterval},
+			"droplets":  {Enabled: *f.droplets, Interval: *f.dropletsInterval},
+			"databases": {Enabled: *f.databases, Interval: *f.databasesInterval},
 			"spaces": {
 				Enabled:  *f.spaces,
 				Interval: *f.spacesInterval,

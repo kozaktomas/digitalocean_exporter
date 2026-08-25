@@ -41,6 +41,12 @@ spec:
             {{- else }}
             - --no-collector.balance
             {{- end }}
+            {{- if .Values.collectors.databases.enabled }}
+            - --collector.databases
+            - --collector.databases.interval={{ .Values.collectors.databases.interval }}
+            {{- else }}
+            - --no-collector.databases
+            {{- end }}
             {{- if .Values.collectors.droplets.enabled }}
             - --collector.droplets
             - --collector.droplets.interval={{ .Values.collectors.droplets.interval }}
