@@ -2,6 +2,13 @@
 
 Status: implemented on 2026-08-25. Date: 2026-08-24.
 
+!!! warning "Superseded in part"
+
+    The measurement described here — summing a full `ListObjectsV2` pass — was replaced on
+    2026-08-26 by a single HEAD per bucket. See
+    [Spaces bucket size from the gateway](2026-08-26-spaces-bucket-usage-headers.md). The
+    architecture and the metric names below still hold; the costs and defaults do not.
+
 ## Why this collector exists at all
 
 DigitalOcean does not expose the size of a Spaces bucket anywhere in its API. Verified

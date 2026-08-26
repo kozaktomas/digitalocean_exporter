@@ -280,16 +280,16 @@ func bindMonitoring(app *kingpin.Application, f *flags) {
 // bindSpaces declares the flags of the Spaces collector, which brings its own
 // credentials, its own timeout and a list of buckets.
 func bindSpaces(app *kingpin.Application, f *flags) {
-	f.spaces = app.Flag("collector.spaces", "Enable the Spaces collector. It lists every object.").
+	f.spaces = app.Flag("collector.spaces", "Enable the Spaces collector. It needs a Spaces key pair.").
 		Envar("COLLECTOR_SPACES").Default("false").Bool()
 	f.spacesInterval = app.Flag("collector.spaces.interval", "Refresh interval of the Spaces collector.").
-		Envar("COLLECTOR_SPACES_INTERVAL").Default("6h").Duration()
+		Envar("COLLECTOR_SPACES_INTERVAL").Default("5m").Duration()
 	f.spacesTimeout = app.Flag("collector.spaces.timeout", "Timeout of one full Spaces refresh.").
-		Envar("COLLECTOR_SPACES_TIMEOUT").Default("15m").Duration()
+		Envar("COLLECTOR_SPACES_TIMEOUT").Default("2m").Duration()
 	f.spacesBuckets = app.Flag("collector.spaces.bucket",
 		"Bucket to measure, as name or name@region. Repeatable. Empty means discovery.").
 		Envar("COLLECTOR_SPACES_BUCKET").Strings()
-	f.spacesConcurrent = app.Flag("collector.spaces.concurrency", "How many buckets to list at once.").
+	f.spacesConcurrent = app.Flag("collector.spaces.concurrency", "How many buckets to measure at once.").
 		Envar("COLLECTOR_SPACES_CONCURRENCY").Default("4").Int()
 	f.spacesKey = app.Flag("spaces.access-key", "Spaces access key.").
 		Envar("DIGITALOCEAN_SPACES_KEY").Default("").String()

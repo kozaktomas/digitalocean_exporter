@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -13,28 +14,27 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/spacesclient"
 )
 
-// object is one entry of a stubbed bucket listing.
-type object struct {
-	key  string
-	size int64
-}
-
 // stubBucket is what the fake Spaces API knows about one bucket.
 type stubBucket struct {
-	region    string
-	objects   []object
-	pageSize  int
+	region  string
+	objects int64
+	bytes   int64
+	// forbidden makes the bucket answer 403, as a key without a grant for it
+	// is told.
 	forbidden bool
+	// noUsage answers the HEAD without the usage headers, as an S3 endpoint
+	// that is not Ceph-backed would.
+	noUsage bool
 }
 
-// stubAPI is a fake S3-compatible API: enough of ListObjectsV2, ListBuckets
-// and GetBucketLocation to drive the collector, including pagination.
+// stubAPI is a fake S3-compatible API: enough of HeadBucket, ListBuckets and
+// GetBucketLocation to drive the collector.
 type stubAPI struct {
 	buckets     map[string]*stubBucket
 	denyListAll bool
-	// listObjectCnt is written from several handler goroutines at once: the
-	// collector lists buckets in parallel.
-	listObjectCnt atomic.Int64
+	// headCnt is written from several handler goroutines at once: the
+	// collector measures buckets in parallel.
+	headCnt atomic.Int64
 }
 
 // newStubAPI starts the fake API and returns it with a factory pointed at it.
@@ -49,13 +49,35 @@ func newStubAPI(t *testing.T, buckets map[string]*stubBucket) (*stubAPI, *spaces
 func (a *stubAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	name := strings.Trim(r.URL.Path, "/")
 	switch {
+	case r.Method == http.MethodHead:
+		a.headBucket(w, name)
 	case name == "":
 		a.listBuckets(w)
 	case r.URL.Query().Has("location"):
 		a.bucketLocation(w, name)
 	default:
-		a.listObjects(w, r, name)
+		writeS3Error(w, http.StatusBadRequest, "NotImplemented", "The stub serves HEAD only.")
 	}
+}
+
+// headBucket answers with the Ceph usage headers the collector reads.
+func (a *stubAPI) headBucket(w http.ResponseWriter, name string) {
+	bucket, ok := a.buckets[name]
+	if !ok {
+		writeS3Error(w, http.StatusNotFound, "NoSuchBucket", "No such bucket.")
+		return
+	}
+	if bucket.forbidden {
+		writeS3Error(w, http.StatusForbidden, "AccessDenied", "Access Denied.")
+		return
+	}
+	a.headCnt.Add(1)
+
+	if !bucket.noUsage {
+		w.Header().Set("x-rgw-object-count", strconv.FormatInt(bucket.objects, 10))
+		w.Header().Set("x-rgw-bytes-used", strconv.FormatInt(bucket.bytes, 10))
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func (a *stubAPI) listBuckets(w http.ResponseWriter) {
@@ -80,52 +102,6 @@ func (a *stubAPI) bucketLocation(w http.ResponseWriter, name string) {
 	}
 	writeXML(w, http.StatusOK, `<LocationConstraint xmlns="http://s3.amazonaws.com/doc/2006-03-01/">`+
 		bucket.region+`</LocationConstraint>`)
-}
-
-// listObjects serves one page, honouring the continuation token so the
-// collector's paging is exercised for real.
-func (a *stubAPI) listObjects(w http.ResponseWriter, r *http.Request, name string) {
-	bucket, ok := a.buckets[name]
-	if !ok {
-		writeS3Error(w, http.StatusNotFound, "NoSuchBucket", "No such bucket.")
-		return
-	}
-	if bucket.forbidden {
-		writeS3Error(w, http.StatusForbidden, "AccessDenied", "Access Denied.")
-		return
-	}
-	a.listObjectCnt.Add(1)
-
-	start := 0
-	if token := r.URL.Query().Get("continuation-token"); token != "" {
-		if _, err := fmt.Sscanf(token, "offset-%d", &start); err != nil {
-			writeS3Error(w, http.StatusBadRequest, "InvalidToken", "Bad continuation token.")
-			return
-		}
-	}
-	size := bucket.pageSize
-	if size <= 0 {
-		size = 1000
-	}
-	end := min(start+size, len(bucket.objects))
-
-	var contents strings.Builder
-	for _, o := range bucket.objects[start:end] {
-		fmt.Fprintf(&contents, "<Contents><Key>%s</Key><Size>%d</Size>"+
-			"<LastModified>2026-08-24T12:00:00.000Z</LastModified>"+
-			"<StorageClass>STANDARD</StorageClass></Contents>", o.key, o.size)
-	}
-
-	truncated := end < len(bucket.objects)
-	next := ""
-	if truncated {
-		next = fmt.Sprintf("<NextContinuationToken>offset-%d</NextContinuationToken>", end)
-	}
-	writeXML(w, http.StatusOK, fmt.Sprintf(
-		`<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">`+
-			`<Name>%s</Name><KeyCount>%d</KeyCount><MaxKeys>%d</MaxKeys>`+
-			`<IsTruncated>%t</IsTruncated>%s%s</ListBucketResult>`,
-		name, end-start, size, truncated, next, contents.String()))
 }
 
 func writeXML(w http.ResponseWriter, status int, body string) {

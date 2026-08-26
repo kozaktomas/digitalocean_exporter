@@ -49,11 +49,11 @@ helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
 | collectors.registry.enabled | bool | `true` | Report Container Registry storage, subscription tier and repositories. An account without a registry is not a failure: the collector reports no metrics and keeps `collector_success 1`, so it is safe to leave enabled everywhere. |
 | collectors.registry.interval | string | `"5m"` | How often the registry collector refreshes. |
 | collectors.spaces.buckets | list | `[]` | Buckets to measure, each as `name` or `name@region`. Leave empty to discover them, which needs a full-access Spaces key; with a limited key the buckets have to be named here. |
-| collectors.spaces.concurrency | int | `4` | How many buckets are listed at once. |
-| collectors.spaces.enabled | bool | `false` | Report the size and object count of Spaces buckets. Off by default: sizing a bucket means listing every object in it, which takes minutes for a large one. Needs `spaces.accessKey` and `spaces.secretKey`, not the API token. |
-| collectors.spaces.interval | string | `"6h"` | How often the spaces collector refreshes. Long on purpose — see the timeout below. |
+| collectors.spaces.concurrency | int | `4` | How many buckets are measured at once. |
+| collectors.spaces.enabled | bool | `false` | Report the size and object count of Spaces buckets. Off by default because it needs `spaces.accessKey` and `spaces.secretKey`, a Spaces key pair, which is a separate credential from the API token. |
+| collectors.spaces.interval | string | `"5m"` | How often the spaces collector refreshes. |
 | collectors.spaces.region | string | `""` | Region used for bucket discovery and for buckets named without one. |
-| collectors.spaces.timeout | string | `"15m"` | Timeout of one full Spaces refresh. Separate from the global `--do.timeout` because listing objects is far slower than an API call. |
+| collectors.spaces.timeout | string | `"2m"` | Timeout of one full Spaces refresh, all buckets together. Separate from the global `--do.timeout` because the collector fans out over buckets. |
 | collectors.volumes.enabled | bool | `true` | Report the size of every block storage volume and how many droplets it is attached to. A volume attached to none is billed while serving nothing, which is what makes it worth an alert. |
 | collectors.volumes.interval | string | `"5m"` | How often the volumes collector refreshes. |
 | digitalocean.existingSecret | string | `""` | Name of a Secret you manage yourself holding the API token. Preferred over `token` in real clusters, because it keeps the token out of your Helm values. |

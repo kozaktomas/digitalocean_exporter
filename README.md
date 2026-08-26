@@ -18,8 +18,8 @@ docker run --rm -p 9212:9212 \
 The existing exporters leave real gaps. The most widely used one has been unmaintained
 since 2022, reports Spaces buckets only as *existing* — never their size — and does not
 cover the Container Registry at all. DigitalOcean itself does not expose Spaces usage
-through its monitoring API, so bucket size has to be measured over the S3-compatible
-endpoint. This exporter is built around that constraint from the start.
+through its API at all, so bucket size has to come from the S3-compatible endpoint. This
+exporter is built around that constraint from the start.
 
 Collectors refresh in the background on their own intervals and write into an in-memory
 snapshot; `/metrics` only ever reads that snapshot. A slow collector can therefore never

@@ -427,29 +427,36 @@ enumerated.
 
 ## Spaces
 
-Collected by `spaces` from the S3-compatible API, one `ListObjectsV2` pass per bucket.
+Collected by `spaces` from the S3-compatible API, one `HeadBucket` request per bucket.
 
 | Metric | Labels | Description |
 |---|---|---|
-| `digitalocean_spaces_bucket_size_bytes` | `bucket`, `region` | Total size of every object in the bucket |
+| `digitalocean_spaces_bucket_size_bytes` | `bucket`, `region` | Bytes stored in the bucket, as Spaces accounts for them |
 | `digitalocean_spaces_bucket_objects` | `bucket`, `region` | Number of objects in the bucket |
-| `digitalocean_spaces_bucket_up` | `bucket`, `region` | 1 if the bucket's last listing succeeded, else 0 |
+| `digitalocean_spaces_bucket_up` | `bucket`, `region` | 1 if the bucket's last measurement succeeded, else 0 |
 
-DigitalOcean publishes no bucket size in its API, so the only way to learn one is to add up
-every object. That takes minutes on a large bucket, which is why this collector defaults to
-a 6h interval and a 15m timeout of its own, and why it is disabled unless asked for.
+DigitalOcean publishes no bucket size in its own API, but the S3-compatible endpoint does:
+Spaces runs on the Ceph RADOS Gateway, which reports `x-rgw-object-count` and
+`x-rgw-bytes-used` on a HEAD of the bucket. Both figures match a full listing byte for
+byte, at one request per bucket instead of one per thousand objects — see
+[Spaces](configuration/spaces.md). The collector is disabled by default only because it
+takes a Spaces key pair.
 
-A bucket that cannot be listed keeps its previous size and object count and reports
-`digitalocean_spaces_bucket_up 0`; the buckets that listed fine are unaffected, and the
-failure is logged with the reason. A bucket that has never listed successfully reports only
+The size is the gateway's own accounting, so on a versioned bucket it includes noncurrent
+versions, and incomplete multipart uploads count while they are pending. That is what
+DigitalOcean bills for.
+
+A bucket that cannot be measured keeps its previous size and object count and reports
+`digitalocean_spaces_bucket_up 0`; the buckets that measured fine are unaffected, and the
+failure is logged with the reason. A bucket never measured successfully reports only
 `digitalocean_spaces_bucket_up 0`, because a zero size is indistinguishable from an empty
 bucket. The collector's own `collector_success` drops to 0 only when discovery fails or no
-bucket at all could be listed.
+bucket at all could be measured.
 
-The exporter only ever calls `ListObjectsV2`, plus `ListBuckets` and `GetBucketLocation` in
-discovery mode. It never reads an object, so an access key with **Limited access** and
-**Read** on the observed buckets is enough. Listing all buckets is a full-access capability,
-so a limited key must be given an explicit bucket list.
+The exporter only ever calls `HeadBucket`, plus `ListBuckets` and `GetBucketLocation` in
+discovery mode. It never lists or reads an object, so an access key with **Limited access**
+and **Read** on the observed buckets is enough. Listing all buckets is a full-access
+capability, so a limited key must be given an explicit bucket list.
 
 ## Exporter health
 

@@ -66,14 +66,9 @@ REPOSITORIES = {"repositories": [{"registry_name": "smoke", "name": "app", "tag_
                                                       "updated_at": "2026-08-24T12:00:00Z"}}],
                 "meta": {"total": 1}}
 
-# One bucket of two objects, served S3-style so the Spaces collector has
-# something to list without any credentials of its own.
-LISTING = b"""<?xml version="1.0" encoding="UTF-8"?>
-<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-<Name>smoke</Name><KeyCount>2</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated>
-<Contents><Key>a</Key><Size>1024</Size><LastModified>2026-08-24T12:00:00.000Z</LastModified></Contents>
-<Contents><Key>b</Key><Size>2048</Size><LastModified>2026-08-24T12:00:00.000Z</LastModified></Contents>
-</ListBucketResult>"""
+# One bucket of two objects. Spaces reports a bucket's usage in the Ceph
+# gateway's own headers on a HEAD, which is all the Spaces collector asks for.
+BUCKET_USAGE = {"x-rgw-object-count": "2", "x-rgw-bytes-used": "3072"}
 
 ROUTES = {"/v2/customers/my/balance": BALANCE,
           "/v2/databases": DATABASES,
@@ -89,11 +84,15 @@ ROUTES = {"/v2/customers/my/balance": BALANCE,
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
-        if "list-type=2" in self.path:
-            self.respond(LISTING, "application/xml")
-            return
         body = ROUTES.get(self.path.split("?")[0], ACCOUNT)
         self.respond(json.dumps(body).encode(), "application/json")
+
+    def do_HEAD(self):
+        self.send_response(200)
+        for name, value in BUCKET_USAGE.items():
+            self.send_header(name, value)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def respond(self, payload, content_type):
         self.send_response(200)

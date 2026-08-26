@@ -138,16 +138,16 @@ func TestParseSpacesDefaults(t *testing.T) {
 	if !ok {
 		t.Fatal("spaces collector missing from config")
 	}
-	// It needs credentials the other collectors do not and its refresh costs
-	// minutes, so it stays off until asked for.
+	// It needs a Spaces key pair, a credential the other collectors do not
+	// take, so it stays off until asked for.
 	if spaces.Enabled {
 		t.Error("spaces collector = enabled by default, want disabled")
 	}
-	if spaces.Interval != 6*time.Hour {
-		t.Errorf("spaces interval = %v, want 6h", spaces.Interval)
+	if spaces.Interval != 5*time.Minute {
+		t.Errorf("spaces interval = %v, want 5m", spaces.Interval)
 	}
-	if spaces.Timeout != 15*time.Minute {
-		t.Errorf("spaces timeout = %v, want 15m", spaces.Timeout)
+	if spaces.Timeout != 2*time.Minute {
+		t.Errorf("spaces timeout = %v, want 2m", spaces.Timeout)
 	}
 	if cfg.Spaces.Concurrency != 4 {
 		t.Errorf("spaces concurrency = %d, want 4", cfg.Spaces.Concurrency)

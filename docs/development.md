@@ -39,9 +39,9 @@ not notice.
   the collector's own interval — never a scrape.
 - `Collect(ch)` reads that snapshot and **must never perform I/O**.
 
-This exists because the DigitalOcean API is slow and rate-limited, and because measuring a
-Spaces bucket takes minutes, far past any scrape timeout. Do not add a collector that calls
-the API from `Collect`.
+This exists because the DigitalOcean API is slow and rate-limited, and because a collector
+that fans out over every droplet takes far past any scrape timeout. Do not add a collector
+that calls the API from `Collect`.
 
 Two rules follow:
 

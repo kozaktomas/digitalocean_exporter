@@ -33,8 +33,8 @@ ad-hoc command in this repository to change the state of the account.
 - `Collect(ch)` reads that snapshot and must never perform I/O.
 
 This exists because the DigitalOcean API is slow and rate-limited (5000 requests/hour), and
-because measuring a Spaces bucket means listing every object in it — minutes of work, far
-past any scrape timeout. Do not add a collector that calls the API from `Collect`.
+because a collector that fans out over every droplet takes far past any scrape timeout. Do
+not add a collector that calls the API from `Collect`.
 
 A collector that measures many things at once — buckets, say — isolates them: one that
 fails keeps its own previous values and reports its own `_up 0`, and logs why, since that
@@ -53,8 +53,8 @@ Before its first successful refresh a collector emits nothing, rather than zeros
    snapshot before swapping it in, so a partial failure changes nothing.
 3. Add `--collector.<name>` and `--collector.<name>.interval` in `internal/config`.
 4. Register it in `cmd/digitalocean_exporter/main.go`. `Register` takes a per-collector
-   timeout; pass 0 unless the refresh is far slower than an API call, as listing a Spaces
-   bucket is.
+   timeout; pass 0 unless the refresh fans out over many resources, as the monitoring-API
+   collectors do.
 5. Tests: drive `Refresh` against an `httptest` server, compare `Collect` against golden
    exposition text with `testutil.CollectAndCompare`. Cover the failure path.
 6. Add it to the chart: `values.yaml` and the `args` block in `templates/deployment.yaml`,

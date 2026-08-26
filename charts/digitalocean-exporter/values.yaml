@@ -88,17 +88,16 @@ collectors:
     # -- How often the registry collector refreshes.
     interval: 5m
   spaces:
-    # -- Report the size and object count of Spaces buckets. Off by default: sizing
-    # a bucket means listing every object in it, which takes minutes for a large
-    # one. Needs `spaces.accessKey` and `spaces.secretKey`, not the API token.
+    # -- Report the size and object count of Spaces buckets. Off by default
+    # because it needs `spaces.accessKey` and `spaces.secretKey`, a Spaces key
+    # pair, which is a separate credential from the API token.
     enabled: false
-    # -- How often the spaces collector refreshes. Long on purpose — see the
-    # timeout below.
-    interval: 6h
-    # -- Timeout of one full Spaces refresh. Separate from the global
-    # `--do.timeout` because listing objects is far slower than an API call.
-    timeout: 15m
-    # -- How many buckets are listed at once.
+    # -- How often the spaces collector refreshes.
+    interval: 5m
+    # -- Timeout of one full Spaces refresh, all buckets together. Separate from
+    # the global `--do.timeout` because the collector fans out over buckets.
+    timeout: 2m
+    # -- How many buckets are measured at once.
     concurrency: 4
     # -- Region used for bucket discovery and for buckets named without one.
     region: ""

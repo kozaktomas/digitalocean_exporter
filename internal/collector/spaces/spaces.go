@@ -1,9 +1,11 @@
 // Package spaces collects the size and object count of Spaces buckets.
 //
-// DigitalOcean publishes no bucket size anywhere in its API, so the only way
-// to learn one is to list every object and add the sizes up. That takes
-// minutes on a large bucket, which is why this collector refreshes on a long
-// interval of its own and why a scrape only ever reads the resulting snapshot.
+// Both come from a single HEAD of each bucket: Spaces runs on the Ceph RADOS
+// Gateway, which reports its own accounting in headers the S3 model does not
+// define. See internal/spacesclient. Adding up a listing of every object would
+// answer the same question, but it costs a request per thousand objects and
+// stops working altogether on a bucket large enough, which is the whole reason
+// this collector does not do it.
 package spaces
 
 import (
@@ -16,20 +18,22 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/kozaktomas/digitalocean_exporter/internal/spacesclient"
 )
 
 // Metric descriptors.
 var (
 	sizeDesc = prometheus.NewDesc("digitalocean_spaces_bucket_size_bytes",
-		"Total size of every object in the bucket.", []string{"bucket", "region"}, nil)
+		"Bytes stored in the bucket, as Spaces accounts for them.", []string{"bucket", "region"}, nil)
 	objectsDesc = prometheus.NewDesc("digitalocean_spaces_bucket_objects",
 		"Number of objects in the bucket.", []string{"bucket", "region"}, nil)
 	upDesc = prometheus.NewDesc("digitalocean_spaces_bucket_up",
-		"Whether the bucket's last listing succeeded.", []string{"bucket", "region"}, nil)
+		"Whether the bucket's last measurement succeeded.", []string{"bucket", "region"}, nil)
 )
 
-// ErrNoBucketListed reports that not a single bucket could be listed.
-var ErrNoBucketListed = errors.New("no bucket could be listed")
+// ErrNoBucketMeasured reports that not a single bucket could be measured.
+var ErrNoBucketMeasured = errors.New("no bucket could be measured")
 
 // Bucket names a bucket and the region it lives in.
 type Bucket struct {
@@ -55,9 +59,9 @@ type Config struct {
 	// Region is the region discovery talks to and the default for buckets
 	// configured without one.
 	Region string
-	// Concurrency caps how many buckets are listed at once.
+	// Concurrency caps how many buckets are measured at once.
 	Concurrency int
-	// Logger receives a warning per bucket that could not be listed. Those
+	// Logger receives a warning per bucket that could not be measured. Those
 	// failures never reach the scheduler, so this is the only place they are
 	// reported. Nil discards them.
 	Logger *slog.Logger
@@ -69,9 +73,9 @@ type stats struct {
 	size    float64
 	objects float64
 	up      bool
-	// known reports whether the figures come from a successful listing. A
-	// bucket that has never listed reports its failure and nothing else,
-	// because a zero size is indistinguishable from an empty bucket.
+	// known reports whether the figures come from a successful measurement.
+	// A bucket never measured reports its failure and nothing else, because a
+	// zero size is indistinguishable from an empty bucket.
 	known bool
 }
 
@@ -116,29 +120,30 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
-// Refresh implements collector.Collector. A bucket that cannot be listed keeps
-// whatever it last reported and is marked down; only a failure to discover the
-// buckets, or the failure of every one of them, fails the refresh as a whole.
+// Refresh implements collector.Collector. A bucket that cannot be measured
+// keeps whatever it last reported and is marked down; only a failure to
+// discover the buckets, or the failure of every one of them, fails the refresh
+// as a whole.
 func (c *Collector) Refresh(ctx context.Context) error {
 	buckets, err := c.resolveBuckets(ctx)
 	if err != nil {
 		return err
 	}
 
-	results := c.listAll(ctx, buckets)
+	results := c.measureAll(ctx, buckets)
 	c.merge(results)
 
 	failed := 0
 	for _, r := range results {
 		if r.err != nil {
 			failed++
-			c.logger.Warn("listing a Spaces bucket failed",
+			c.logger.Warn("measuring a Spaces bucket failed",
 				"bucket", r.bucket.Name, "region", r.bucket.Region, "error", r.err)
 		}
 	}
 	if failed > 0 && failed == len(results) {
 		return fmt.Errorf("%w: %d attempted, last error: %w",
-			ErrNoBucketListed, failed, results[len(results)-1].err)
+			ErrNoBucketMeasured, failed, results[len(results)-1].err)
 	}
 	return nil
 }
@@ -194,7 +199,7 @@ func (c *Collector) locate(ctx context.Context, client *s3.Client, name string) 
 	return c.region, nil
 }
 
-// result is the outcome of listing one bucket.
+// result is the outcome of measuring one bucket.
 type result struct {
 	bucket  Bucket
 	size    float64
@@ -202,10 +207,9 @@ type result struct {
 	err     error
 }
 
-// listAll lists every bucket, at most Concurrency of them at a time. The
-// documented rate limit is per bucket and paging within one bucket is
-// sequential by nature, so buckets are the only axis worth parallelising.
-func (c *Collector) listAll(ctx context.Context, buckets []Bucket) []result {
+// measureAll measures every bucket, at most Concurrency of them at a time.
+// One bucket is one request, so buckets are the only axis there is.
+func (c *Collector) measureAll(ctx context.Context, buckets []Bucket) []result {
 	results := make([]result, len(buckets))
 	sem := make(chan struct{}, c.concurrency)
 
@@ -217,35 +221,19 @@ func (c *Collector) listAll(ctx context.Context, buckets []Bucket) []result {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			size, objects, err := c.list(ctx, b)
-			results[i] = result{bucket: b, size: size, objects: objects, err: err}
+			usage, err := spacesclient.BucketUsage(ctx, c.factory.Client(b.Region), b.Name)
+			results[i] = result{
+				bucket: b, size: float64(usage.Bytes), objects: float64(usage.Objects), err: err,
+			}
 		}()
 	}
 	wg.Wait()
 	return results
 }
 
-// list pages through one bucket, summing the sizes as it goes.
-func (c *Collector) list(ctx context.Context, b Bucket) (size, objects float64, err error) {
-	client := c.factory.Client(b.Region)
-	pages := s3.NewListObjectsV2Paginator(client, &s3.ListObjectsV2Input{Bucket: aws.String(b.Name)})
-
-	for pages.HasMorePages() {
-		page, pageErr := pages.NextPage(ctx)
-		if pageErr != nil {
-			return 0, 0, fmt.Errorf("list objects of %q: %w", b.Name, pageErr)
-		}
-		for _, object := range page.Contents {
-			objects++
-			size += float64(aws.ToInt64(object.Size))
-		}
-	}
-	return size, objects, nil
-}
-
 // merge builds the next snapshot. A bucket that failed carries its previous
 // figures forward and is marked down, so one unreadable bucket never blanks
-// the ones that were read.
+// the ones that were measured.
 func (c *Collector) merge(results []result) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

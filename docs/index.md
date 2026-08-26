@@ -34,9 +34,9 @@ DigitalOcean API ──(every 5m, per collector)──▶ snapshot ──(on scr
 
 Three things follow from that, and they are worth knowing before you tune anything:
 
-- **A slow collector cannot fail a scrape.** Sizing a large Spaces bucket takes minutes;
-  a Prometheus scrape timeout is usually ten seconds. Because the two are decoupled, the
-  slow measurement simply happens elsewhere.
+- **A slow collector cannot fail a scrape.** Fanning out over every droplet in a large
+  account takes far longer than the ten seconds a Prometheus scrape timeout usually
+  allows. Because the two are decoupled, the slow measurement simply happens elsewhere.
 - **Scrape interval and API cost are unrelated.** Scraping every 15 seconds does not call
   DigitalOcean any more often than scraping every 5 minutes. The API budget is set by the
   collector intervals alone, which matters against the limit of 5000 requests an hour.

@@ -12,14 +12,11 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/spaces"
 )
 
-// twoBuckets is a small account: one bucket that needs three pages to list,
-// one that fits in a single page.
+// twoBuckets is a small account: two buckets in two different regions.
 func twoBuckets() map[string]*stubBucket {
 	return map[string]*stubBucket{
-		"images": {region: "fra1", pageSize: 2, objects: []object{
-			{"a", 100}, {"b", 200}, {"c", 300}, {"d", 400}, {"e", 500},
-		}},
-		"logs": {region: "ams3", objects: []object{{"x", 1024}}},
+		"images": {region: "fra1", objects: 5, bytes: 1500},
+		"logs":   {region: "ams3", objects: 1, bytes: 1024},
 	}
 }
 
@@ -39,11 +36,11 @@ func TestCollectAfterRefresh(t *testing.T) {
 # TYPE digitalocean_spaces_bucket_objects gauge
 digitalocean_spaces_bucket_objects{bucket="images",region="fra1"} 5
 digitalocean_spaces_bucket_objects{bucket="logs",region="ams3"} 1
-# HELP digitalocean_spaces_bucket_size_bytes Total size of every object in the bucket.
+# HELP digitalocean_spaces_bucket_size_bytes Bytes stored in the bucket, as Spaces accounts for them.
 # TYPE digitalocean_spaces_bucket_size_bytes gauge
 digitalocean_spaces_bucket_size_bytes{bucket="images",region="fra1"} 1500
 digitalocean_spaces_bucket_size_bytes{bucket="logs",region="ams3"} 1024
-# HELP digitalocean_spaces_bucket_up Whether the bucket's last listing succeeded.
+# HELP digitalocean_spaces_bucket_up Whether the bucket's last measurement succeeded.
 # TYPE digitalocean_spaces_bucket_up gauge
 digitalocean_spaces_bucket_up{bucket="images",region="fra1"} 1
 digitalocean_spaces_bucket_up{bucket="logs",region="ams3"} 1
@@ -52,9 +49,9 @@ digitalocean_spaces_bucket_up{bucket="logs",region="ams3"} 1
 		t.Errorf("unexpected metrics: %v", err)
 	}
 
-	// Three pages for images (2+2+1) and one for logs.
-	if got := api.listObjectCnt.Load(); got != 4 {
-		t.Errorf("ListObjectsV2 calls = %d, want 4 (three pages plus one)", got)
+	// One request per bucket, whatever the buckets hold. That is the point.
+	if got := api.headCnt.Load(); got != 2 {
+		t.Errorf("HeadBucket calls = %d, want one per bucket", got)
 	}
 }
 
@@ -79,10 +76,10 @@ func TestEmptyBucketReportsZeroes(t *testing.T) {
 # HELP digitalocean_spaces_bucket_objects Number of objects in the bucket.
 # TYPE digitalocean_spaces_bucket_objects gauge
 digitalocean_spaces_bucket_objects{bucket="empty",region="fra1"} 0
-# HELP digitalocean_spaces_bucket_size_bytes Total size of every object in the bucket.
+# HELP digitalocean_spaces_bucket_size_bytes Bytes stored in the bucket, as Spaces accounts for them.
 # TYPE digitalocean_spaces_bucket_size_bytes gauge
 digitalocean_spaces_bucket_size_bytes{bucket="empty",region="fra1"} 0
-# HELP digitalocean_spaces_bucket_up Whether the bucket's last listing succeeded.
+# HELP digitalocean_spaces_bucket_up Whether the bucket's last measurement succeeded.
 # TYPE digitalocean_spaces_bucket_up gauge
 digitalocean_spaces_bucket_up{bucket="empty",region="fra1"} 1
 `
@@ -92,7 +89,7 @@ digitalocean_spaces_bucket_up{bucket="empty",region="fra1"} 1
 }
 
 // A key scoped to one bucket is forbidden on the others. That must cost only
-// the bucket it happened to, never the ones that listed fine.
+// the bucket it happened to, never the ones that measured fine.
 func TestForbiddenBucketDoesNotCostTheOthers(t *testing.T) {
 	buckets := twoBuckets()
 	buckets["logs"].forbidden = true
@@ -107,7 +104,7 @@ func TestForbiddenBucketDoesNotCostTheOthers(t *testing.T) {
 	}
 
 	expected := `
-# HELP digitalocean_spaces_bucket_up Whether the bucket's last listing succeeded.
+# HELP digitalocean_spaces_bucket_up Whether the bucket's last measurement succeeded.
 # TYPE digitalocean_spaces_bucket_up gauge
 digitalocean_spaces_bucket_up{bucket="images",region="fra1"} 1
 digitalocean_spaces_bucket_up{bucket="logs",region="ams3"} 0
@@ -117,10 +114,10 @@ digitalocean_spaces_bucket_up{bucket="logs",region="ams3"} 0
 		t.Errorf("up metric: %v", err)
 	}
 
-	// A bucket that never listed has nothing to report but its failure: no
+	// A bucket never measured has nothing to report but its failure: no
 	// size, no object count, rather than a zero that reads as an empty bucket.
 	sizes := `
-# HELP digitalocean_spaces_bucket_size_bytes Total size of every object in the bucket.
+# HELP digitalocean_spaces_bucket_size_bytes Bytes stored in the bucket, as Spaces accounts for them.
 # TYPE digitalocean_spaces_bucket_size_bytes gauge
 digitalocean_spaces_bucket_size_bytes{bucket="images",region="fra1"} 1500
 `
@@ -148,25 +145,25 @@ func TestFailedBucketKeepsItsPreviousValues(t *testing.T) {
 	}
 
 	expected := `
-# HELP digitalocean_spaces_bucket_size_bytes Total size of every object in the bucket.
+# HELP digitalocean_spaces_bucket_size_bytes Bytes stored in the bucket, as Spaces accounts for them.
 # TYPE digitalocean_spaces_bucket_size_bytes gauge
 digitalocean_spaces_bucket_size_bytes{bucket="images",region="fra1"} 1500
 digitalocean_spaces_bucket_size_bytes{bucket="logs",region="ams3"} 1024
 `
 	if err := testutil.CollectAndCompare(c, strings.NewReader(expected),
 		"digitalocean_spaces_bucket_size_bytes"); err != nil {
-		t.Errorf("size after a failed listing: %v", err)
+		t.Errorf("size after a failed measurement: %v", err)
 	}
 
 	up := `
-# HELP digitalocean_spaces_bucket_up Whether the bucket's last listing succeeded.
+# HELP digitalocean_spaces_bucket_up Whether the bucket's last measurement succeeded.
 # TYPE digitalocean_spaces_bucket_up gauge
 digitalocean_spaces_bucket_up{bucket="images",region="fra1"} 0
 digitalocean_spaces_bucket_up{bucket="logs",region="ams3"} 1
 `
 	if err := testutil.CollectAndCompare(c, strings.NewReader(up),
 		"digitalocean_spaces_bucket_up"); err != nil {
-		t.Errorf("up after a failed listing: %v", err)
+		t.Errorf("up after a failed measurement: %v", err)
 	}
 }
 
@@ -181,7 +178,7 @@ func TestEveryBucketFailingIsARefreshFailure(t *testing.T) {
 	}, "fra1")
 
 	if err := c.Refresh(context.Background()); err == nil {
-		t.Fatal("expected an error when no bucket could be listed")
+		t.Fatal("expected an error when no bucket could be measured")
 	}
 }
 
@@ -194,7 +191,7 @@ func TestDiscoveryFindsBucketsAndTheirRegions(t *testing.T) {
 	}
 
 	expected := `
-# HELP digitalocean_spaces_bucket_size_bytes Total size of every object in the bucket.
+# HELP digitalocean_spaces_bucket_size_bytes Bytes stored in the bucket, as Spaces accounts for them.
 # TYPE digitalocean_spaces_bucket_size_bytes gauge
 digitalocean_spaces_bucket_size_bytes{bucket="images",region="fra1"} 1500
 digitalocean_spaces_bucket_size_bytes{bucket="logs",region="ams3"} 1024
@@ -247,10 +244,48 @@ func TestFailedBucketIsLogged(t *testing.T) {
 	if !strings.Contains(out, "logs") {
 		t.Errorf("log = %q, want it to name the bucket that failed", out)
 	}
-	if !strings.Contains(out, "AccessDenied") {
-		t.Errorf("log = %q, want it to carry the underlying error", out)
+	// A HEAD has no body to carry an S3 error code, so a lost grant shows up
+	// as a bare 403 and the message has to say what that means.
+	if !strings.Contains(out, "403") || !strings.Contains(out, "no read grant") {
+		t.Errorf("log = %q, want the status and what a 403 means", out)
 	}
 	if strings.Contains(out, "images") {
 		t.Errorf("log = %q, want nothing logged about the bucket that succeeded", out)
+	}
+}
+
+// The usage headers are a Ceph extension, not S3. An endpoint that answers a
+// HEAD without them cannot be measured at all, and that has to surface as the
+// bucket being down with a reason, not as a bucket of zero bytes.
+func TestBucketWithoutUsageHeadersFails(t *testing.T) {
+	buckets := twoBuckets()
+	buckets["logs"].noUsage = true
+	_, factory := newStubAPI(t, buckets)
+
+	var logged bytes.Buffer
+	c := spaces.New(spaces.Config{
+		Factory:     factory,
+		Buckets:     []spaces.Bucket{{Name: "images", Region: "fra1"}, {Name: "logs", Region: "ams3"}},
+		Region:      "fra1",
+		Concurrency: 2,
+		Logger:      slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelWarn})),
+	})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	expected := `
+# HELP digitalocean_spaces_bucket_up Whether the bucket's last measurement succeeded.
+# TYPE digitalocean_spaces_bucket_up gauge
+digitalocean_spaces_bucket_up{bucket="images",region="fra1"} 1
+digitalocean_spaces_bucket_up{bucket="logs",region="ams3"} 0
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(expected),
+		"digitalocean_spaces_bucket_up"); err != nil {
+		t.Errorf("up metric: %v", err)
+	}
+	if out := logged.String(); !strings.Contains(out, "x-rgw-object-count") {
+		t.Errorf("log = %q, want it to name the header that was missing", out)
 	}
 }

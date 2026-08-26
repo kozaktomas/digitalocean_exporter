@@ -54,9 +54,8 @@ func NewScheduler(timeout time.Duration, logger *slog.Logger, reg prometheus.Reg
 
 // Register adds a collector to be refreshed every interval, bounding one
 // refresh by timeout. A timeout of zero means the scheduler's own: a collector
-// whose refresh is a single API call needs nothing special, while listing every
-// object of a Spaces bucket takes minutes and has to say so. It must be called
-// before Run.
+// whose refresh is a single API call needs nothing special, while one that fans
+// out over every droplet has to say so. It must be called before Run.
 func (s *Scheduler) Register(c Collector, interval, timeout time.Duration) {
 	if timeout <= 0 {
 		timeout = s.timeout

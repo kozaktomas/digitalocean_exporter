@@ -167,15 +167,16 @@ basic_auth_users:
 
 ### Spaces
 
-Off by default. See [Spaces](spaces.md) for why, and for which kind of key you need.
+Off by default, because it takes a Spaces key pair rather than the API token. See
+[Spaces](spaces.md) for where the size comes from and which kind of key you need.
 
 | Flag | Environment variable | Default | Description |
 |---|---|---|---|
 | `--collector.spaces` | `COLLECTOR_SPACES` | `false` | Enable the Spaces collector |
-| `--collector.spaces.interval` | `COLLECTOR_SPACES_INTERVAL` | `6h` | Its refresh interval |
-| `--collector.spaces.timeout` | `COLLECTOR_SPACES_TIMEOUT` | `15m` | Timeout of one full Spaces refresh |
+| `--collector.spaces.interval` | `COLLECTOR_SPACES_INTERVAL` | `5m` | Its refresh interval |
+| `--collector.spaces.timeout` | `COLLECTOR_SPACES_TIMEOUT` | `2m` | Timeout of one full Spaces refresh |
 | `--collector.spaces.bucket` | `COLLECTOR_SPACES_BUCKET` | — | Bucket as `name` or `name@region`, repeatable |
-| `--collector.spaces.concurrency` | `COLLECTOR_SPACES_CONCURRENCY` | `4` | Buckets listed at once |
+| `--collector.spaces.concurrency` | `COLLECTOR_SPACES_CONCURRENCY` | `4` | Buckets measured at once |
 | `--spaces.access-key` | `DIGITALOCEAN_SPACES_KEY` | — | Spaces access key |
 | `--spaces.access-key-file` | `DIGITALOCEAN_SPACES_KEY_FILE` | — | File holding the access key |
 | `--spaces.secret-key` | `DIGITALOCEAN_SPACES_SECRET` | — | Spaces secret key |
