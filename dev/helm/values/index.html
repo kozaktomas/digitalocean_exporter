@@ -978,6 +978,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../alerting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alerting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/" class="md-nav__link">
         
   
@@ -1045,10 +1072,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
         
           
-          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="">
             
   
   
@@ -1066,8 +1093,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_9">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1610,6 +1637,18 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>object</td>
 <td><code>{}</code></td>
 <td>Node selector for the pod.</td>
+</tr>
+<tr>
+<td>prometheusRule.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Create a Prometheus Operator PrometheusRule holding the bundled alerting rules. Requires the CRD to exist in the cluster. Off by default, like the ServiceMonitor: a chart that installs alerts nobody asked for is a chart that pages somebody at 3am.</td>
+</tr>
+<tr>
+<td>prometheusRule.labels</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Extra labels for the PrometheusRule, for whatever your Prometheus selects rules on. For kube-prometheus-stack that is usually <code>release: &lt;release name&gt;</code>.</td>
 </tr>
 <tr>
 <td>resources</td>
