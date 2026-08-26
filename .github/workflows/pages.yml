@@ -58,8 +58,43 @@ env:
   KEEP_MINORS: "5"
 
 jobs:
+  # GitHub Pages keeps the first deployment it saw for a commit SHA and quietly ignores
+  # later ones. A release tags the commit that bumps the chart version, and that commit
+  # touches charts/ and docs/, so this workflow fires twice for one SHA: once for the push
+  # to main, once for the tag. Only one of them can publish, and it has to be the release.
+  #
+  # So a push whose commit is already tagged stands down. With the tag pushed before the
+  # branch, as the release notes in CLAUDE.md say, that makes the release's deployment the
+  # one Pages keeps — without anyone having to remember why.
+  guard:
+    name: Decide whether this run publishes
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.decide.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # tags, which is what this job is here to look at
+
+      - id: decide
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          tag=$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)
+          if [ -n "${tag}" ]; then
+            echo "${tag} points at this commit, so the release publishes it; standing down"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
   docs:
     name: Build documentation
+    needs: guard
+    if: needs.guard.outputs.publish == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write # mike commits the built site to DOCS_BRANCH
@@ -132,7 +167,7 @@ jobs:
 
   deploy:
     name: Assemble and deploy
-    needs: docs
+    needs: [guard, docs]
     runs-on: ubuntu-latest
     permissions:
       contents: read
