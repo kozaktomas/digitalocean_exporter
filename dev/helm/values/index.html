@@ -1263,6 +1263,18 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>How often the cdn collector refreshes.</td>
 </tr>
 <tr>
+<td>collectors.certificates.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Report the TLS certificates the account holds, and when each one expires. Off by default because a certificate changes when it is renewed and not otherwise; enable it to alert on <code>digitalocean_certificate_expiry_timestamp_seconds</code>, which catches a <code>lets_encrypt</code> renewal that failed quietly.</td>
+</tr>
+<tr>
+<td>collectors.certificates.interval</td>
+<td>string</td>
+<td><code>"5m"</code></td>
+<td>How often the certificates collector refreshes.</td>
+</tr>
+<tr>
 <td>collectors.databases.enabled</td>
 <td>bool</td>
 <td><code>true</code></td>
@@ -1273,6 +1285,18 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>string</td>
 <td><code>"5m"</code></td>
 <td>How often the databases collector refreshes.</td>
+</tr>
+<tr>
+<td>collectors.domains.enabled</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Report the DNS zones the account hosts and their default TTL. One list request covers the whole account. The records inside a zone are not reported: counting them would cost a request per zone.</td>
+</tr>
+<tr>
+<td>collectors.domains.interval</td>
+<td>string</td>
+<td><code>"5m"</code></td>
+<td>How often the domains collector refreshes.</td>
 </tr>
 <tr>
 <td>collectors.dropletmetrics.concurrency</td>
@@ -1309,6 +1333,18 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>string</td>
 <td><code>"5m"</code></td>
 <td>How often the droplets collector refreshes.</td>
+</tr>
+<tr>
+<td>collectors.firewalls.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Report cloud firewalls: what each is attached to, how many rules it carries, how many of those are open to the whole internet, and how many droplets a change has not reached yet. Off by default because a ruleset changes on deploys rather than continuously.</td>
+</tr>
+<tr>
+<td>collectors.firewalls.interval</td>
+<td>string</td>
+<td><code>"5m"</code></td>
+<td>How often the firewalls collector refreshes.</td>
 </tr>
 <tr>
 <td>collectors.kubernetes.enabled</td>

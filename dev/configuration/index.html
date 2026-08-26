@@ -714,6 +714,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#firewalls-and-certificates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Firewalls and certificates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spaces" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1340,6 +1351,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#firewalls-and-certificates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Firewalls and certificates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spaces" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1463,16 +1485,18 @@ refreshes alone, on their own intervals.</p>
 </table>
 <p>The burst limit can be tripped while the hourly budget is nearly untouched, which is the
 trap worth knowing about — see <a href="monitoring-api/#the-budget">the monitoring API</a>.</p>
-<p>The ten collectors that are on by default cost one to three requests each per refresh. On a
-real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database and a
-registry, one full refresh measured <strong>14 requests</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>account 1 · cdn 1 · databases 1 · droplets 2 · kubernetes 1
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>load_balancers 1 · registry 3 · reserved_ips 1 · volumes 2 · balance 1
+<p>The eleven collectors that are on by default cost one to three requests each per refresh. On
+a real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database, a
+registry and a DNS zone, one full refresh measured <strong>15 requests</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>account 1 · balance 1 · cdn 1 · databases 1 · domains 1 · droplets 2
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>kubernetes 1 · load_balancers 1 · registry 3 · reserved_ips 1 · volumes 2
 </code></pre></div>
-<p>At the default <code>5m</code> that is 12 refreshes an hour — <strong>168 requests, 3.4% of the hourly
-budget</strong>, and 14 in a burst, 5.6% of the per-minute one. Comfortable, and it scales with how
+<p>At the default <code>5m</code> that is 12 refreshes an hour — <strong>180 requests, 3.6% of the hourly
+budget</strong>, and 15 in a burst, 6% of the per-minute one. Comfortable, and it scales with how
 much you own rather than with how often Prometheus scrapes.</p>
-<p>The three collectors that are off by default are off because they are not like that; see
+<p>Enabling <a href="collectors/#firewalls"><code>firewalls</code></a> and
+<a href="collectors/#certificates"><code>certificates</code></a> adds one request each, so the same account costs
+17. The other three that are off by default are off because they are not like that; see
 <a href="spaces/">Spaces</a> and <a href="monitoring-api/">the monitoring API</a>.</p>
 <div class="admonition note">
 <p class="admonition-title">One endpoint has a stricter limit of its own</p>
@@ -1681,6 +1705,60 @@ web configuration, which is how you get TLS and basic auth:</p>
 <tr>
 <td><code>--collector.cdn.interval</code></td>
 <td><code>COLLECTOR_CDN_INTERVAL</code></td>
+<td><code>5m</code></td>
+<td>Its refresh interval</td>
+</tr>
+<tr>
+<td><code>--collector.domains</code></td>
+<td><code>COLLECTOR_DOMAINS</code></td>
+<td><code>true</code></td>
+<td><a href="collectors/#domains">DNS zones</a></td>
+</tr>
+<tr>
+<td><code>--collector.domains.interval</code></td>
+<td><code>COLLECTOR_DOMAINS_INTERVAL</code></td>
+<td><code>5m</code></td>
+<td>Its refresh interval</td>
+</tr>
+</tbody>
+</table>
+<h3 id="firewalls-and-certificates">Firewalls and certificates<a class="headerlink" href="#firewalls-and-certificates" title="Permanent link">&para;</a></h3>
+<p>Off by default, but not because of what they cost — one request each per refresh, the same as
+the collectors above. They are off because a firewall ruleset changes when somebody deploys
+and a certificate when it is renewed, so most accounts have no reason to scrape them. Enable
+them to alert on <a href="collectors/#firewalls">pending firewall changes</a> or
+<a href="collectors/#certificates">certificate expiry</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Environment variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--collector.firewalls</code></td>
+<td><code>COLLECTOR_FIREWALLS</code></td>
+<td><code>false</code></td>
+<td><a href="collectors/#firewalls">Cloud firewalls</a></td>
+</tr>
+<tr>
+<td><code>--collector.firewalls.interval</code></td>
+<td><code>COLLECTOR_FIREWALLS_INTERVAL</code></td>
+<td><code>5m</code></td>
+<td>Its refresh interval</td>
+</tr>
+<tr>
+<td><code>--collector.certificates</code></td>
+<td><code>COLLECTOR_CERTIFICATES</code></td>
+<td><code>false</code></td>
+<td><a href="collectors/#certificates">TLS certificates</a></td>
+</tr>
+<tr>
+<td><code>--collector.certificates.interval</code></td>
+<td><code>COLLECTOR_CERTIFICATES_INTERVAL</code></td>
 <td><code>5m</code></td>
 <td>Its refresh interval</td>
 </tr>

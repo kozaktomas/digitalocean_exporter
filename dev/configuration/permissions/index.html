@@ -1387,6 +1387,18 @@ one needs exactly the read scope for the resource it reports:</p>
 <td><code>cdn:read</code></td>
 </tr>
 <tr>
+<td><a href="../collectors/#domains"><code>domains</code></a></td>
+<td><code>domain:read</code></td>
+</tr>
+<tr>
+<td><a href="../collectors/#firewalls"><code>firewalls</code></a></td>
+<td><code>firewall:read</code></td>
+</tr>
+<tr>
+<td><a href="../collectors/#certificates"><code>certificates</code></a></td>
+<td><code>certificate:read</code></td>
+</tr>
+<tr>
 <td><a href="../monitoring-api/#dropletmetrics"><code>dropletmetrics</code></a></td>
 <td><code>monitoring:read</code>, <code>droplet:read</code></td>
 </tr>
@@ -1416,7 +1428,8 @@ that means nothing.</p>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--no-collector.databases<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span>--no-collector.kubernetes<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span>--no-collector.registry<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span>--no-collector.cdn
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span>--no-collector.cdn<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span>--no-collector.domains
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># the same thing in the chart</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">collectors</span><span class="p">:</span>
@@ -1425,6 +1438,7 @@ that means nothing.</p>
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="nt">kubernetes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> enabled</span><span class="p">:</span><span class="w"> </span><span class="nv">false</span><span class="w"> </span><span class="p p-Indicator">}</span>
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">registry</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> enabled</span><span class="p">:</span><span class="w"> </span><span class="nv">false</span><span class="w"> </span><span class="p p-Indicator">}</span>
 <a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">cdn</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> enabled</span><span class="p">:</span><span class="w"> </span><span class="nv">false</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="nt">domains</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> enabled</span><span class="p">:</span><span class="w"> </span><span class="nv">false</span><span class="w"> </span><span class="p p-Indicator">}</span>
 </code></pre></div>
 <p>A token scoped to <code>droplet:read</code>, <code>block_storage:read</code>, <code>reserved_ip:read</code> and
 <code>account:read</code>, with everything else switched off, is a perfectly reasonable

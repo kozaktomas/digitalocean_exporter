@@ -801,6 +801,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#domains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        domains
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#firewalls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        firewalls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#certificates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        certificates
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1376,6 +1409,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#domains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        domains
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#firewalls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        firewalls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#certificates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        certificates
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1404,11 +1470,15 @@
 <h1 id="collectors">Collectors<a class="headerlink" href="#collectors" title="Permanent link">&para;</a></h1>
 <p>One page per question you might have about a collector: what it reports, what it costs, and
 when to turn it off. The metric names themselves are in the <a href="../../metrics/">metrics reference</a>.</p>
-<p>Ten collectors are on by default. They are on because each costs one or two API requests per
-refresh, which is negligible against the limit of 5000 an hour. The three that are off —
-<a href="../spaces/"><code>spaces</code></a>, <a href="../monitoring-api/#dropletmetrics"><code>dropletmetrics</code></a> and
+<p>Eleven collectors are on by default. They are on because each costs one or two API requests
+per refresh, which is negligible against the limit of 5000 an hour.</p>
+<p>Five are off. Three of them — <a href="../spaces/"><code>spaces</code></a>,
+<a href="../monitoring-api/#dropletmetrics"><code>dropletmetrics</code></a> and
 <a href="../monitoring-api/#loadbalancermetrics"><code>loadbalancermetrics</code></a> — have pages of their own,
-because deciding to enable them means doing arithmetic first.</p>
+because deciding to enable them means doing arithmetic first. The other two,
+<a href="#firewalls"><code>firewalls</code></a> and <a href="#certificates"><code>certificates</code></a>, cost no more than the
+collectors that default on; they are off because what they report changes when somebody
+deploys or renews something, not continuously, so most accounts have no use for them.</p>
 <p>Every collector reports <code>digitalocean_exporter_collector_success</code> and
 <code>digitalocean_exporter_collector_duration_seconds</code>, so the health of each one is visible
 independently. A failed refresh keeps the previous values rather than dropping them.</p>
@@ -1506,6 +1576,55 @@ expiring certificate is easier to catch here than in the control panel.</p>
 <a href="https://docs.digitalocean.com/reference/api/reference/public-apis/">stricter limit of their own</a> —
 5 requests per 10 seconds, independent of the account-wide limits. One request every 5
 minutes is nowhere near it, but do not set this interval to seconds.</p>
+<hr />
+<h2 id="domains">domains<a class="headerlink" href="#domains" title="Permanent link">&para;</a></h2>
+<p>Every DNS zone the account hosts, and the zone's default TTL.</p>
+<p>One list request covers the whole account, however many zones there are, which is what makes
+this cheap enough to leave on. How many zones you have is
+<code>count(digitalocean_domain_ttl_seconds)</code>, and a zone disappearing from that count is the
+alert worth writing.</p>
+<p><strong>The records inside a zone are not reported.</strong> Counting them costs one request per zone, so
+on an account with two hundred domains a five-minute interval would spend roughly half the
+hourly rate limit on data that changes a few times a year. The list response does include
+each zone's full BIND zone file, and record counts could be derived from it without any extra
+request, but that file is a text format DigitalOcean documents no guarantees about — a
+silently miscounted record is worse than an absent one.</p>
+<p><strong>Cost:</strong> one request per refresh.</p>
+<hr />
+<h2 id="firewalls">firewalls<a class="headerlink" href="#firewalls" title="Permanent link">&para;</a></h2>
+<p>Cloud firewalls: what each one is attached to, how many rules it carries, and how far
+DigitalOcean has got applying it.</p>
+<p>Two of these are alerts rather than dashboard panels.</p>
+<p><code>digitalocean_firewall_pending_changes</code> counts the droplets a rule change has not reached
+yet. It is normally zero within seconds of an edit; one that stays non-zero means the
+firewall is not protecting what its ruleset says it protects.</p>
+<p><code>digitalocean_firewall_inbound_rules_open</code> counts the inbound rules whose sources include
+<code>0.0.0.0/0</code> or <code>::/0</code> — the rules reachable from the whole internet. The useful alert is not
+<code>&gt; 0</code>, since a public web server needs one, but a change in the number nobody intended.</p>
+<p><strong>Configuration, not traffic.</strong> DigitalOcean reports no packet or connection counts for a
+firewall, so there is no way to see what a rule actually allows through.</p>
+<p><strong>Off by default</strong>, and not because of what it costs: one list request per refresh, the same
+as the collectors that default on. A ruleset changes when somebody deploys, so most accounts
+have no reason to scrape it. Turn it on when you want to alert on the two metrics above.</p>
+<p><strong>Cost:</strong> one request per refresh.</p>
+<hr />
+<h2 id="certificates">certificates<a class="headerlink" href="#certificates" title="Permanent link">&para;</a></h2>
+<p>Every TLS certificate the account holds for its load balancers and CDN endpoints, and when
+each one expires.</p>
+<p><code>digitalocean_certificate_expiry_timestamp_seconds</code> is the reason this collector exists.
+DigitalOcean renews a <code>lets_encrypt</code> certificate on its own, but renewal can fail quietly:
+the certificate keeps its old <code>not_after</code> and its <code>state</code> turns to <code>error</code>. Alerting on the
+expiry timestamp catches that; alerting on the state alone does not catch a certificate that
+is simply old.</p>
+<p>The <code>id</code> label matches the <code>certificate_id</code> on <code>digitalocean_cdn_endpoint_info</code>, so the
+endpoint serving an expiring certificate can be found with a join rather than by hand.</p>
+<p>A certificate whose <code>not_after</code> the API omits keeps its other metrics and has no expiry
+sample, rather than reporting an expiry at the Unix epoch that would fire every alert written
+against it.</p>
+<p><strong>Off by default</strong> for the same reason as <code>firewalls</code>: one list request per refresh, but a
+certificate changes when it is renewed and not otherwise. Enable it if you terminate TLS at a
+DigitalOcean load balancer or CDN endpoint.</p>
+<p><strong>Cost:</strong> one request per refresh.</p>
 
 
 

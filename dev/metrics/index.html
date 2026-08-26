@@ -979,6 +979,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#domains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Domains
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#firewalls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Firewalls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#certificates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Certificates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#droplet-metrics" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1459,6 +1492,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#domains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Domains
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#firewalls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Firewalls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#certificates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Certificates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#droplet-metrics" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1900,9 +1966,137 @@ collector.</p>
 <p>This is inventory, not traffic. DigitalOcean's API reports no request count, no bandwidth
 and no cache hit ratio for a CDN endpoint, so none of that can be exported here. What an
 endpoint fronts is a Spaces bucket, and the <code>spaces</code> collector measures that bucket's size.</p>
-<p><code>certificate_id</code> is on the info metric so an endpoint can be joined to the certificate it
-serves once a certificate collector exists. An endpoint with a <code>custom_domain</code> and an empty
-<code>certificate_id</code> is serving that domain without TLS of its own.</p>
+<p><code>certificate_id</code> is on the info metric so an endpoint can be joined to the <code>id</code> of the
+<a href="#certificates">certificate</a> that serves it, and with it that certificate's expiry. An
+endpoint with a <code>custom_domain</code> and an empty <code>certificate_id</code> is serving that domain without
+TLS of its own.</p>
+<h2 id="domains">Domains<a class="headerlink" href="#domains" title="Permanent link">&para;</a></h2>
+<p>Collected by <code>domains</code> from <code>/v2/domains</code>, one metric per DNS zone.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>digitalocean_domain_ttl_seconds</code></td>
+<td><code>domain</code></td>
+<td>Default TTL of the zone</td>
+</tr>
+</tbody>
+</table>
+<p>There is no metric counting the zones. <code>count(digitalocean_domain_ttl_seconds)</code> is the
+number of them, the same way the number of droplets is <code>count(digitalocean_droplet_up)</code>.</p>
+<p>The records inside a zone are deliberately absent: counting them costs one API request per
+zone. The <a href="../configuration/collectors/#domains">collector page</a> explains the trade-off.</p>
+<h2 id="firewalls">Firewalls<a class="headerlink" href="#firewalls" title="Permanent link">&para;</a></h2>
+<p>Collected by <code>firewalls</code> from <code>/v2/firewalls</code>, one set of metrics per firewall. Off by
+default.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>digitalocean_firewall_info</code></td>
+<td><code>id</code>, <code>name</code>, <code>status</code></td>
+<td>Always 1</td>
+</tr>
+<tr>
+<td><code>digitalocean_firewall_droplets</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>Droplets attached directly</td>
+</tr>
+<tr>
+<td><code>digitalocean_firewall_tags</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>Tags attached; droplets carrying one are covered too</td>
+</tr>
+<tr>
+<td><code>digitalocean_firewall_inbound_rules</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>Inbound rules</td>
+</tr>
+<tr>
+<td><code>digitalocean_firewall_outbound_rules</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>Outbound rules</td>
+</tr>
+<tr>
+<td><code>digitalocean_firewall_inbound_rules_open</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>Inbound rules whose sources include <code>0.0.0.0/0</code> or <code>::/0</code></td>
+</tr>
+<tr>
+<td><code>digitalocean_firewall_pending_changes</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>Droplets a change has not reached yet</td>
+</tr>
+</tbody>
+</table>
+<p><code>pending_changes</code> is normally zero within seconds of an edit. One that stays non-zero means
+the firewall is not yet protecting what its ruleset says it protects:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nv">digitalocean_firewall_pending_changes</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
+</code></pre></div>
+<p><code>inbound_rules_open</code> counts the rules reachable from the whole internet. Alerting on <code>&gt; 0</code>
+is wrong — a public web server needs one — but an unexplained change in the number is worth
+knowing about:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kr">changes</span><span class="o">(</span><span class="nv">digitalocean_firewall_inbound_rules_open</span><span class="p">[</span><span class="s">1d</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
+</code></pre></div>
+<p>This is configuration, not traffic: DigitalOcean reports no packet or connection counts for
+a firewall, so what a rule actually lets through cannot be exported.</p>
+<h2 id="certificates">Certificates<a class="headerlink" href="#certificates" title="Permanent link">&para;</a></h2>
+<p>Collected by <code>certificates</code> from <code>/v2/certificates</code>, one set of metrics per certificate. Off
+by default.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>digitalocean_certificate_expiry_timestamp_seconds</code></td>
+<td><code>id</code>, <code>name</code>, <code>type</code></td>
+<td>Expiry as a Unix timestamp</td>
+</tr>
+<tr>
+<td><code>digitalocean_certificate_info</code></td>
+<td><code>id</code>, <code>name</code>, <code>type</code>, <code>state</code>, <code>sha1_fingerprint</code></td>
+<td>Always 1</td>
+</tr>
+<tr>
+<td><code>digitalocean_certificate_dns_names</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>DNS names the certificate covers</td>
+</tr>
+</tbody>
+</table>
+<p><code>type</code> is <code>lets_encrypt</code> or <code>custom</code>. DigitalOcean renews a <code>lets_encrypt</code> certificate
+itself, but renewal can fail quietly — the certificate keeps its old expiry and its <code>state</code>
+turns to <code>error</code> — so the alert to write is on time remaining rather than on state:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="o">(</span><span class="nv">digitalocean_certificate_expiry_timestamp_seconds</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="kr">time</span><span class="o">())</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">86400</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">14</span>
+</code></pre></div>
+<p>The <code>id</code> label matches the <code>certificate_id</code> on <code>digitalocean_cdn_endpoint_info</code>, so the
+endpoint serving a certificate that is about to expire can be found with a join:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kr">label_replace</span><span class="o">(</span><span class="nv">digitalocean_cdn_endpoint_info</span><span class="p">,</span><span class="w"> </span><span class="p">"</span><span class="s">id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">$1</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">certificate_id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">(.*)</span><span class="p">"</span><span class="o">)</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="o">*</span><span class="w"> </span><span class="k">on</span><span class="o">(</span><span class="nv">id</span><span class="o">)</span><span class="w"> </span><span class="k">group_left</span><span class="o">(</span><span class="nv">name</span><span class="o">)</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="o">((</span><span class="nv">digitalocean_certificate_expiry_timestamp_seconds</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="kr">time</span><span class="o">())</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">86400</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">14</span><span class="o">)</span>
+</code></pre></div>
+<p>The endpoints are the many side of that join: one certificate can serve several of them. The
+result is the days remaining, labelled with the endpoint serving it.</p>
+<p>A certificate whose <code>not_after</code> the API omits has no expiry sample at all rather than one at
+the Unix epoch, which would fire every alert written against it. Its other metrics are
+reported as usual.</p>
 <h2 id="droplet-metrics">Droplet metrics<a class="headerlink" href="#droplet-metrics" title="Permanent link">&para;</a></h2>
 <p>Collected by <code>dropletmetrics</code> from <code>/v2/monitoring/metrics/droplet/*</code>, one set of metrics
 per droplet. <strong>Off by default</strong> — see the request budget below.</p>
@@ -1968,7 +2162,7 @@ per droplet. <strong>Off by default</strong> — see the request budget below.</
 </tbody>
 </table>
 <p>CPU is a counter, exactly like <code>node_cpu_seconds_total</code>, so it is read with <code>rate()</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">id</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_droplet_cpu_seconds_total</span><span class="p">{</span><span class="nl">mode</span><span class="o">!=</span><span class="p">"</span><span class="s">idle</span><span class="p">"}[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">id</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_droplet_cpu_seconds_total</span><span class="p">{</span><span class="nl">mode</span><span class="o">!=</span><span class="p">"</span><span class="s">idle</span><span class="p">"}[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
 </code></pre></div>
 <p><code>digitalocean_droplet_memory_total_bytes</code> is not the <code>digitalocean_droplet_memory_bytes</code> of
 the <code>droplets</code> collector. That one is the memory the droplet was <em>sold</em>, taken from its
@@ -1979,7 +2173,7 @@ because the hypervisor and the kernel keep some. On a droplet sold with 8 GiB th
 <p>This is the only collector whose cost grows with the size of the account. The monitoring API
 answers <strong>one metric of one droplet per request</strong>, so a refresh costs one droplet listing
 plus ten requests per droplet:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>requests per hour = 3600/interval * (1 + droplets * 10)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>requests per hour = 3600/interval * (1 + droplets * 10)
 </code></pre></div>
 <p>Against the limit of 5000 requests an hour, at the default five-minute interval:</p>
 <table>
@@ -2098,14 +2292,14 @@ metrics per load balancer. <strong>Off by default.</strong></p>
 <code>node_exporter</code>. The metric that earns the collector its keep is
 <code>digitalocean_loadbalancer_droplets_health_checks</code>, which names the <strong>individual backend</strong>
 that is failing rather than only showing that the pool has shrunk:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nv">digitalocean_loadbalancer_droplets_health_checks</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">100</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nv">digitalocean_loadbalancer_droplets_health_checks</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">100</span>
 </code></pre></div>
 <p>The <code>server</code> label is the backend droplet, as <code>node-&lt;droplet id&gt;</code>.</p>
 <p><code>frontend_http_responses</code> is a <strong>rate</strong>, not a running total — DigitalOcean's API
 specification calls it the "rate of response code" — so it is a gauge of responses per
 second and must not be wrapped in <code>rate()</code>. Error ratio:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">id</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="nv">digitalocean_loadbalancer_frontend_http_responses_per_second</span><span class="p">{</span><span class="nl">code</span><span class="o">=</span><span class="p">"</span><span class="s">5xx</span><span class="p">"}</span><span class="o">)</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="o">/</span><span class="w"> </span><span class="k">ignoring</span><span class="o">(</span><span class="nv">code</span><span class="o">)</span><span class="w"> </span><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">id</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="nv">digitalocean_loadbalancer_frontend_http_responses_per_second</span><span class="o">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">id</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="nv">digitalocean_loadbalancer_frontend_http_responses_per_second</span><span class="p">{</span><span class="nl">code</span><span class="o">=</span><span class="p">"</span><span class="s">5xx</span><span class="p">"}</span><span class="o">)</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="o">/</span><span class="w"> </span><span class="k">ignoring</span><span class="o">(</span><span class="nv">code</span><span class="o">)</span><span class="w"> </span><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">id</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="nv">digitalocean_loadbalancer_frontend_http_responses_per_second</span><span class="o">)</span>
 </code></pre></div>
 <p>Nothing this API returns for a load balancer is cumulative, so every metric here is a gauge.</p>
 <h3 id="units">Units<a class="headerlink" href="#units" title="Permanent link">&para;</a></h3>
@@ -2185,13 +2379,13 @@ one per node pool in it.</p>
 </table>
 <p>The configured count and the running count are kept apart on purpose: a pool that is waiting
 for a node to come up reports the two apart, and that gap is the moment worth alerting on.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">alert</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DigitalOceanKubernetesNodePoolShort</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">        </span><span class="nt">expr</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">&gt;</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">          </span><span class="no">digitalocean_kubernetes_node_pool_nodes_running</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">            </span><span class="no">&lt; digitalocean_kubernetes_node_pool_nodes</span>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">        </span><span class="nt">for</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">15m</span>
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">        </span><span class="nt">annotations</span><span class="p">:</span>
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">          </span><span class="nt">summary</span><span class="p">:</span><span class="w"> </span><span class="s">"Pool</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">$labels.pool</span><span class="nv"> </span><span class="s">}}</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">$labels.cluster</span><span class="nv"> </span><span class="s">}}</span><span class="nv"> </span><span class="s">is</span><span class="nv"> </span><span class="s">short</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">nodes"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">alert</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DigitalOceanKubernetesNodePoolShort</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">        </span><span class="nt">expr</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">&gt;</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">          </span><span class="no">digitalocean_kubernetes_node_pool_nodes_running</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">            </span><span class="no">&lt; digitalocean_kubernetes_node_pool_nodes</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">        </span><span class="nt">for</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">15m</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">        </span><span class="nt">annotations</span><span class="p">:</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">          </span><span class="nt">summary</span><span class="p">:</span><span class="w"> </span><span class="s">"Pool</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">$labels.pool</span><span class="nv"> </span><span class="s">}}</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">$labels.cluster</span><span class="nv"> </span><span class="s">}}</span><span class="nv"> </span><span class="s">is</span><span class="nv"> </span><span class="s">short</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">nodes"</span>
 </code></pre></div>
 <p><code>digitalocean_kubernetes_cluster_up</code> keeps the name and labels of the older, unmaintained
 exporter. The node pool metrics do not: that exporter labels a pool by its own id and name
@@ -2227,9 +2421,9 @@ itself never travels.</p>
 </table>
 <p>A limit only raises the question of how much of it is left. Paired with the account
 collector's limits, these answer it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nv">digitalocean_account_droplets</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_droplet_limit</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nv">digitalocean_account_reserved_ips</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_reserved_ip_limit</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nv">digitalocean_account_volumes</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_volume_limit</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nv">digitalocean_account_droplets</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_droplet_limit</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="nv">digitalocean_account_reserved_ips</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_reserved_ip_limit</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="nv">digitalocean_account_volumes</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_volume_limit</span>
 </code></pre></div>
 <p>A response without <code>meta.total</code> fails the refresh instead of falling back to the length of
 the page — a page holds one item by design, so that fallback would report one droplet for an
@@ -2503,34 +2697,34 @@ A starting exporter must not be readable as an account with no droplets and no m
 <code>digitalocean_exporter_api_rate_limit_remaining</code> is read from the response headers, so the
 budget is visible before it runs out and the exporter starts serving stale data.</p>
 <h2 id="alerting">Alerting<a class="headerlink" href="#alerting" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">groups</span><span class="p">:</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">digitalocean-exporter</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="nt">rules</span><span class="p">:</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">alert</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DigitalOceanExporterCollectorFailing</span>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">        </span><span class="nt">expr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">digitalocean_exporter_collector_success == 0</span>
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">        </span><span class="nt">for</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">15m</span>
-<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">        </span><span class="nt">annotations</span><span class="p">:</span>
-<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">          </span><span class="nt">summary</span><span class="p">:</span><span class="w"> </span><span class="s">"Collector</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">$labels.collector</span><span class="nv"> </span><span class="s">}}</span><span class="nv"> </span><span class="s">has</span><span class="nv"> </span><span class="s">been</span><span class="nv"> </span><span class="s">failing</span><span class="nv"> </span><span class="s">for</span><span class="nv"> </span><span class="s">15</span><span class="nv"> </span><span class="s">minutes"</span>
-<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>
-<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">alert</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DigitalOceanAccountNearDropletLimit</span>
-<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">        </span><span class="nt">expr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">digitalocean_account_droplets / digitalocean_account_droplet_limit &gt; 0.8</span>
-<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">        </span><span class="nt">for</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1h</span>
-<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">        </span><span class="nt">annotations</span><span class="p">:</span>
-<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">          </span><span class="nt">summary</span><span class="p">:</span><span class="w"> </span><span class="s">"The</span><span class="nv"> </span><span class="s">account</span><span class="nv"> </span><span class="s">uses</span><span class="nv"> </span><span class="s">over</span><span class="nv"> </span><span class="s">80%</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">its</span><span class="nv"> </span><span class="s">droplet</span><span class="nv"> </span><span class="s">limit"</span>
-<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>
-<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">alert</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DigitalOceanRegistryStorageNearQuota</span>
-<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="w">        </span><span class="nt">expr</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">&gt;</span>
-<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="w">          </span><span class="no">digitalocean_registry_storage_usage_bytes</span>
-<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="w">            </span><span class="no">/ digitalocean_registry_storage_included_bytes &gt; 0.9</span>
-<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a><span class="w">        </span><span class="nt">for</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1h</span>
-<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a><span class="w">        </span><span class="nt">annotations</span><span class="p">:</span>
-<a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="w">          </span><span class="nt">summary</span><span class="p">:</span><span class="w"> </span><span class="s">"Registry</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">$labels.registry</span><span class="nv"> </span><span class="s">}}</span><span class="nv"> </span><span class="s">uses</span><span class="nv"> </span><span class="s">over</span><span class="nv"> </span><span class="s">90%</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">its</span><span class="nv"> </span><span class="s">included</span><span class="nv"> </span><span class="s">storage"</span>
-<a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a>
-<a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">alert</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DigitalOceanExporterRateLimitLow</span>
-<a id="__codelineno-9-25" name="__codelineno-9-25" href="#__codelineno-9-25"></a><span class="w">        </span><span class="nt">expr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">digitalocean_exporter_api_rate_limit_remaining &lt; 500</span>
-<a id="__codelineno-9-26" name="__codelineno-9-26" href="#__codelineno-9-26"></a><span class="w">        </span><span class="nt">for</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
-<a id="__codelineno-9-27" name="__codelineno-9-27" href="#__codelineno-9-27"></a><span class="w">        </span><span class="nt">annotations</span><span class="p">:</span>
-<a id="__codelineno-9-28" name="__codelineno-9-28" href="#__codelineno-9-28"></a><span class="w">          </span><span class="nt">summary</span><span class="p">:</span><span class="w"> </span><span class="s">"Fewer</span><span class="nv"> </span><span class="s">than</span><span class="nv"> </span><span class="s">500</span><span class="nv"> </span><span class="s">DigitalOcean</span><span class="nv"> </span><span class="s">API</span><span class="nv"> </span><span class="s">requests</span><span class="nv"> </span><span class="s">left</span><span class="nv"> </span><span class="s">this</span><span class="nv"> </span><span class="s">hour"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">groups</span><span class="p">:</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">digitalocean-exporter</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="nt">rules</span><span class="p">:</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">alert</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DigitalOceanExporterCollectorFailing</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">        </span><span class="nt">expr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">digitalocean_exporter_collector_success == 0</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">        </span><span class="nt">for</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">15m</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">        </span><span class="nt">annotations</span><span class="p">:</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="w">          </span><span class="nt">summary</span><span class="p">:</span><span class="w"> </span><span class="s">"Collector</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">$labels.collector</span><span class="nv"> </span><span class="s">}}</span><span class="nv"> </span><span class="s">has</span><span class="nv"> </span><span class="s">been</span><span class="nv"> </span><span class="s">failing</span><span class="nv"> </span><span class="s">for</span><span class="nv"> </span><span class="s">15</span><span class="nv"> </span><span class="s">minutes"</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">alert</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DigitalOceanAccountNearDropletLimit</span>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a><span class="w">        </span><span class="nt">expr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">digitalocean_account_droplets / digitalocean_account_droplet_limit &gt; 0.8</span>
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="w">        </span><span class="nt">for</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1h</span>
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="w">        </span><span class="nt">annotations</span><span class="p">:</span>
+<a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a><span class="w">          </span><span class="nt">summary</span><span class="p">:</span><span class="w"> </span><span class="s">"The</span><span class="nv"> </span><span class="s">account</span><span class="nv"> </span><span class="s">uses</span><span class="nv"> </span><span class="s">over</span><span class="nv"> </span><span class="s">80%</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">its</span><span class="nv"> </span><span class="s">droplet</span><span class="nv"> </span><span class="s">limit"</span>
+<a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a>
+<a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">alert</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DigitalOceanRegistryStorageNearQuota</span>
+<a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a><span class="w">        </span><span class="nt">expr</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">&gt;</span>
+<a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a><span class="w">          </span><span class="no">digitalocean_registry_storage_usage_bytes</span>
+<a id="__codelineno-13-19" name="__codelineno-13-19" href="#__codelineno-13-19"></a><span class="w">            </span><span class="no">/ digitalocean_registry_storage_included_bytes &gt; 0.9</span>
+<a id="__codelineno-13-20" name="__codelineno-13-20" href="#__codelineno-13-20"></a><span class="w">        </span><span class="nt">for</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1h</span>
+<a id="__codelineno-13-21" name="__codelineno-13-21" href="#__codelineno-13-21"></a><span class="w">        </span><span class="nt">annotations</span><span class="p">:</span>
+<a id="__codelineno-13-22" name="__codelineno-13-22" href="#__codelineno-13-22"></a><span class="w">          </span><span class="nt">summary</span><span class="p">:</span><span class="w"> </span><span class="s">"Registry</span><span class="nv"> </span><span class="s">{{</span><span class="nv"> </span><span class="s">$labels.registry</span><span class="nv"> </span><span class="s">}}</span><span class="nv"> </span><span class="s">uses</span><span class="nv"> </span><span class="s">over</span><span class="nv"> </span><span class="s">90%</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">its</span><span class="nv"> </span><span class="s">included</span><span class="nv"> </span><span class="s">storage"</span>
+<a id="__codelineno-13-23" name="__codelineno-13-23" href="#__codelineno-13-23"></a>
+<a id="__codelineno-13-24" name="__codelineno-13-24" href="#__codelineno-13-24"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">alert</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DigitalOceanExporterRateLimitLow</span>
+<a id="__codelineno-13-25" name="__codelineno-13-25" href="#__codelineno-13-25"></a><span class="w">        </span><span class="nt">expr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">digitalocean_exporter_api_rate_limit_remaining &lt; 500</span>
+<a id="__codelineno-13-26" name="__codelineno-13-26" href="#__codelineno-13-26"></a><span class="w">        </span><span class="nt">for</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
+<a id="__codelineno-13-27" name="__codelineno-13-27" href="#__codelineno-13-27"></a><span class="w">        </span><span class="nt">annotations</span><span class="p">:</span>
+<a id="__codelineno-13-28" name="__codelineno-13-28" href="#__codelineno-13-28"></a><span class="w">          </span><span class="nt">summary</span><span class="p">:</span><span class="w"> </span><span class="s">"Fewer</span><span class="nv"> </span><span class="s">than</span><span class="nv"> </span><span class="s">500</span><span class="nv"> </span><span class="s">DigitalOcean</span><span class="nv"> </span><span class="s">API</span><span class="nv"> </span><span class="s">requests</span><span class="nv"> </span><span class="s">left</span><span class="nv"> </span><span class="s">this</span><span class="nv"> </span><span class="s">hour"</span>
 </code></pre></div>
 
 
