@@ -108,6 +108,21 @@ hands it to goreleaser as a release asset, then calls `pages.yml`. Nothing else 
 The tag must be plain `vMAJOR.MINOR.PATCH` — the workflow rejects anything else, because
 one number drives the binary, the chart, the `appVersion` and the documentation directory.
 
+**Push the tag before pushing the branch.** GitHub Pages identifies a deployment by commit
+SHA and keeps the first one it saw for that SHA; a later deployment from the same commit
+reports success and changes nothing. A release tags the commit that bumps the chart version,
+and that commit also touches `charts/` and `docs/`, so pushing the branch first lets the
+push-triggered Pages run publish `dev` from that SHA — after which the release's own run
+cannot publish anything. Pushing the tag first makes the release's deployment the one Pages
+keeps, and the branch push that follows becomes the harmless no-op instead.
+
+    git push origin v0.3.0
+    git push origin main
+
+`pages.yml` verifies after deploying that the site actually serves the version it just
+published, so if this is ever got wrong the workflow fails rather than going green over an
+unchanged site.
+
 `docs/design/2026-08-25-documentation-site-and-chart-repository.md` explains why it is
 arranged this way.
 

@@ -7,6 +7,13 @@ on:
 permissions:
   contents: write # goreleaser creates the GitHub Release
 
+# A tag push that reaches GitHub twice starts two of these, and the second one fails
+# uploading assets the first already attached. One release per tag, and never cancel one
+# in flight: it would leave a release with only some of its assets.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest

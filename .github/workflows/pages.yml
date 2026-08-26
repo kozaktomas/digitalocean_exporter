@@ -199,3 +199,32 @@ jobs:
 
       - id: deployment
         uses: actions/deploy-pages@v5
+
+      # deploy-pages identifies a deployment by the commit SHA, and GitHub Pages keeps the
+      # first deployment it saw for a SHA: a second one reports success and changes nothing.
+      # That happens when a release tags the commit that was just pushed to main, so both
+      # the push and the tag publish from one SHA. It is silent, which is the problem — the
+      # workflow goes green and the site stays on the previous version. This step is what
+      # makes it loud.
+      - name: Verify the site serves what was just deployed
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          expected="${VERSION:-dev}"
+          # The Pages CDN caches for ten minutes and a deployment does not always purge it,
+          # so this polls rather than checking once.
+          for attempt in $(seq 1 24); do
+            if curl -fsS "${PAGES_URL}/versions.json" \
+              | python3 -c 'import json,sys; sys.exit(0 if sys.argv[1] in [v["version"] for v in json.load(sys.stdin)] else 1)' \
+                "${expected}"; then
+              echo "the site serves ${expected}"
+              exit 0
+            fi
+            echo "attempt ${attempt}: ${expected} is not served yet"
+            sleep 15
+          done
+          echo "::error::deployment reported success but ${PAGES_URL} does not serve ${expected}."
+          echo "::error::GitHub Pages keeps the first deployment for a commit SHA. If this commit"
+          echo "::error::was already deployed by another run, publish from a new commit."
+          exit 1
