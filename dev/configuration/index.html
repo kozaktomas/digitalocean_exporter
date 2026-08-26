@@ -1200,6 +1200,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/2026-08-26-spaces-bucket-usage-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spaces bucket size from the gateway, not from a listing — design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1659,7 +1687,8 @@ web configuration, which is how you get TLS and basic auth:</p>
 </tbody>
 </table>
 <h3 id="spaces">Spaces<a class="headerlink" href="#spaces" title="Permanent link">&para;</a></h3>
-<p>Off by default. See <a href="spaces/">Spaces</a> for why, and for which kind of key you need.</p>
+<p>Off by default, because it takes a Spaces key pair rather than the API token. See
+<a href="spaces/">Spaces</a> for where the size comes from and which kind of key you need.</p>
 <table>
 <thead>
 <tr>
@@ -1679,13 +1708,13 @@ web configuration, which is how you get TLS and basic auth:</p>
 <tr>
 <td><code>--collector.spaces.interval</code></td>
 <td><code>COLLECTOR_SPACES_INTERVAL</code></td>
-<td><code>6h</code></td>
+<td><code>5m</code></td>
 <td>Its refresh interval</td>
 </tr>
 <tr>
 <td><code>--collector.spaces.timeout</code></td>
 <td><code>COLLECTOR_SPACES_TIMEOUT</code></td>
-<td><code>15m</code></td>
+<td><code>2m</code></td>
 <td>Timeout of one full Spaces refresh</td>
 </tr>
 <tr>
@@ -1698,7 +1727,7 @@ web configuration, which is how you get TLS and basic auth:</p>
 <td><code>--collector.spaces.concurrency</code></td>
 <td><code>COLLECTOR_SPACES_CONCURRENCY</code></td>
 <td><code>4</code></td>
-<td>Buckets listed at once</td>
+<td>Buckets measured at once</td>
 </tr>
 <tr>
 <td><code>--spaces.access-key</code></td>

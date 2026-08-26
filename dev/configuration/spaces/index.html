@@ -720,10 +720,32 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#why-it-is-different" class="md-nav__link">
+  <a href="#where-the-number-comes-from" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why it is different
+        Where the number comes from
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-not-add-up-a-listing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why not add up a listing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-two-numbers-count" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the two numbers count
       
     </span>
   </a>
@@ -1161,6 +1183,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/2026-08-26-spaces-bucket-usage-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spaces bucket size from the gateway, not from a listing — design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1195,10 +1245,32 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#why-it-is-different" class="md-nav__link">
+  <a href="#where-the-number-comes-from" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why it is different
+        Where the number comes from
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-not-add-up-a-listing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why not add up a listing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-two-numbers-count" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the two numbers count
       
     </span>
   </a>
@@ -1287,81 +1359,94 @@
 
 <h1 id="spaces">Spaces<a class="headerlink" href="#spaces" title="Permanent link">&para;</a></h1>
 <p>The <code>spaces</code> collector reports the size and object count of Spaces buckets. It is <strong>off by
-default</strong>, and it is the one collector whose cost is measured in minutes rather than
-requests.</p>
-<h2 id="why-it-is-different">Why it is different<a class="headerlink" href="#why-it-is-different" title="Permanent link">&para;</a></h2>
-<p>DigitalOcean does not expose the size of a Spaces bucket anywhere. Not in the API, not in
-the monitoring API — the monitoring metric families are <code>apps</code>, <code>database</code>, <code>droplet</code>,
-<code>droplet_autoscale</code> and <code>load_balancer</code>, and the only Spaces paths in the whole OpenAPI
-specification are about access keys. Billing invoices report Spaces spend at product level
-once a month, which answers a different question.</p>
-<p>So sizing a bucket means <strong>listing every object in it</strong> and adding up the sizes. Measured
-against three real buckets over the S3-compatible endpoint:</p>
+default</strong>, not because it is expensive — it costs one request per bucket — but because it
+authenticates with a Spaces key pair, a credential the rest of the exporter does not use.</p>
+<h2 id="where-the-number-comes-from">Where the number comes from<a class="headerlink" href="#where-the-number-comes-from" title="Permanent link">&para;</a></h2>
+<p>DigitalOcean publishes no bucket size in its own API. Not in the API, not in the monitoring
+API — the monitoring metric families are <code>apps</code>, <code>database</code>, <code>droplet</code>, <code>droplet_autoscale</code>
+and <code>load_balancer</code>, and the only Spaces paths in the whole OpenAPI specification are about
+access keys. Billing invoices report Spaces spend at product level once a month, which
+answers a different question.</p>
+<p>The S3-compatible endpoint does publish it. Spaces runs on the Ceph RADOS Gateway, which
+answers a <strong>HEAD of a bucket</strong> with its own accounting in two headers:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">$ </span>curl<span class="w"> </span>-I<span class="w"> </span>--aws-sigv4<span class="w"> </span>...<span class="w"> </span>https://fra1.digitaloceanspaces.com/images
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="go">HTTP/1.1 200 OK</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="go">x-rgw-object-count: 93879</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="go">x-rgw-bytes-used: 10324594821</span>
+</code></pre></div>
+<p>That is the whole measurement: one request per bucket, about a tenth of a second, whatever
+the bucket holds.</p>
+<p>Neither header is part of S3, so no SDK models them and DigitalOcean does not document
+them. Measured against three live buckets, they agree with a full <code>ListObjectsV2</code> pass
+<strong>byte for byte</strong>:</p>
 <table>
 <thead>
 <tr>
 <th>Bucket</th>
-<th style="text-align: right;">Objects</th>
-<th style="text-align: right;">Size</th>
-<th style="text-align: right;">LIST pages</th>
-<th style="text-align: right;">Wall clock</th>
+<th>HEAD</th>
+<th>Summed listing</th>
+<th style="text-align: right;">Listing wall clock</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>small</td>
-<td style="text-align: right;">264</td>
-<td style="text-align: right;">0.02 GiB</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">0.2 s</td>
+<td>264 objects / 25,499,534 B</td>
+<td>identical</td>
+<td style="text-align: right;">1.2 s</td>
 </tr>
 <tr>
 <td>medium</td>
-<td style="text-align: right;">93,861</td>
-<td style="text-align: right;">9.61 GiB</td>
-<td style="text-align: right;">95</td>
-<td style="text-align: right;">13.9 s</td>
+<td>93,879 objects / 10,324,594,821 B</td>
+<td>identical</td>
+<td style="text-align: right;">9.2 s</td>
 </tr>
 <tr>
-<td>large, many small objects</td>
-<td style="text-align: right;">61,418</td>
-<td style="text-align: right;">48.21 GiB</td>
-<td style="text-align: right;">62</td>
-<td style="text-align: right;">10.5 s</td>
+<td>log storage, many small objects</td>
+<td>50,000 objects / 39,934,962,394 B</td>
+<td>identical</td>
+<td style="text-align: right;">6.5 s</td>
 </tr>
 </tbody>
 </table>
-<p>A Prometheus scrape timeout is typically ten seconds. This measurement is the reason the
-whole exporter refreshes in the background instead of collecting on scrape, and it is why
-this collector carries a timeout of its own (<code>15m</code>) rather than the global <code>--do.timeout</code>.</p>
-<p>The defaults follow from that: refresh every <strong>6h</strong>, not every 5m. Bucket size is not a
-number that moves meaningfully in five minutes, and pretending otherwise costs real time.</p>
+<p>The figures are live rather than a periodic rollup: the log bucket ticked from 50,000 to
+50,002 objects between two HEADs while its writer was running.</p>
+<h2 id="why-not-add-up-a-listing">Why not add up a listing<a class="headerlink" href="#why-not-add-up-a-listing" title="Permanent link">&para;</a></h2>
+<p>Because it does not scale, and its cost is unbounded. <code>ListObjectsV2</code> returns at most 1000
+keys, so summing a bucket costs a request per thousand objects, takes minutes once a bucket
+is large, and stops being workable on the buckets you most want measured. The HEAD costs
+one request no matter the size.</p>
+<p>There is no fallback to listing. If the headers are missing the bucket reports
+<code>digitalocean_spaces_bucket_up 0</code> with the reason logged, rather than quietly spending
+minutes to reach the same answer.</p>
+<h2 id="what-the-two-numbers-count">What the two numbers count<a class="headerlink" href="#what-the-two-numbers-count" title="Permanent link">&para;</a></h2>
+<p>They are the gateway's own accounting for the bucket, which is what DigitalOcean bills and
+what the control panel shows. On a bucket with versioning, or with incomplete multipart
+uploads, that includes noncurrent versions and uploaded parts — objects a listing does not
+return. On an ordinary bucket the two are the same number, which is what the table above
+measured.</p>
 <h2 id="it-does-not-touch-the-api-budget-and-it-is-not-billed">It does not touch the API budget, and it is not billed<a class="headerlink" href="#it-does-not-touch-the-api-budget-and-it-is-not-billed" title="Permanent link">&para;</a></h2>
-<p>Spaces is an S3-compatible endpoint, not the DigitalOcean API, so the LIST requests this
-collector makes count against <strong>neither</strong> the 5,000-per-hour nor the 250-per-minute API
-limit. Nothing else in the exporter is affected by turning it on.</p>
-<p>Nor do those requests cost money. <a href="https://docs.digitalocean.com/products/spaces/details/pricing/">Spaces is billed</a>
+<p>Spaces is an S3-compatible endpoint, not the DigitalOcean API, so these requests count
+against <strong>neither</strong> the 5,000-per-hour nor the 250-per-minute API limit. Nothing else in
+the exporter is affected by turning it on.</p>
+<p>Nor do they cost money. <a href="https://docs.digitalocean.com/products/spaces/details/pricing/">Spaces is billed</a>
 on storage and outbound transfer only — $5/month including 250 GiB and 1 TiB of transfer,
-then $0.02/GiB and $0.01/GiB — with no per-request or per-operation charge, unlike S3. The
-collector only ever lists metadata and never downloads an object, so it generates no
-outbound transfer worth counting either.</p>
-<p>The one exception to watch is <strong>cold storage</strong>, where each read operation carries a 128 KiB
-minimum retrieval charge. Listing is not a read of object data, but if you keep buckets in
-cold storage, confirm your own bill rather than taking this page's word for it.</p>
+then $0.02/GiB and $0.01/GiB — with no per-request charge, unlike S3. A HEAD of a bucket
+transfers headers and no object data.</p>
 <h2 id="credentials">Credentials<a class="headerlink" href="#credentials" title="Permanent link">&para;</a></h2>
 <p>Spaces authenticates with an <strong>access key pair</strong>, created under <em>API → Spaces Keys</em>. It has
 nothing to do with the DigitalOcean API token — a valid token grants no access to Spaces,
 and a Spaces key grants no access to the API.</p>
-<p>The collector only ever lists; it never downloads an object. A <strong>Limited access</strong> key with
-<strong>Read</strong> on the buckets you want measured is enough.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>digitalocean_exporter<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span>--do.token-file<span class="o">=</span>/etc/digitalocean-exporter/token<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>--collector.spaces<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>--spaces.access-key-file<span class="o">=</span>/etc/digitalocean-exporter/spaces-key<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span>--spaces.secret-key-file<span class="o">=</span>/etc/digitalocean-exporter/spaces-secret<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span>--spaces.region<span class="o">=</span>fra1<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span>--collector.spaces.bucket<span class="o">=</span>assets<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span>--collector.spaces.bucket<span class="o">=</span>backups@ams3
+<p>The collector only ever reads bucket metadata; it never reads an object. A <strong>Limited
+access</strong> key with <strong>Read</strong> on the buckets you want measured is enough.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>digitalocean_exporter<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>--do.token-file<span class="o">=</span>/etc/digitalocean-exporter/token<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--collector.spaces<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span>--spaces.access-key-file<span class="o">=</span>/etc/digitalocean-exporter/spaces-key<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span>--spaces.secret-key-file<span class="o">=</span>/etc/digitalocean-exporter/spaces-secret<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span>--spaces.region<span class="o">=</span>fra1<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span>--collector.spaces.bucket<span class="o">=</span>assets<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span>--collector.spaces.bucket<span class="o">=</span>backups@ams3
 </code></pre></div>
 <p>In the chart, set <code>spaces.accessKey</code> and <code>spaces.secretKey</code>, or point <code>spaces.existingSecret</code>
 at a Secret holding both — see <a href="../../helm/secrets/">secrets</a>.</p>
@@ -1371,28 +1456,32 @@ at a Secret holding both — see <a href="../../helm/secrets/">secrets</a>.</p>
 <code>name@region</code>. A bucket without a region falls back to <code>--spaces.region</code>. This works with a
 limited-access key, and it is what you want in production: you measure the buckets you care
 about and nothing else.</p>
-<p><strong>Discovery</strong> — pass no buckets and the collector lists them itself. Listing all buckets is
-a full-access capability, so this needs a <strong>full-access</strong> key; a limited key is told to name
-its buckets instead. Convenient for a first look, more privilege than the job needs.</p>
+<p><strong>Discovery</strong> — pass no buckets and the collector lists them itself, then locates each one.
+Listing all buckets is a full-access capability, so this needs a <strong>full-access</strong> key; a
+limited key is told to name its buckets instead. Convenient for a first look, more
+privilege than the job needs, and one extra request per bucket on every refresh.</p>
 <h2 id="failure-is-isolated-per-bucket">Failure is isolated per bucket<a class="headerlink" href="#failure-is-isolated-per-bucket" title="Permanent link">&para;</a></h2>
 <p>A collector that measures many things at once isolates them. If one bucket fails — wrong
 region, key lost its grant, network — that bucket keeps its previous values and reports its
 own <code>_up 0</code>, and the reason is logged. The buckets that succeeded are unaffected, and the
-collector as a whole still reports success.</p>
-<p>This matters because the failure never reaches the scheduler: a single unreachable bucket
-must not blank out the measurements of the other nine.</p>
+collector as a whole still reports success. Only a failure of discovery, or of every
+bucket, fails the refresh.</p>
+<p>One wrinkle worth knowing when you read those logs: <strong>a HEAD carries no response body</strong>, so
+the S3 error code that a <code>GET</code> would have spelled out never arrives. A key that has lost
+its grant on a bucket produces a bare <code>403 Forbidden</code> rather than <code>AccessDenied</code>, and an
+invalid key pair produces the same thing. The exporter says so in the log line, but the API
+cannot tell you which of the two it was.</p>
 <h2 id="tuning">Tuning<a class="headerlink" href="#tuning" title="Permanent link">&para;</a></h2>
-<p><code>--collector.spaces.concurrency</code> (default <code>4</code>) sets how many buckets are listed at once.
-Raising it shortens a refresh over many buckets; each concurrent listing is an independent
-stream of LIST requests against the Spaces endpoint, not against the 5000/hour API budget.</p>
-<p><code>--collector.spaces.timeout</code> (default <code>15m</code>) bounds one <strong>full</strong> refresh, all buckets
-together. If you measure a bucket with millions of objects, check a real refresh duration
-against it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">digitalocean_exporter_collector_duration_seconds</span><span class="p">{</span><span class="nl">collector</span><span class="o">=</span><span class="p">"</span><span class="s">spaces</span><span class="p">"}</span>
+<p><code>--collector.spaces.interval</code> (default <code>5m</code>) is the ordinary collector interval; there is
+no longer a reason for this collector to refresh less often than the others.</p>
+<p><code>--collector.spaces.concurrency</code> (default <code>4</code>) sets how many buckets are measured at once.
+It matters only if you measure a lot of buckets, since each one is a single request.</p>
+<p><code>--collector.spaces.timeout</code> (default <code>2m</code>) bounds one <strong>full</strong> refresh, all buckets
+together. It is separate from the global <code>--do.timeout</code> because the collector fans out over
+buckets and discovery adds a request per bucket. Check a real refresh duration against it
+if you measure many:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nv">digitalocean_exporter_collector_duration_seconds</span><span class="p">{</span><span class="nl">collector</span><span class="o">=</span><span class="p">"</span><span class="s">spaces</span><span class="p">"}</span>
 </code></pre></div>
-<p>A refresh that hits the timeout leaves the previous snapshot in place and reports failure,
-which is visible rather than silent — but it means the numbers stop moving, so raise the
-timeout or narrow the bucket list.</p>
 
 
 

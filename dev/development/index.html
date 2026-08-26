@@ -1159,6 +1159,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/2026-08-26-spaces-bucket-usage-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spaces bucket size from the gateway, not from a listing — design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1357,9 +1385,9 @@ not notice.</p>
   the collector's own interval — never a scrape.</li>
 <li><code>Collect(ch)</code> reads that snapshot and <strong>must never perform I/O</strong>.</li>
 </ul>
-<p>This exists because the DigitalOcean API is slow and rate-limited, and because measuring a
-Spaces bucket takes minutes, far past any scrape timeout. Do not add a collector that calls
-the API from <code>Collect</code>.</p>
+<p>This exists because the DigitalOcean API is slow and rate-limited, and because a collector
+that fans out over every droplet takes far past any scrape timeout. Do not add a collector
+that calls the API from <code>Collect</code>.</p>
 <p>Two rules follow:</p>
 <ul>
 <li><strong>A failed refresh keeps the previous snapshot</strong> and sets <code>collector_success</code> to 0.

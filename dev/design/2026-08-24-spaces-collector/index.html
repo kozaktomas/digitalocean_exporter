@@ -1216,6 +1216,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2026-08-26-spaces-bucket-usage-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spaces bucket size from the gateway, not from a listing — design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1397,6 +1425,13 @@
 
 <h1 id="spaces-collector-design">Spaces collector — design<a class="headerlink" href="#spaces-collector-design" title="Permanent link">&para;</a></h1>
 <p>Status: implemented on 2026-08-25. Date: 2026-08-24.</p>
+<div class="admonition warning">
+<p class="admonition-title">Superseded in part</p>
+<p>The measurement described here — summing a full <code>ListObjectsV2</code> pass — was replaced on
+2026-08-26 by a single HEAD per bucket. See
+<a href="../2026-08-26-spaces-bucket-usage-headers/">Spaces bucket size from the gateway</a>. The
+architecture and the metric names below still hold; the costs and defaults do not.</p>
+</div>
 <h2 id="why-this-collector-exists-at-all">Why this collector exists at all<a class="headerlink" href="#why-this-collector-exists-at-all" title="Permanent link">&para;</a></h2>
 <p>DigitalOcean does not expose the size of a Spaces bucket anywhere in its API. Verified
 against the public OpenAPI specification: the only Spaces paths are <code>/v2/spaces/keys</code> and

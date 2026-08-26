@@ -1342,6 +1342,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/2026-08-26-spaces-bucket-usage-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spaces bucket size from the gateway, not from a listing — design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2375,7 +2403,7 @@ else: it has no manifest, and a zero size would read as an image of no size.</p>
 cardinality is that of a registry, not of a tag list — tags and manifests are counted, never
 enumerated.</p>
 <h2 id="spaces">Spaces<a class="headerlink" href="#spaces" title="Permanent link">&para;</a></h2>
-<p>Collected by <code>spaces</code> from the S3-compatible API, one <code>ListObjectsV2</code> pass per bucket.</p>
+<p>Collected by <code>spaces</code> from the S3-compatible API, one <code>HeadBucket</code> request per bucket.</p>
 <table>
 <thead>
 <tr>
@@ -2388,7 +2416,7 @@ enumerated.</p>
 <tr>
 <td><code>digitalocean_spaces_bucket_size_bytes</code></td>
 <td><code>bucket</code>, <code>region</code></td>
-<td>Total size of every object in the bucket</td>
+<td>Bytes stored in the bucket, as Spaces accounts for them</td>
 </tr>
 <tr>
 <td><code>digitalocean_spaces_bucket_objects</code></td>
@@ -2398,23 +2426,29 @@ enumerated.</p>
 <tr>
 <td><code>digitalocean_spaces_bucket_up</code></td>
 <td><code>bucket</code>, <code>region</code></td>
-<td>1 if the bucket's last listing succeeded, else 0</td>
+<td>1 if the bucket's last measurement succeeded, else 0</td>
 </tr>
 </tbody>
 </table>
-<p>DigitalOcean publishes no bucket size in its API, so the only way to learn one is to add up
-every object. That takes minutes on a large bucket, which is why this collector defaults to
-a 6h interval and a 15m timeout of its own, and why it is disabled unless asked for.</p>
-<p>A bucket that cannot be listed keeps its previous size and object count and reports
-<code>digitalocean_spaces_bucket_up 0</code>; the buckets that listed fine are unaffected, and the
-failure is logged with the reason. A bucket that has never listed successfully reports only
+<p>DigitalOcean publishes no bucket size in its own API, but the S3-compatible endpoint does:
+Spaces runs on the Ceph RADOS Gateway, which reports <code>x-rgw-object-count</code> and
+<code>x-rgw-bytes-used</code> on a HEAD of the bucket. Both figures match a full listing byte for
+byte, at one request per bucket instead of one per thousand objects — see
+<a href="../configuration/spaces/">Spaces</a>. The collector is disabled by default only because it
+takes a Spaces key pair.</p>
+<p>The size is the gateway's own accounting, so on a versioned bucket it includes noncurrent
+versions, and incomplete multipart uploads count while they are pending. That is what
+DigitalOcean bills for.</p>
+<p>A bucket that cannot be measured keeps its previous size and object count and reports
+<code>digitalocean_spaces_bucket_up 0</code>; the buckets that measured fine are unaffected, and the
+failure is logged with the reason. A bucket never measured successfully reports only
 <code>digitalocean_spaces_bucket_up 0</code>, because a zero size is indistinguishable from an empty
 bucket. The collector's own <code>collector_success</code> drops to 0 only when discovery fails or no
-bucket at all could be listed.</p>
-<p>The exporter only ever calls <code>ListObjectsV2</code>, plus <code>ListBuckets</code> and <code>GetBucketLocation</code> in
-discovery mode. It never reads an object, so an access key with <strong>Limited access</strong> and
-<strong>Read</strong> on the observed buckets is enough. Listing all buckets is a full-access capability,
-so a limited key must be given an explicit bucket list.</p>
+bucket at all could be measured.</p>
+<p>The exporter only ever calls <code>HeadBucket</code>, plus <code>ListBuckets</code> and <code>GetBucketLocation</code> in
+discovery mode. It never lists or reads an object, so an access key with <strong>Limited access</strong>
+and <strong>Read</strong> on the observed buckets is enough. Listing all buckets is a full-access
+capability, so a limited key must be given an explicit bucket list.</p>
 <h2 id="exporter-health">Exporter health<a class="headerlink" href="#exporter-health" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

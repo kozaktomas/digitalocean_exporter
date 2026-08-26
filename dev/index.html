@@ -1146,6 +1146,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="design/2026-08-26-spaces-bucket-usage-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spaces bucket size from the gateway, not from a listing — design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1284,9 +1312,9 @@ snapshot.</p>
 </code></pre></div>
 <p>Three things follow from that, and they are worth knowing before you tune anything:</p>
 <ul>
-<li><strong>A slow collector cannot fail a scrape.</strong> Sizing a large Spaces bucket takes minutes;
-  a Prometheus scrape timeout is usually ten seconds. Because the two are decoupled, the
-  slow measurement simply happens elsewhere.</li>
+<li><strong>A slow collector cannot fail a scrape.</strong> Fanning out over every droplet in a large
+  account takes far longer than the ten seconds a Prometheus scrape timeout usually
+  allows. Because the two are decoupled, the slow measurement simply happens elsewhere.</li>
 <li><strong>Scrape interval and API cost are unrelated.</strong> Scraping every 15 seconds does not call
   DigitalOcean any more often than scraping every 5 minutes. The API budget is set by the
   collector intervals alone, which matters against the limit of 5000 requests an hour.</li>

@@ -1106,6 +1106,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/2026-08-26-spaces-bucket-usage-headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spaces bucket size from the gateway, not from a listing — design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1364,19 +1392,19 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>collectors.spaces.concurrency</td>
 <td>int</td>
 <td><code>4</code></td>
-<td>How many buckets are listed at once.</td>
+<td>How many buckets are measured at once.</td>
 </tr>
 <tr>
 <td>collectors.spaces.enabled</td>
 <td>bool</td>
 <td><code>false</code></td>
-<td>Report the size and object count of Spaces buckets. Off by default: sizing a bucket means listing every object in it, which takes minutes for a large one. Needs <code>spaces.accessKey</code> and <code>spaces.secretKey</code>, not the API token.</td>
+<td>Report the size and object count of Spaces buckets. Off by default because it needs <code>spaces.accessKey</code> and <code>spaces.secretKey</code>, a Spaces key pair, which is a separate credential from the API token.</td>
 </tr>
 <tr>
 <td>collectors.spaces.interval</td>
 <td>string</td>
-<td><code>"6h"</code></td>
-<td>How often the spaces collector refreshes. Long on purpose — see the timeout below.</td>
+<td><code>"5m"</code></td>
+<td>How often the spaces collector refreshes.</td>
 </tr>
 <tr>
 <td>collectors.spaces.region</td>
@@ -1387,8 +1415,8 @@ out of date — so it cannot drift from the chart it documents.</p>
 <tr>
 <td>collectors.spaces.timeout</td>
 <td>string</td>
-<td><code>"15m"</code></td>
-<td>Timeout of one full Spaces refresh. Separate from the global <code>--do.timeout</code> because listing objects is far slower than an API call.</td>
+<td><code>"2m"</code></td>
+<td>Timeout of one full Spaces refresh, all buckets together. Separate from the global <code>--do.timeout</code> because the collector fans out over buckets.</td>
 </tr>
 <tr>
 <td>collectors.volumes.enabled</td>
