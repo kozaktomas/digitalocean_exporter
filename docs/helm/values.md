@@ -7,7 +7,7 @@ out of date — so it cannot drift from the chart it documents.
 Show the defaults for the version you are about to install with:
 
 ```bash
-helm show values digitalocean-exporter/digitalocean-exporter --version 0.1.0
+helm show values digitalocean-exporter/digitalocean-exporter --version 0.3.0
 ```
 
 {%

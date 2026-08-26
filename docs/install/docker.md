@@ -12,7 +12,7 @@ docker run --rm -p 9212:9212 \
 
 | Tag | What it is |
 |---|---|
-| `0.1.0` | An exact release. Use this in production. |
+| `0.3.0` | An exact release. Use this in production. |
 | `latest` | Whatever `main` last built. Moves without warning. |
 
 ## Passing the token as a file
@@ -35,7 +35,7 @@ docker run --rm -p 9212:9212 \
 ```yaml
 services:
   digitalocean-exporter:
-    image: ghcr.io/kozaktomas/digitalocean_exporter:0.1.0
+    image: ghcr.io/kozaktomas/digitalocean_exporter:0.3.0
     restart: unless-stopped
     ports:
       - "9212:9212"
@@ -63,6 +63,6 @@ Anything after the image name is passed to the exporter:
 ```bash
 docker run --rm -p 9212:9212 \
   -e DIGITALOCEAN_TOKEN=dop_v1_... \
-  ghcr.io/kozaktomas/digitalocean_exporter:0.1.0 \
+  ghcr.io/kozaktomas/digitalocean_exporter:0.3.0 \
   --no-collector.balance --log.format=json --collector.droplets.interval=10m
 ```

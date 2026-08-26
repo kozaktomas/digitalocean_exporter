@@ -10,7 +10,7 @@ helm repo update
 
 ```bash
 helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
-  --version 0.1.0 \
+  --version 0.3.0 \
   --namespace monitoring --create-namespace \
   --set digitalocean.existingSecret=digitalocean-token
 ```
@@ -59,7 +59,7 @@ log:
 ```bash
 helm upgrade --install digitalocean-exporter \
   digitalocean-exporter/digitalocean-exporter \
-  --version 0.1.0 --namespace monitoring -f values.yaml
+  --version 0.3.0 --namespace monitoring -f values.yaml
 ```
 
 Every key is listed in the [values reference](../helm/values.md).

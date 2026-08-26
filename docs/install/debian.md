@@ -15,7 +15,7 @@ Download the `.deb` for your architecture from the
 [releases page](https://github.com/kozaktomas/digitalocean_exporter/releases), then:
 
 ```bash
-sudo dpkg -i digitalocean-exporter_0.1.0_linux_arm64.deb
+sudo dpkg -i digitalocean-exporter_0.3.0_linux_arm64.deb
 sudoedit /etc/digitalocean-exporter/digitalocean-exporter.env   # set DIGITALOCEAN_TOKEN
 sudo systemctl start digitalocean-exporter
 curl -s localhost:9212/metrics | head

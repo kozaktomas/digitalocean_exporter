@@ -11,7 +11,7 @@ Tarballs for `linux/amd64` and `linux/arm64` are on the
 with a `checksums.txt`.
 
 ```bash
-VERSION=0.1.0
+VERSION=0.3.0
 ARCH=arm64   # or amd64
 
 curl -sSLO "https://github.com/kozaktomas/digitalocean_exporter/releases/download/v${VERSION}/digitalocean_exporter_${VERSION}_linux_${ARCH}.tar.gz"

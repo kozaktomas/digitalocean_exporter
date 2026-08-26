@@ -70,7 +70,7 @@ Full instructions for each method are in the
 helm repo add digitalocean-exporter https://kozaktomas.github.io/digitalocean_exporter
 helm repo update
 helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
-  --version 0.1.0 --set digitalocean.existingSecret=digitalocean-token
+  --version 0.3.0 --set digitalocean.existingSecret=digitalocean-token
 ```
 
 ### Terraform
@@ -81,7 +81,7 @@ resource "helm_release" "digitalocean_exporter" {
   namespace  = "monitoring"
   repository = "https://kozaktomas.github.io/digitalocean_exporter"
   chart      = "digitalocean-exporter"
-  version    = "0.1.0"
+  version    = "0.3.0"
 }
 ```
 
