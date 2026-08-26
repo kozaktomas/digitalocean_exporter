@@ -12,31 +12,31 @@
         <meta name="author" content="Tomas Kozak">
       
       
-        <link rel="canonical" href="https://kozaktomas.github.io/digitalocean_exporter/latest/design/2026-08-25-documentation-site-and-chart-repository/">
+        <link rel="canonical" href="https://kozaktomas.github.io/digitalocean_exporter/latest/dashboards/">
       
       
-        <link rel="prev" href="../2026-08-24-spaces-collector/">
+        <link rel="prev" href="../metrics/">
       
       
-        <link rel="next" href="../2026-08-26-spaces-bucket-usage-headers/">
+        <link rel="next" href="../operations/">
       
       
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>Documentation site and chart repository — design - digitalocean_exporter</title>
+        <title>Dashboards - digitalocean_exporter</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -55,7 +55,7 @@
       
     
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#documentation-site-and-chart-repository-design" class="md-skip">
+        <a href="#dashboards" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +100,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="digitalocean_exporter" class="md-header__button md-logo" aria-label="digitalocean_exporter" data-md-component="logo">
+    <a href=".." title="digitalocean_exporter" class="md-header__button md-logo" aria-label="digitalocean_exporter" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Documentation site and chart repository — design
+              Dashboards
             
           </span>
         </div>
@@ -238,7 +238,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="digitalocean_exporter" class="md-nav__button md-logo" aria-label="digitalocean_exporter" data-md-component="logo">
+    <a href=".." title="digitalocean_exporter" class="md-nav__button md-logo" aria-label="digitalocean_exporter" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -268,7 +268,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   
@@ -347,7 +347,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../install/" class="md-nav__link">
+      <a href="../install/" class="md-nav__link">
         
   
   
@@ -375,7 +375,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../install/docker/" class="md-nav__link">
+      <a href="../install/docker/" class="md-nav__link">
         
   
   
@@ -403,7 +403,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../install/kubernetes/" class="md-nav__link">
+      <a href="../install/kubernetes/" class="md-nav__link">
         
   
   
@@ -431,7 +431,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../install/terraform/" class="md-nav__link">
+      <a href="../install/terraform/" class="md-nav__link">
         
   
   
@@ -459,7 +459,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../install/debian/" class="md-nav__link">
+      <a href="../install/debian/" class="md-nav__link">
         
   
   
@@ -487,7 +487,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../install/binary/" class="md-nav__link">
+      <a href="../install/binary/" class="md-nav__link">
         
   
   
@@ -574,7 +574,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../configuration/" class="md-nav__link">
+      <a href="../configuration/" class="md-nav__link">
         
   
   
@@ -602,7 +602,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../configuration/permissions/" class="md-nav__link">
+      <a href="../configuration/permissions/" class="md-nav__link">
         
   
   
@@ -630,7 +630,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../configuration/collectors/" class="md-nav__link">
+      <a href="../configuration/collectors/" class="md-nav__link">
         
   
   
@@ -658,7 +658,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../configuration/spaces/" class="md-nav__link">
+      <a href="../configuration/spaces/" class="md-nav__link">
         
   
   
@@ -686,7 +686,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../configuration/monitoring-api/" class="md-nav__link">
+      <a href="../configuration/monitoring-api/" class="md-nav__link">
         
   
   
@@ -773,7 +773,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../helm/" class="md-nav__link">
+      <a href="../helm/" class="md-nav__link">
         
   
   
@@ -801,7 +801,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../helm/values/" class="md-nav__link">
+      <a href="../helm/values/" class="md-nav__link">
         
   
   
@@ -829,7 +829,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../helm/secrets/" class="md-nav__link">
+      <a href="../helm/secrets/" class="md-nav__link">
         
   
   
@@ -864,7 +864,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../metrics/" class="md-nav__link">
+      <a href="../metrics/" class="md-nav__link">
         
   
   
@@ -888,10 +888,37 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../dashboards/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dashboards
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -907,6 +934,81 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-ships" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What ships
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#importing-them-by-hand" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Importing them by hand
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installing-them-with-the-chart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installing them with the chart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#keeping-them-in-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keeping them in step
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -918,7 +1020,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../operations/" class="md-nav__link">
+      <a href="../operations/" class="md-nav__link">
         
   
   
@@ -945,7 +1047,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/" class="md-nav__link">
+      <a href="../development/" class="md-nav__link">
         
   
   
@@ -969,8 +1071,6 @@
       
   
   
-    
-  
   
   
     
@@ -983,11 +1083,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
         
           
           <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
@@ -1008,7 +1108,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1026,7 +1126,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2026-08-24-spaces-collector/" class="md-nav__link">
+      <a href="../design/2026-08-24-spaces-collector/" class="md-nav__link">
         
   
   
@@ -1051,37 +1151,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Documentation site and chart repository — design
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../design/2026-08-25-documentation-site-and-chart-repository/" class="md-nav__link">
         
   
   
@@ -1097,153 +1170,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#the-problem" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The problem
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-the-ecosystem-actually-does" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What the ecosystem actually does
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#shape" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Shape
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Shape">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#why-indexyaml-is-derived-and-never-committed" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why index.yaml is derived and never committed
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#why-documentation-state-is-committed-and-mike-owns-it" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why documentation state is committed, and mike owns it
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#why-the-branch-is-not-called-gh-pages" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why the branch is not called gh-pages
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#why-alias_type-copy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why alias_type: copy
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#versioning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Versioning
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#workflows" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Workflows
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#documentation-source" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Documentation source
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#out-of-scope" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Out of scope
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1256,7 +1182,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2026-08-26-spaces-bucket-usage-headers/" class="md-nav__link">
+      <a href="../design/2026-08-26-spaces-bucket-usage-headers/" class="md-nav__link">
         
   
   
@@ -1284,7 +1210,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../2026-08-26-grafana-dashboards/" class="md-nav__link">
+      <a href="../design/2026-08-26-grafana-dashboards/" class="md-nav__link">
         
   
   
@@ -1339,10 +1265,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-problem" class="md-nav__link">
+  <a href="#what-ships" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The problem
+        What ships
       
     </span>
   </a>
@@ -1350,10 +1276,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-the-ecosystem-actually-does" class="md-nav__link">
+  <a href="#importing-them-by-hand" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What the ecosystem actually does
+        Importing them by hand
       
     </span>
   </a>
@@ -1361,71 +1287,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#shape" class="md-nav__link">
+  <a href="#installing-them-with-the-chart" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Shape
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Shape">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#why-indexyaml-is-derived-and-never-committed" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why index.yaml is derived and never committed
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#why-documentation-state-is-committed-and-mike-owns-it" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why documentation state is committed, and mike owns it
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#why-the-branch-is-not-called-gh-pages" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why the branch is not called gh-pages
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#why-alias_type-copy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why alias_type: copy
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#versioning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Versioning
+        Installing them with the chart
       
     </span>
   </a>
@@ -1433,10 +1298,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#workflows" class="md-nav__link">
+  <a href="#the-variables" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Workflows
+        The variables
       
     </span>
   </a>
@@ -1444,21 +1309,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#documentation-source" class="md-nav__link">
+  <a href="#keeping-them-in-step" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Documentation source
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#out-of-scope" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Out of scope
+        Keeping them in step
       
     </span>
   </a>
@@ -1482,7 +1336,7 @@
 
 
   
-    <a href="https://github.com/kozaktomas/digitalocean_exporter/edit/main/docs/design/2026-08-25-documentation-site-and-chart-repository.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/kozaktomas/digitalocean_exporter/edit/main/docs/dashboards.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1490,164 +1344,136 @@
   
 
 
-<h1 id="documentation-site-and-chart-repository-design">Documentation site and chart repository — design<a class="headerlink" href="#documentation-site-and-chart-repository-design" title="Permanent link">&para;</a></h1>
-<p>Status: implemented on 2026-08-25. Date: 2026-08-25.</p>
-<h2 id="the-problem">The problem<a class="headerlink" href="#the-problem" title="Permanent link">&para;</a></h2>
-<p>The Helm chart is published only as an OCI artifact, to <code>ghcr.io/kozaktomas/chart</code>. That
-works for <code>helm install</code>, but it is not what most Terraform looks like in practice:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kr">resource</span><span class="w"> </span><span class="nc">"helm_release"</span><span class="w"> </span><span class="nv">"loki"</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="na">chart</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="s2">"loki"</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="na">repository</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"https://grafana.github.io/helm-charts"</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="na">version</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">"6.55.0"</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">}</span>
-</code></pre></div>
-<p>A <code>repository</code> of that shape needs a classic HTTP chart repository: a URL serving an
-<code>index.yaml</code> that lists every published version and points at a <code>.tgz</code> for each. Nothing
-in the project produced one.</p>
-<p>The second half of the problem is documentation. Everything lived in <code>README.md</code>, which had
-grown to a 200-line configuration table and was still missing the parts that actually cost
-people time — what each collector costs in API requests, how the two secret-handling modes
-differ, what to do when the balance collector returns 403.</p>
-<h2 id="what-the-ecosystem-actually-does">What the ecosystem actually does<a class="headerlink" href="#what-the-ecosystem-actually-does" title="Permanent link">&para;</a></h2>
-<p>Worth checking before inventing something, since the two obvious reference points are
-public.</p>
-<p><code>grafana.github.io/helm-charts</code> is a <strong>pure chart repository</strong>. Its <code>gh-pages</code> branch holds
-four entries: <code>README.md</code>, <code>index.yaml</code>, a <code>packages/</code> directory and <code>pubkey.gpg</code>. No
-documentation of any kind. The chart tarballs are not even hosted there — <code>index.yaml</code>
-points at GitHub Release assets:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>- https://github.com/grafana/helm-charts/releases/download/alloy-1.12.0/alloy-1.12.0.tgz
-</code></pre></div>
-<p><code>prometheus-community/helm-charts</code> follows the same pattern: <code>README.md</code>,
-<code>artifacthub-repo.yml</code>, <code>changelog/</code>, <code>index.yaml</code>, <code>pubkey.gpg</code>.</p>
-<p>Grafana's versioned documentation is a separate system on a separate domain — Hugo, served
-from <code>grafana.com/docs/loki/latest/…</code> and <code>grafana.com/docs/loki/v3.5.x/…</code>. They can afford
-two pipelines and two hosts.</p>
-<p>This project has one GitHub Pages site, so the two concerns have to share it. They can:
-Helm only ever fetches <code>index.yaml</code> from the repository root, and a documentation site's
-root document is <code>index.html</code>. Different names, no collision.</p>
-<p>One detail from Grafana's release workflow is worth recording, because it is the failure
-mode of the branch-based approach: they run <code>chart-releaser</code> with <code>skip_upload: true</code> and
-regenerate <code>index.yaml</code> themselves, because the action's built-in index push creates an
-<strong>unsigned</strong> commit and their ruleset rejects it. Committed index state is a thing that goes
-wrong.</p>
-<h2 id="shape">Shape<a class="headerlink" href="#shape" title="Permanent link">&para;</a></h2>
-<p>Three concerns, one owner each, meeting only at deploy time.</p>
+<h1 id="dashboards">Dashboards<a class="headerlink" href="#dashboards" title="Permanent link">&para;</a></h1>
+<p>Nine Grafana dashboards ship with the exporter, in
+<a href="https://github.com/kozaktomas/digitalocean_exporter/tree/main/charts/digitalocean-exporter/dashboards"><code>charts/digitalocean-exporter/dashboards/</code></a>.
+Between them they cover every collector, so the metrics in the
+<a href="../metrics/">metrics reference</a> can be looked at rather than read about.</p>
+<p>They live inside the chart directory because Helm can only package files that sit below it.
+Nothing about them is Helm-specific: the JSON imports into any Grafana.</p>
+<h2 id="what-ships">What ships<a class="headerlink" href="#what-ships" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Concern</th>
-<th>Owner</th>
-<th>Where it lives</th>
+<th>Dashboard</th>
+<th>What it answers</th>
+<th>Collectors it needs</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Versioned documentation</td>
-<td><code>mike</code></td>
-<td>branch <code>docs-versions</code>, built HTML per version</td>
+<td><code>overview.json</code></td>
+<td>Is anything down, and how much of the account is there? One row of totals across droplets, clusters, load balancers, databases, CDN, DNS, registry and Spaces</td>
+<td><code>account</code>, <code>droplets</code>, <code>kubernetes</code>, <code>loadbalancers</code>, <code>databases</code>, <code>cdn</code>, <code>domains</code>, <code>registry</code>, <code>spaces</code></td>
 </tr>
 <tr>
-<td>Chart tarballs</td>
-<td><code>goreleaser</code></td>
-<td>GitHub Release assets</td>
+<td><code>droplets.json</code></td>
+<td>Per-droplet CPU, memory, disk and load, filtered by a droplet variable</td>
+<td><code>droplets</code>, <code>dropletmetrics</code></td>
 </tr>
 <tr>
-<td><code>index.yaml</code></td>
-<td>the Pages workflow</td>
-<td>nowhere — regenerated on every deploy</td>
+<td><code>kubernetes.json</code></td>
+<td>Cluster state and node pools: sizes, autoscaling bounds, nodes actually running</td>
+<td><code>kubernetes</code></td>
+</tr>
+<tr>
+<td><code>loadbalancers.json</code></td>
+<td>Traffic, response times and which backend droplet is failing its health check</td>
+<td><code>loadbalancers</code>, <code>loadbalancermetrics</code></td>
+</tr>
+<tr>
+<td><code>storage.json</code></td>
+<td>Volumes, including those attached to nothing, and container registry repositories</td>
+<td><code>volumes</code>, <code>registry</code></td>
+</tr>
+<tr>
+<td><code>spaces.json</code></td>
+<td>Bucket size and object count, and how fast a bucket is growing</td>
+<td><code>spaces</code></td>
+</tr>
+<tr>
+<td><code>exporter.json</code></td>
+<td>Is the exporter itself healthy? Refresh durations, last success, API requests and rate-limit headroom</td>
+<td>none; self-metrics only</td>
+</tr>
+<tr>
+<td><code>billing.json</code></td>
+<td>What the account costs: balance, month-to-date usage, droplet run rate, registry overage</td>
+<td><code>balance</code>, <code>droplets</code>, <code>loadbalancers</code>, <code>volumes</code>, <code>registry</code></td>
+</tr>
+<tr>
+<td><code>security.json</code></td>
+<td>Certificates about to expire, firewall rules open to the internet, changes that have not landed</td>
+<td><code>certificates</code>, <code>firewalls</code></td>
 </tr>
 </tbody>
 </table>
-<p>The resulting site:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>https://kozaktomas.github.io/digitalocean_exporter/
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>├── index.html      → redirects to latest/          (mike set-default)
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>├── versions.json   → version selector data         (mike)
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>├── latest/  0.2/  0.1/  dev/                       (mike, alias_type: copy)
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>├── index.yaml      → Helm repository index         (generated at deploy time)
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>└── charts/digitalocean-exporter-0.2.0.tgz          (downloaded from releases)
+<p>A dashboard whose collector is switched off shows empty panels rather than breaking, which is
+why all nine ship together. <code>billing</code>, <code>security</code> and parts of <code>droplets</code> and <code>loadbalancers</code>
+depend on collectors that are <a href="../configuration/collectors/">off by default</a>.</p>
+<h2 id="importing-them-by-hand">Importing them by hand<a class="headerlink" href="#importing-them-by-hand" title="Permanent link">&para;</a></h2>
+<p>Download the JSON, then in Grafana pick <strong>Dashboards → New → Import</strong>, upload the file and
+choose your Prometheus datasource. Repeat per file, or point Grafana's
+<a href="https://grafana.com/docs/grafana/latest/administration/provisioning/#dashboards">file provisioning</a>
+at a directory holding all nine.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl<span class="w"> </span>-sSLO<span class="w"> </span>https://raw.githubusercontent.com/kozaktomas/digitalocean_exporter/main/charts/digitalocean-exporter/dashboards/overview.json
 </code></pre></div>
-<h3 id="why-indexyaml-is-derived-and-never-committed">Why <code>index.yaml</code> is derived and never committed<a class="headerlink" href="#why-indexyaml-is-derived-and-never-committed" title="Permanent link">&para;</a></h3>
-<p>The chart index is a pure function of the set of published releases. Regenerating it from
-<code>gh release download</code> on every deploy means it cannot drift from what actually exists, it
-repairs itself if a deploy is interrupted halfway, and the whole site can be rebuilt from
-scratch with a <code>workflow_dispatch</code> run. Committing it would add a second source of truth
-about which versions exist, and the two would eventually disagree.</p>
-<p>When no releases exist yet, <code>helm repo index</code> over an empty directory produces a valid
-index with no entries. <code>helm repo add</code> succeeds against it, which keeps the bootstrap
-case from being a special case.</p>
-<h3 id="why-documentation-state-is-committed-and-mike-owns-it">Why documentation state is committed, and <code>mike</code> owns it<a class="headerlink" href="#why-documentation-state-is-committed-and-mike-owns-it" title="Permanent link">&para;</a></h3>
-<p>Documentation is the opposite: it is not derivable from anything cheap. Rebuilding every
-historical version on every deploy would mean each old version's docs have to keep building
-forever with a current MkDocs — the exact fragility <code>mike</code> exists to avoid. Its premise is
-that once a version is built it is never touched again.</p>
-<p>So <code>mike</code> gets a branch of its own and owns it exclusively. Nothing else is committed there,
-which removes the interference that the branch-based approach usually suffers from.</p>
-<h3 id="why-the-branch-is-not-called-gh-pages">Why the branch is not called <code>gh-pages</code><a class="headerlink" href="#why-the-branch-is-not-called-gh-pages" title="Permanent link">&para;</a></h3>
-<p>GitHub Pages stays on <code>build_type: workflow</code>. The branch is <code>mike</code>'s storage, not the thing
-being served — a deploy job assembles the site from it. Calling it <code>gh-pages</code> would suggest
-the opposite. <code>docs-versions</code> says what it is.</p>
-<h3 id="why-alias_type-copy">Why <code>alias_type: copy</code><a class="headerlink" href="#why-alias_type-copy" title="Permanent link">&para;</a></h3>
-<p><code>mike</code> defaults to <code>alias_type: symlink</code>, which does not survive GitHub Pages: the static
-server does not follow symlinks, so <code>latest/</code> would 404. <code>copy</code> makes the alias a real
-directory of pages. <code>canonical_version: latest</code> then tells search engines which of the
-identical copies is the one to index.</p>
-<h2 id="versioning">Versioning<a class="headerlink" href="#versioning" title="Permanent link">&para;</a></h2>
-<p>Semver, with chart version, <code>appVersion</code> and the documentation directory all locked to the
-git tag. <code>v0.2.0</code> means binary 0.2.0, chart 0.2.0 and docs under <code>/0.2/</code>. One number to pin
-in <code>helm_release</code>, and the documentation read next to it is guaranteed to describe that
-build.</p>
-<p>The cost is that a chart-template-only fix requires a patch release of the whole project.
-That is cheap — goreleaser rebuilds the same source — and it beats two version streams that
-drift apart.</p>
-<p>Documentation is versioned per <strong>minor</strong>, following <code>mike</code>'s own recommendation, with the
-content coming from the highest patch of that minor. Patch releases do not multiply
-documentation versions.</p>
-<p><code>latest</code> tracks the highest tag <strong>by semver, not by date</strong>, so a patch published against an
-older minor after a newer minor is out does not hijack the alias. <code>dev</code> tracks <code>main</code>, so a
-documentation fix is visible without waiting for a release. Retention is the last five
-minors; <code>mike list --json</code> drives the prune.</p>
-<p>While the version is <code>0.x</code>, a minor bump is allowed to break compatibility. The
-documentation says so explicitly, because otherwise people pin <code>~&gt; 0.1</code> and are surprised.</p>
-<h2 id="workflows">Workflows<a class="headerlink" href="#workflows" title="Permanent link">&para;</a></h2>
-<p><code>pages.yml</code>, triggered by a push to <code>main</code>, by <code>workflow_call</code>, or manually:</p>
-<ol>
-<li><strong>docs</strong> (<code>contents: write</code>) — <code>mike deploy --push --branch docs-versions</code>. From <code>main</code>
-   that deploys <code>dev</code>; called from a release it deploys <code>&lt;major&gt;.&lt;minor&gt;</code> with the <code>latest</code>
-   alias (<code>--update-aliases</code>) and runs <code>mike set-default latest</code>. Then prunes minors beyond
-   the newest five.</li>
-<li><strong>deploy</strong> (<code>pages: write</code>, <code>id-token: write</code>) — checks out <code>docs-versions</code> into <code>site/</code>,
-   downloads every release's <code>*.tgz</code> into <code>site/charts/</code>, runs <code>helm repo index</code>, moves the
-   result to the site root, and publishes with <code>upload-pages-artifact</code> + <code>deploy-pages</code>.</li>
-</ol>
-<p><code>workflow_dispatch</code> takes optional <code>ref</code> and <code>version</code> inputs, which is how an old version's
-documentation gets rebuilt after a fix.</p>
-<p><code>release.yml</code> packages the chart with the tag's version, hands the <code>.tgz</code> to goreleaser
-through <code>release.extra_files</code> so it becomes a release asset, and then calls <code>pages.yml</code>. The
-OCI push to GHCR is removed, and with it the <code>packages: write</code> permission.</p>
-<p>A release cannot simply trigger <code>pages.yml</code> through <code>on: release</code>. GitHub does not fire
-workflow events for actions taken with <code>GITHUB_TOKEN</code>, and goreleaser creates the release
-with exactly that token. <code>workflow_call</code> is the direct route; <code>workflow_run</code> would be the
-alternative.</p>
-<p><code>ci.yml</code> gains a <code>docs</code> job: <code>mkdocs build --strict</code> catches broken links and missing nav
-entries on a pull request, and <code>helm-docs</code> followed by <code>git diff --exit-code</code> fails if the
-generated chart README is out of date.</p>
-<h2 id="documentation-source">Documentation source<a class="headerlink" href="#documentation-source" title="Permanent link">&para;</a></h2>
-<p>MkDocs Material, sources staying as markdown under <code>docs/</code>.</p>
-<p>The Helm values reference is generated by <code>helm-docs</code> from the comments in <code>values.yaml</code>
-into the chart's <code>README.md</code>, which is also what ArtifactHub and the GitHub chart directory
-show. <code>docs/helm/values.md</code> pulls that file in through
-<code>mkdocs-include-markdown-plugin</code>, so the table exists once. Prose that explains rather than
-enumerates — what a collector costs in API requests, which secret mode to choose — stays
-hand-written.</p>
-<p><code>README.md</code> shrinks to an introduction, the status table, a Docker quick start and a link to
-the site. The configuration table moves into the documentation rather than being duplicated.</p>
-<h2 id="out-of-scope">Out of scope<a class="headerlink" href="#out-of-scope" title="Permanent link">&para;</a></h2>
+<h2 id="installing-them-with-the-chart">Installing them with the chart<a class="headerlink" href="#installing-them-with-the-chart" title="Permanent link">&para;</a></h2>
+<p>The chart renders one ConfigMap per dashboard, labelled for the Grafana sidecar that
+kube-prometheus-stack and the Grafana chart run. It is off by default, because without that
+sidecar they are ConfigMaps nothing reads.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">grafana</span><span class="p">:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">dashboards</span><span class="p">:</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</code></pre></div>
+<p>To file them into a folder, set <code>grafana.dashboards.folder</code>. That adds a <code>grafana_folder</code>
+annotation, which <strong>only works if the Grafana side is configured to read it</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># In this chart.</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">grafana</span><span class="p">:</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">dashboards</span><span class="p">:</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="nt">folder</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DigitalOcean</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># In the Grafana chart, or under `grafana:` in kube-prometheus-stack.</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">sidecar</span><span class="p">:</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">dashboards</span><span class="p">:</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="nt">folderAnnotation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">grafana_folder</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="nt">provider</span><span class="p">:</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">      </span><span class="nt">foldersFromFilesStructure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</code></pre></div>
+<p>Without both halves the annotation is inert and the dashboards land in the sidecar's default
+folder. If your sidecar watches a different label, <code>grafana.dashboards.label</code> and
+<code>grafana.dashboards.labelValue</code> change what the ConfigMaps carry. The
+<a href="../helm/values/">values reference</a> lists all four.</p>
+<h2 id="the-variables">The variables<a class="headerlink" href="#the-variables" title="Permanent link">&para;</a></h2>
+<p>Every dashboard declares two:</p>
 <ul>
-<li>Chart signing (<code>helm package --sign</code>) and the <code>pubkey.gpg</code> both reference repositories
-  publish. Worth doing, needs a key and a decision about where it lives.</li>
-<li>An <code>artifacthub-repo.yml</code> to list the chart on ArtifactHub.</li>
-<li>Any documentation host other than GitHub Pages.</li>
+<li><strong>Data source</strong> — a <code>prometheus</code> datasource picker. No dashboard names a datasource UID, so
+  the same file works against any Prometheus.</li>
+<li><strong>Job</strong> — populated from <code>label_values(digitalocean_exporter_build_info, job)</code>, multi-select
+  with <code>All</code>. Every query filters on it, so two exporters scraped by one Prometheus — a
+  personal account and a company one, say — stay apart.</li>
 </ul>
+<p><code>droplets</code>, <code>loadbalancers</code> and <code>spaces</code> add a third for the resource they break down by.</p>
+<p>The dashboards are tagged <code>digitalocean</code> and each carries a links dropdown filtered to that
+tag, so they navigate between each other. A dashboard added to the folder with the same tag
+joins that dropdown by itself.</p>
+<h2 id="keeping-them-in-step">Keeping them in step<a class="headerlink" href="#keeping-them-in-step" title="Permanent link">&para;</a></h2>
+<p>A renamed or dropped metric does not fail anything on its own: the panel that used it simply
+goes empty, months before anyone notices. So the dashboards are held against the exporter in
+the test suite. <code>make check</code> extracts every PromQL expression from all nine and checks each
+<code>digitalocean_</code> metric it names against the descriptors the collectors actually register,
+using the same wiring the exporter itself uses. It also enforces the portability rules above,
+and that each file is committed in its normalised form.</p>
+<p>That last one matters when editing. Grafana does not guarantee key order on export, and it
+bakes in whichever values the exporting instance had selected, so a dashboard edited in the
+browser and pasted back arrives as an unreadable diff carrying one account's droplet names.
+After replacing a file, normalise it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>./cmd/digitalocean_exporter<span class="w"> </span>-run<span class="w"> </span>TestDashboardsAreNormalised<span class="w"> </span>-update.dashboards
+</code></pre></div>
+<p>This strips the instance's <code>id</code> and <code>version</code>, clears the variables' remembered selections and
+rewrites the file with sorted keys. Commit the result.</p>
 
 
 
@@ -1707,10 +1533,10 @@ the site. The configuration table moves into the documentation rather than being
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.action.edit", "content.code.copy", "navigation.sections", "navigation.top", "navigation.tracking", "search.highlight", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.action.edit", "content.code.copy", "navigation.sections", "navigation.top", "navigation.tracking", "search.highlight", "search.suggest", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

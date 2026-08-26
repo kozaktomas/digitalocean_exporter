@@ -498,6 +498,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#getting-the-dashboards-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting the dashboards in
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#one-replica-always" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1006,6 +1017,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../dashboards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dashboards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/" class="md-nav__link">
         
   
@@ -1073,10 +1111,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
         
           
-          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
             
   
   
@@ -1094,8 +1132,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_8">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1284,6 +1322,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#getting-the-dashboards-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting the dashboards in
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#one-replica-always" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1402,6 +1451,11 @@ install, or the chart will fail to render that object.</p>
 </code></pre></div>
 <p>Because collectors refresh in the background, the scrape interval is yours to choose — it
 does not affect how often DigitalOcean is called.</p>
+<h2 id="getting-the-dashboards-in">Getting the dashboards in<a class="headerlink" href="#getting-the-dashboards-in" title="Permanent link">&para;</a></h2>
+<p>Set <code>grafana.dashboards.enabled: true</code> and the chart renders one ConfigMap per bundled
+dashboard, labelled <code>grafana_dashboard: "1"</code> for the Grafana sidecar to load. It is off by
+default, since without that sidecar nothing reads them. <a href="../../dashboards/">Dashboards</a>
+covers the label, the folder annotation and importing the JSON by hand instead.</p>
 <h2 id="one-replica-always">One replica, always<a class="headerlink" href="#one-replica-always" title="Permanent link">&para;</a></h2>
 <p>Do not scale the Deployment up. Each replica refreshes independently, so two replicas
 double the API requests and report the same account twice, which makes every alert

@@ -951,6 +951,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../dashboards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dashboards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/" class="md-nav__link">
         
   
@@ -1018,10 +1045,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
         
           
-          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
             
   
   
@@ -1039,8 +1066,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_8">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1517,6 +1544,30 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>string</td>
 <td><code>""</code></td>
 <td>Replaces the generated resource name outright. The generated name is <code>&lt;release&gt;-&lt;chart&gt;</code>, collapsed to just the release name when the release name already contains the chart name, so the common <code>helm install digitalocean-exporter</code> needs nothing here.</td>
+</tr>
+<tr>
+<td>grafana.dashboards.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Render the bundled Grafana dashboards as ConfigMaps, one per dashboard, labelled for the Grafana sidecar to load. Off by default: without the sidecar running, these are ConfigMaps nothing ever reads.</td>
+</tr>
+<tr>
+<td>grafana.dashboards.folder</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Grafana folder to file the dashboards into, through a <code>grafana_folder</code> annotation. It only takes effect if the Grafana sidecar itself runs with <code>folderAnnotation: grafana_folder</code> and <code>provider.foldersFromFilesStructure: true</code>; without that the annotation is inert and the dashboards land in the sidecar's default folder.</td>
+</tr>
+<tr>
+<td>grafana.dashboards.label</td>
+<td>string</td>
+<td><code>"grafana_dashboard"</code></td>
+<td>Label key the Grafana sidecar watches for. The default matches the sidecar shipped with kube-prometheus-stack and the Grafana chart.</td>
+</tr>
+<tr>
+<td>grafana.dashboards.labelValue</td>
+<td>string</td>
+<td><code>"1"</code></td>
+<td>Value of that label.</td>
 </tr>
 <tr>
 <td>image.pullPolicy</td>
