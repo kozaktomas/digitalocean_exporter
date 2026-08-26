@@ -1463,7 +1463,7 @@ Neither can be substituted for the other.</p>
 <tbody>
 <tr>
 <td><strong>Limited access</strong>, Read on chosen buckets</td>
-<td>Listing objects in those buckets</td>
+<td>Reading those buckets, including the usage each one reports</td>
 <td>When you name your buckets with <code>--collector.spaces.bucket</code></td>
 </tr>
 <tr>
@@ -1473,8 +1473,9 @@ Neither can be substituted for the other.</p>
 </tr>
 </tbody>
 </table>
-<p>The collector never downloads an object — it lists metadata and adds up sizes — so <strong>Read is
-enough</strong>; there is no case for granting write.</p>
+<p>The collector never downloads an object, and never lists one either — it asks each bucket
+for its own size and object count — so <strong>Read is enough</strong>; there is no case for granting
+write.</p>
 <p>Prefer the limited key. Discovery needs full access purely because <em>listing the buckets that
 exist</em> is a full-access capability in Spaces, which is a lot of privilege to buy a
 convenience. Naming three buckets costs one flag each.</p>

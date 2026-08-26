@@ -1302,8 +1302,8 @@ One binary, no state, no database. It reads the DigitalOcean API and exposes met
 <p>The existing exporters leave real gaps. The most widely used one has been unmaintained
 since 2022, reports Spaces buckets only as <em>existing</em> — never their size — and does not
 cover the Container Registry at all. DigitalOcean itself does not expose Spaces usage
-through its monitoring API, so bucket size has to be measured over the S3-compatible
-endpoint. This exporter is built around that constraint from the start.</p>
+through its API at all, so bucket size has to come from the S3-compatible endpoint. This
+exporter is built around that constraint from the start.</p>
 <h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
 <p><strong>Refreshing is separate from scraping.</strong> Every collector does its I/O on its own schedule
 and writes the result into an in-memory snapshot. Serving <code>/metrics</code> only ever reads that
