@@ -12,13 +12,11 @@
         <meta name="author" content="Tomas Kozak">
       
       
-        <link rel="canonical" href="https://kozaktomas.github.io/digitalocean_exporter/latest/install/kubernetes/">
+        <link rel="canonical" href="https://kozaktomas.github.io/digitalocean_exporter/latest/design/2026-08-26-grafana-dashboards/">
       
       
-        <link rel="prev" href="../docker/">
+        <link rel="prev" href="../2026-08-26-spaces-bucket-usage-headers/">
       
-      
-        <link rel="next" href="../terraform/">
       
       
         
@@ -29,7 +27,7 @@
     
     
       
-        <title>Kubernetes and Helm - digitalocean_exporter</title>
+        <title>Grafana dashboards — design - digitalocean_exporter</title>
       
     
     
@@ -80,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#kubernetes-and-helm" class="md-skip">
+        <a href="#grafana-dashboards-design" class="md-skip">
           Skip to content
         </a>
       
@@ -120,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Kubernetes and Helm
+              Grafana dashboards — design
             
           </span>
         </div>
@@ -292,8 +290,6 @@
       
   
   
-    
-  
   
   
     
@@ -306,11 +302,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
         
           
           <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
@@ -331,7 +327,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -349,7 +345,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../" class="md-nav__link">
+      <a href="../../install/" class="md-nav__link">
         
   
   
@@ -377,7 +373,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docker/" class="md-nav__link">
+      <a href="../../install/docker/" class="md-nav__link">
         
   
   
@@ -402,37 +398,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Kubernetes and Helm
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../install/kubernetes/" class="md-nav__link">
         
   
   
@@ -448,92 +417,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#creating-the-secret-first" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Creating the Secret first
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#a-realistic-values-file" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        A realistic values file
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#getting-prometheus-to-scrape-it" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Getting Prometheus to scrape it
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#one-replica-always" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        One replica, always
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#upgrading" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Upgrading
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#uninstalling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Uninstalling
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -546,7 +429,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../terraform/" class="md-nav__link">
+      <a href="../../install/terraform/" class="md-nav__link">
         
   
   
@@ -574,7 +457,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../debian/" class="md-nav__link">
+      <a href="../../install/debian/" class="md-nav__link">
         
   
   
@@ -602,7 +485,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../binary/" class="md-nav__link">
+      <a href="../../install/binary/" class="md-nav__link">
         
   
   
@@ -1057,8 +940,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -1069,11 +954,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
         
           
           <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
@@ -1094,7 +979,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1112,7 +997,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../design/2026-08-24-spaces-collector/" class="md-nav__link">
+      <a href="../2026-08-24-spaces-collector/" class="md-nav__link">
         
   
   
@@ -1140,7 +1025,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../design/2026-08-25-documentation-site-and-chart-repository/" class="md-nav__link">
+      <a href="../2026-08-25-documentation-site-and-chart-repository/" class="md-nav__link">
         
   
   
@@ -1168,7 +1053,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../design/2026-08-26-spaces-bucket-usage-headers/" class="md-nav__link">
+      <a href="../2026-08-26-spaces-bucket-usage-headers/" class="md-nav__link">
         
   
   
@@ -1193,10 +1078,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../design/2026-08-26-grafana-dashboards/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Grafana dashboards — design
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1212,6 +1124,158 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-the-exporter-ships-dashboards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why the exporter ships dashboards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-the-files-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the files live
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-dashboards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The dashboards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-committed-form" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The committed form
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#portability-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Portability rules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#helm-delivery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Helm delivery
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-guard-against-drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The guard against drift
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-billing-dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Billing dashboard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-security-dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Security dashboard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#out-of-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Out of scope
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1251,10 +1315,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#creating-the-secret-first" class="md-nav__link">
+  <a href="#why-the-exporter-ships-dashboards" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Creating the Secret first
+        Why the exporter ships dashboards
       
     </span>
   </a>
@@ -1262,10 +1326,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#a-realistic-values-file" class="md-nav__link">
+  <a href="#where-the-files-live" class="md-nav__link">
     <span class="md-ellipsis">
       
-        A realistic values file
+        Where the files live
       
     </span>
   </a>
@@ -1273,10 +1337,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#getting-prometheus-to-scrape-it" class="md-nav__link">
+  <a href="#the-dashboards" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Getting Prometheus to scrape it
+        The dashboards
       
     </span>
   </a>
@@ -1284,10 +1348,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#one-replica-always" class="md-nav__link">
+  <a href="#the-committed-form" class="md-nav__link">
     <span class="md-ellipsis">
       
-        One replica, always
+        The committed form
       
     </span>
   </a>
@@ -1295,10 +1359,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#upgrading" class="md-nav__link">
+  <a href="#portability-rules" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Upgrading
+        Portability rules
       
     </span>
   </a>
@@ -1306,10 +1370,76 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#uninstalling" class="md-nav__link">
+  <a href="#helm-delivery" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Uninstalling
+        Helm delivery
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-guard-against-drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The guard against drift
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-billing-dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Billing dashboard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-security-dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Security dashboard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#out-of-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Out of scope
       
     </span>
   </a>
@@ -1333,7 +1463,7 @@
 
 
   
-    <a href="https://github.com/kozaktomas/digitalocean_exporter/edit/main/docs/install/kubernetes.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/kozaktomas/digitalocean_exporter/edit/main/docs/design/2026-08-26-grafana-dashboards.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1341,85 +1471,286 @@
   
 
 
-<h1 id="kubernetes-and-helm">Kubernetes and Helm<a class="headerlink" href="#kubernetes-and-helm" title="Permanent link">&para;</a></h1>
-<p>The chart is published as a classic Helm repository on GitHub Pages — the same URL as this
-documentation.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>helm<span class="w"> </span>repo<span class="w"> </span>add<span class="w"> </span>digitalocean-exporter<span class="w"> </span>https://kozaktomas.github.io/digitalocean_exporter
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>helm<span class="w"> </span>repo<span class="w"> </span>update
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>helm<span class="w"> </span>install<span class="w"> </span>digitalocean-exporter<span class="w"> </span>digitalocean-exporter/digitalocean-exporter<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>--version<span class="w"> </span><span class="m">0</span>.1.0<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--namespace<span class="w"> </span>monitoring<span class="w"> </span>--create-namespace<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span>--set<span class="w"> </span>digitalocean.existingSecret<span class="o">=</span>digitalocean-token
-</code></pre></div>
-<p>Pin <code>--version</code>. Without it Helm takes whatever is newest at that moment, which is not the
-same thing twice.</p>
-<h2 id="creating-the-secret-first">Creating the Secret first<a class="headerlink" href="#creating-the-secret-first" title="Permanent link">&para;</a></h2>
-<p>The chart can create a Secret for you from <code>digitalocean.token</code>, but that means the token
-sits in your values file. Point it at a Secret you own instead:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kubectl<span class="w"> </span>create<span class="w"> </span>secret<span class="w"> </span>generic<span class="w"> </span>digitalocean-token<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>--namespace<span class="w"> </span>monitoring<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>--from-literal<span class="o">=</span><span class="nv">token</span><span class="o">=</span>dop_v1_...
-</code></pre></div>
-<p>Either way the token reaches the container <strong>as a mounted file</strong>, never as an environment
-variable, so it does not appear in <code>kubectl describe pod</code>. The two modes and their key
-names are covered in <a href="../../helm/secrets/">secrets</a>.</p>
-<h2 id="a-realistic-values-file">A realistic values file<a class="headerlink" href="#a-realistic-values-file" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># values.yaml</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">digitalocean</span><span class="p">:</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">existingSecret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">digitalocean-token</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nt">collectors</span><span class="p">:</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="c1"># This token has no billing scope.</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span><span class="nt">balance</span><span class="p">:</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span><span class="nt">droplets</span><span class="p">:</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10m</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="nt">serviceMonitor</span><span class="p">:</span>
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">  </span><span class="nt">labels</span><span class="p">:</span>
-<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="nt">release</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kube-prometheus-stack</span>
-<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>
-<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="nt">log</span><span class="p">:</span>
-<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">  </span><span class="nt">format</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">json</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>helm<span class="w"> </span>upgrade<span class="w"> </span>--install<span class="w"> </span>digitalocean-exporter<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>digitalocean-exporter/digitalocean-exporter<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--version<span class="w"> </span><span class="m">0</span>.1.0<span class="w"> </span>--namespace<span class="w"> </span>monitoring<span class="w"> </span>-f<span class="w"> </span>values.yaml
-</code></pre></div>
-<p>Every key is listed in the <a href="../../helm/values/">values reference</a>.</p>
-<h2 id="getting-prometheus-to-scrape-it">Getting Prometheus to scrape it<a class="headerlink" href="#getting-prometheus-to-scrape-it" title="Permanent link">&para;</a></h2>
-<p><strong>With Prometheus Operator</strong>, set <code>serviceMonitor.enabled: true</code>. The <code>serviceMonitor.labels</code>
-must match your Prometheus' <code>serviceMonitorSelector</code> — for <code>kube-prometheus-stack</code> that is
-usually <code>release: &lt;your release name&gt;</code>. The CRD has to exist in the cluster before you
-install, or the chart will fail to render that object.</p>
-<p><strong>Without the Operator</strong>, annotate nothing and just point a scrape job at the service:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">scrape_configs</span><span class="p">:</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">job_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">digitalocean</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nt">static_configs</span><span class="p">:</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">targets</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"digitalocean-exporter.monitoring.svc:9212"</span><span class="p p-Indicator">]</span>
-</code></pre></div>
-<p>Because collectors refresh in the background, the scrape interval is yours to choose — it
-does not affect how often DigitalOcean is called.</p>
-<h2 id="one-replica-always">One replica, always<a class="headerlink" href="#one-replica-always" title="Permanent link">&para;</a></h2>
-<p>Do not scale the Deployment up. Each replica refreshes independently, so two replicas
-double the API requests and report the same account twice, which makes every alert
-ambiguous. The exporter holds one snapshot per collector in memory and does nothing between
-refreshes; one replica is enough for any account size.</p>
-<h2 id="upgrading">Upgrading<a class="headerlink" href="#upgrading" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>helm<span class="w"> </span>repo<span class="w"> </span>update
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>helm<span class="w"> </span>upgrade<span class="w"> </span>digitalocean-exporter<span class="w"> </span>digitalocean-exporter/digitalocean-exporter<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>--version<span class="w"> </span><span class="m">0</span>.2.0<span class="w"> </span>--namespace<span class="w"> </span>monitoring<span class="w"> </span>-f<span class="w"> </span>values.yaml
-</code></pre></div>
-<p><code>image.tag</code> defaults to the chart's <code>appVersion</code>, so moving the chart version moves the
-exporter with it. Check the documentation for the version you are moving to — while the
-project is <code>0.x</code>, a minor bump may change metric names or values.</p>
-<h2 id="uninstalling">Uninstalling<a class="headerlink" href="#uninstalling" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>helm<span class="w"> </span>uninstall<span class="w"> </span>digitalocean-exporter<span class="w"> </span>--namespace<span class="w"> </span>monitoring
-</code></pre></div>
-<p>A Secret you created yourself is not part of the release and stays behind; delete it
-separately.</p>
+<h1 id="grafana-dashboards-design">Grafana dashboards — design<a class="headerlink" href="#grafana-dashboards-design" title="Permanent link">&para;</a></h1>
+<p>Status: proposed on 2026-08-26. Date: 2026-08-26.</p>
+<h2 id="why-the-exporter-ships-dashboards">Why the exporter ships dashboards<a class="headerlink" href="#why-the-exporter-ships-dashboards" title="Permanent link">&para;</a></h2>
+<p>An exporter's real contract is its metric names, and the fastest way to find out whether
+that contract holds is to point a dashboard at it. Seven dashboards already exist and run
+against a live account; without shipping them, every operator who installs this exporter
+rebuilds the same panels from the table in <a href="../../metrics/">Metrics</a>.</p>
+<p>Shipping them also closes a loop the repository does not currently close. A collector can be
+renamed, a metric can lose a label, and nothing fails — the metric is simply absent from a
+graph nobody has built yet. Once the dashboards live here, a test can hold them against the
+descriptors the exporter actually registers, and a rename becomes a failed build rather than
+an empty panel discovered months later.</p>
+<p>Two more are added here, for <code>balance</code>, <code>certificates</code> and <code>firewalls</code>, which no existing
+dashboard touches. That brings the set to nine, one covering every collector.</p>
+<h2 id="where-the-files-live">Where the files live<a class="headerlink" href="#where-the-files-live" title="Permanent link">&para;</a></h2>
+<p>The dashboards are committed to <code>charts/digitalocean-exporter/dashboards/</code>, inside the chart
+rather than at the repository root.</p>
+<p>Helm can only package files that sit inside the chart directory: <code>.Files.Glob</code> does not read
+above it, and <code>helm package</code> does not reliably follow symlinks out of it. A canonical copy
+inside the chart is therefore the only arrangement with exactly one copy of each file.</p>
+<p>Two alternatives were rejected. Keeping the canonical files at the repository root and
+copying them into the chart at package time means <code>helm lint</code> and <code>helm template</code> render
+nothing locally until someone remembers to run the copy, and the alternative — committing
+both copies and adding a CI step that compares them — is machinery bought purely to make a
+path look nicer. Symlinking from the chart into a root directory is worse: packaging through
+symlinks is unreliable, and this repository already carries one symlink trap, since GitHub
+Pages does not follow them either.</p>
+<p>The documentation links directly at the chart directory, so an operator who does not use
+Helm still has one place to fetch the JSON from.</p>
+<h2 id="the-dashboards">The dashboards<a class="headerlink" href="#the-dashboards" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>UID</th>
+<th>Title</th>
+<th>Collectors it needs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>overview.json</code></td>
+<td><code>digitalocean-overview</code></td>
+<td>DigitalOcean / Overview</td>
+<td><code>account</code>, <code>droplets</code>, <code>kubernetes</code>, <code>loadbalancers</code>, <code>databases</code>, <code>cdn</code>, <code>domains</code>, <code>registry</code>, <code>spaces</code></td>
+</tr>
+<tr>
+<td><code>droplets.json</code></td>
+<td><code>digitalocean-droplets</code></td>
+<td>DigitalOcean / Droplets</td>
+<td><code>droplets</code>, <code>dropletmetrics</code></td>
+</tr>
+<tr>
+<td><code>kubernetes.json</code></td>
+<td><code>digitalocean-kubernetes</code></td>
+<td>DigitalOcean / Kubernetes</td>
+<td><code>kubernetes</code></td>
+</tr>
+<tr>
+<td><code>loadbalancers.json</code></td>
+<td><code>digitalocean-loadbalancers</code></td>
+<td>DigitalOcean / Load Balancers</td>
+<td><code>loadbalancers</code>, <code>loadbalancermetrics</code></td>
+</tr>
+<tr>
+<td><code>storage.json</code></td>
+<td><code>digitalocean-storage</code></td>
+<td>DigitalOcean / Storage</td>
+<td><code>volumes</code>, <code>registry</code></td>
+</tr>
+<tr>
+<td><code>spaces.json</code></td>
+<td><code>digitalocean-spaces</code></td>
+<td>DigitalOcean / Spaces</td>
+<td><code>spaces</code></td>
+</tr>
+<tr>
+<td><code>exporter.json</code></td>
+<td><code>digitalocean-exporter</code></td>
+<td>DigitalOcean / Exporter</td>
+<td>none; self-metrics only</td>
+</tr>
+<tr>
+<td><code>billing.json</code></td>
+<td><code>digitalocean-billing</code></td>
+<td>DigitalOcean / Billing</td>
+<td><code>balance</code>, <code>droplets</code>, <code>loadbalancers</code>, <code>volumes</code>, <code>registry</code></td>
+</tr>
+<tr>
+<td><code>security.json</code></td>
+<td><code>digitalocean-security</code></td>
+<td>DigitalOcean / Security</td>
+<td><code>certificates</code>, <code>firewalls</code></td>
+</tr>
+</tbody>
+</table>
+<p>A dashboard whose collector is off shows empty panels rather than breaking, which is why all
+nine ship together and the chart has one switch rather than nine.</p>
+<h2 id="the-committed-form">The committed form<a class="headerlink" href="#the-committed-form" title="Permanent link">&para;</a></h2>
+<p>Grafana's API returns <code>{"meta": …, "dashboard": …}</code>. Only <code>.dashboard</code> is committed, and two
+of its fields are dropped:</p>
+<ul>
+<li><code>id</code> — the numeric primary key of the instance the dashboard was exported from. It means
+  nothing anywhere else and collides on import.</li>
+<li><code>version</code> — the instance's edit counter. Keeping it produces a one-line diff on every
+  re-export that carries no information.</li>
+</ul>
+<p>Each templating variable's <code>current</code> is reset, so that whatever the exporting instance
+happened to have selected — a bucket name, a droplet name — cannot reach the repository.</p>
+<p>The file is then written with sorted keys, two-space indentation and a trailing newline. The
+sorting is what makes a re-export reviewable: Grafana does not guarantee key order, so
+without it a one-panel edit arrives as a diff touching most of the file.</p>
+<p>A test asserts that each committed file equals its own normalised re-encoding. Somebody
+will eventually edit a dashboard in Grafana, export it and paste it in; that gets a red
+build with a clear reason instead of an unreadable diff.</p>
+<h2 id="portability-rules">Portability rules<a class="headerlink" href="#portability-rules" title="Permanent link">&para;</a></h2>
+<p>These already hold for the seven existing dashboards. The test enforces them for all nine,
+so a later addition cannot quietly hard-code an environment.</p>
+<ul>
+<li>Every <code>datasource</code> reference is <code>${datasource}</code>, resolved by a <code>datasource</code> variable of
+  type <code>prometheus</code>. No dashboard names a datasource UID.</li>
+<li>A <code>job</code> variable is populated from <code>label_values(digitalocean_exporter_build_info, job)</code>,
+  multi-select with an <code>All</code> option, and every query filters on <code>job=~"$job"</code>. Two exporters
+  scraped by one Prometheus stay separable.</li>
+<li><code>uid</code> is <code>digitalocean-&lt;file name&gt;</code>, so links and bookmarks survive a re-import.</li>
+<li><code>tags</code> contains <code>digitalocean</code>, which is what the cross-dashboard dropdown selects on: each
+  dashboard carries a <code>dashboards</code>-type link filtered to that tag, so the nine navigate
+  between each other without hard-coded URLs.</li>
+</ul>
+<h2 id="helm-delivery">Helm delivery<a class="headerlink" href="#helm-delivery" title="Permanent link">&para;</a></h2>
+<p>A new template, <code>templates/dashboards.yaml</code>, ranges over <code>.Files.Glob "dashboards/*.json"</code>
+and renders one ConfigMap per dashboard, named
+<code>&lt;fullname&gt;-dashboard-&lt;name&gt;</code>, each labelled for the Grafana sidecar to pick up. One
+ConfigMap per dashboard rather than one for all nine: it keeps each one under the 1 MiB
+object limit with room to spare, and lets the folder annotation differ per dashboard later
+if that is ever wanted.</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>grafana.dashboards.enabled</code></td>
+<td><code>false</code></td>
+<td>Render the ConfigMaps at all</td>
+</tr>
+<tr>
+<td><code>grafana.dashboards.label</code></td>
+<td><code>grafana_dashboard</code></td>
+<td>Label key the Grafana sidecar watches</td>
+</tr>
+<tr>
+<td><code>grafana.dashboards.labelValue</code></td>
+<td><code>"1"</code></td>
+<td>Value of that label</td>
+</tr>
+<tr>
+<td><code>grafana.dashboards.folder</code></td>
+<td><code>""</code></td>
+<td>When set, adds a <code>grafana_folder</code> annotation</td>
+</tr>
+</tbody>
+</table>
+<p>Disabled by default, for the same reason <code>serviceMonitor.enabled</code> is: a cluster without the
+Grafana sidecar would get nine ConfigMaps that nothing ever reads.</p>
+<p><code>grafana.dashboards.folder</code> <strong>only takes effect if the Grafana side is configured for it</strong> —
+the sidecar has to run with <code>folderAnnotation: grafana_folder</code> and
+<code>provider.foldersFromFilesStructure: true</code>. The chart cannot check that, so the value's
+documentation has to say so plainly; set without the matching sidecar configuration, the
+annotation is inert and the dashboards land in the sidecar's default folder.</p>
+<p><code>make chart-lint</code> gains a second <code>helm template</code> run with <code>--set
+grafana.dashboards.enabled=true</code>. Without it CI would never render the branch that matters,
+since the default leaves it switched off.</p>
+<h2 id="the-guard-against-drift">The guard against drift<a class="headerlink" href="#the-guard-against-drift" title="Permanent link">&para;</a></h2>
+<p><code>cmd/digitalocean_exporter/dashboards_test.go</code>, in <code>package main</code> so that it can call
+<code>registerCollectors</code> directly. That is the whole point: the list of metrics the test checks
+against is built by the same function <code>run</code> uses, so it cannot fall behind when a collector
+is added.</p>
+<p>The inventory is assembled by:</p>
+<ol>
+<li>Building a config with every collector enabled and passing it to <code>registerCollectors</code>
+   along with a client built on a dummy token. No I/O happens — <code>Describe</code> never touches the
+   client.</li>
+<li>Draining <code>Scheduler.Describe</code>, which fans out to every registered collector.</li>
+<li>Capturing the exporter's own metrics through a <code>prometheus.Registerer</code> that records each
+   collector handed to it, and describing those too. This covers <code>build_info</code> from
+   <code>internal/version</code>, the <code>collector_*</code> gauges the scheduler registers, and the <code>api_*</code>
+   metrics from <code>internal/doclient</code> — without any change to production code.</li>
+</ol>
+<p>From each dashboard the test extracts PromQL from <code>panels[].targets[].expr</code>, recursing into
+the <code>panels</code> of a row, and from <code>templating.list[].query</code>, which Grafana writes either as a
+string or as an object with a <code>query</code> field. Every <code>digitalocean_[a-z0-9_]+</code> identifier in
+those strings must be in the inventory. A name that is not found directly is retried with a
+<code>_bucket</code>, <code>_sum</code> or <code>_count</code> suffix stripped, so a histogram would not need a special case.</p>
+<p>The same test asserts the portability rules and the normalised form. It runs as part of
+<code>make check</code>; no new CI job is needed.</p>
+<p>What this does not catch is a query that references live metrics and still asks the wrong
+question. Nothing automated will; that is what review and the live check below are for.</p>
+<h2 id="the-billing-dashboard">The Billing dashboard<a class="headerlink" href="#the-billing-dashboard" title="Permanent link">&para;</a></h2>
+<p>Everything the exporter knows about what the account costs, which is currently spread across
+<code>balance</code>, <code>droplets</code>, <code>loadbalancers</code>, <code>volumes</code> and <code>registry</code>.</p>
+<ul>
+<li>Current balance, month-to-date balance and month-to-date usage as stats, with month-to-date
+  usage also plotted over the range so that a jump has a visible date.</li>
+<li><code>sum(digitalocean_droplet_price_monthly)</code> as the account's droplet run-rate, and a table
+  per droplet ordered by price — the answer to "what is the expensive one".</li>
+<li><code>sum(digitalocean_loadbalancer_size_units)</code>, the units load balancers are billed for.</li>
+<li><code>sum(digitalocean_volume_size_bytes)</code>, block storage billed by allocated size.</li>
+<li>Registry: <code>digitalocean_registry_subscription_monthly_price_usd</code>, and
+  <code>digitalocean_registry_storage_usage_bytes</code> against
+  <code>digitalocean_registry_storage_included_bytes</code>, which is where an overage starts.</li>
+<li><code>digitalocean_balance_generated_at</code> rendered as age, because DigitalOcean generates these
+  figures periodically rather than on request, and a stale number read as current is a
+  wrong answer rather than a missing one.</li>
+</ul>
+<p>The balance panels carry a description saying that this collector needs a token with the
+billing scope, and that with a resource-scoped token they are empty while
+<code>digitalocean_exporter_collector_success{collector="balance"}</code> reads 0. That distinction is
+already documented in <a href="../../metrics/">Metrics</a>; a panel that looks broken should say which
+of the two it is.</p>
+<h2 id="the-security-dashboard">The Security dashboard<a class="headerlink" href="#the-security-dashboard" title="Permanent link">&para;</a></h2>
+<p>The <code>certificates</code> and <code>firewalls</code> collectors have no dashboard at all today, and both are
+off by default, so nothing currently makes the case for switching them on.</p>
+<ul>
+<li>Certificates as a table with days remaining,
+  <code>(digitalocean_certificate_expiry_timestamp_seconds - time()) / 86400</code>, thresholded by
+  colour, plus a stat counting those under 30 days. This is the panel that catches a
+  <code>lets_encrypt</code> renewal that failed quietly, which is the reason the collector exists.</li>
+<li><code>digitalocean_certificate_info</code> for <code>type</code> and <code>state</code>, and
+  <code>digitalocean_certificate_dns_names</code> for coverage.</li>
+<li>Firewalls as a table: <code>digitalocean_firewall_inbound_rules</code> and <code>_outbound_rules</code>,
+  <code>digitalocean_firewall_droplets</code> and <code>digitalocean_firewall_tags</code> for what each covers.</li>
+<li><code>digitalocean_firewall_inbound_rules_open</code> as a stat with the change over a day beside it.
+  The panel description has to make the point <a href="../../metrics/">Metrics</a> already makes: the
+  absolute number is not an alert, a public web server needs one, but an unexplained change
+  in it is worth knowing about.</li>
+<li><code>digitalocean_firewall_pending_changes</code> as a stat. Non-zero for more than seconds means
+  the firewall is not protecting what its ruleset claims.</li>
+</ul>
+<p>Both collectors' panels say in their descriptions that the collector is off by default.</p>
+<h2 id="verification">Verification<a class="headerlink" href="#verification" title="Permanent link">&para;</a></h2>
+<p>Beyond the test, the PromQL of every new panel is run against a live Prometheus holding this
+exporter's data, as read-only instant queries, before the dashboard is committed. Where the
+collector is enabled that shows real values; where it is not — <code>certificates</code> and
+<code>firewalls</code> typically — it still proves the query parses and returns an empty result rather
+than an error.</p>
+<p>The seven ported dashboards need no such check: they are already running against live data,
+which is where they come from.</p>
+<h2 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h2>
+<p>A new page, <code>docs/dashboards.md</code>, added to the <code>nav</code> in <code>mkdocs.yml</code> after Metrics. It
+covers what each of the nine shows, which collectors each needs, both ways to install them —
+importing the JSON by hand, and the chart's ConfigMaps — and what the <code>datasource</code> and <code>job</code>
+variables are for.</p>
+<p><a href="../../install/kubernetes/">Kubernetes and Helm</a> and the <a href="../../helm/">chart page</a> get a
+pointer to it. The chart's own values reference is generated, so the <code># --</code> comments on the
+four new values are the documentation there, and <code>make chart-docs</code> has to be run before
+committing or CI fails on a stale README.</p>
+<p><code>CLAUDE.md</code> gains a step in "Adding a collector": a metric worth watching belongs on a
+dashboard too, and the guard exists and will fail the build if a dashboard names a metric
+that no longer exists.</p>
+<h2 id="out-of-scope">Out of scope<a class="headerlink" href="#out-of-scope" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Alert rules.</strong> A <code>PrometheusRule</code> template shipping the alerts that
+  <a href="../../metrics/">Metrics</a> already writes out in PromQL is an obvious companion to this, and
+  a separate piece of work: alerts need routing, severities and a story about what an
+  operator is expected to do, none of which a dashboard needs.</li>
+<li><strong>Publishing to grafana.com.</strong> Import-by-ID is convenient, but every change would need a
+  manual upload step that no CI job can perform, and the catalogue entry would drift from the
+  repository the first time somebody forgot.</li>
+<li><strong>A release asset.</strong> The chart already carries the dashboards, and the repository serves
+  them; a third copy tied to a tag is one more thing to keep in step.</li>
+<li><strong>Per-dashboard switches in the chart.</strong> Nine more values to document so that an operator
+  can avoid ConfigMaps that cost nothing when unused.</li>
+<li><strong>Screenshots in the documentation.</strong> They go stale silently, and the metric tables plus
+  the dashboards themselves already say what is on them.</li>
+</ul>
 
 
 
