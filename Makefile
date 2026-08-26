@@ -55,6 +55,10 @@ snapshot:
 chart-lint:
 	helm lint charts/digitalocean-exporter --set digitalocean.token=dummy
 	helm template charts/digitalocean-exporter --set digitalocean.token=dummy >/dev/null
+# The dashboards are off by default, so the branch that renders them would never
+# be exercised without a second run that switches them on.
+	helm template charts/digitalocean-exporter --set digitalocean.token=dummy \
+		--set grafana.dashboards.enabled=true --set grafana.dashboards.folder=DigitalOcean >/dev/null
 
 ## chart-docs: Regenerate the chart README from the comments in values.yaml.
 chart-docs:

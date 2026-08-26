@@ -66,6 +66,23 @@ Before its first successful refresh a collector emits nothing, rather than zeros
    off in `docs/configuration/collectors.md` (or its own page, as `spaces` and the
    monitoring-API collectors have). Every page must be in the `nav` of `mkdocs.yml`, and
    `make docs` builds with `--strict`, so a broken link fails.
+8. If a metric is worth watching, put it on a dashboard in
+   `charts/digitalocean-exporter/dashboards/` and add a row to `docs/dashboards.md`. A
+   dashboard that no page mentions ships invisibly, and the test says so.
+
+## The dashboards are held against the collectors
+
+`cmd/digitalocean_exporter/dashboards_test.go` extracts every PromQL expression from the
+bundled dashboards and checks each `digitalocean_` metric against the descriptors the
+collectors register — through `registerCollectors`, so the list cannot fall behind. Renaming
+or dropping a metric that a dashboard uses fails `make check` rather than quietly emptying a
+panel.
+
+The files are committed in a normalised form: no `id` or `version`, no remembered variable
+selections, sorted keys. After replacing one with an export from Grafana, run
+`go test ./cmd/digitalocean_exporter -run TestDashboardsAreNormalised -update.dashboards`
+and commit what it writes. Never hand-edit a datasource UID into a dashboard; every one of
+them resolves through the `${datasource}` variable, and a test enforces that.
 
 ## Publishing
 

@@ -50,6 +50,11 @@ collectors:
 | `dropletmetrics` — CPU, memory, disk and load per droplet (off by default) | available |
 | `loadbalancermetrics` — traffic and backend health per load balancer (off by default) | available |
 
+Nine Grafana dashboards ship with it, covering every collector. Import the JSON from
+`charts/digitalocean-exporter/dashboards/`, or let the chart render them as ConfigMaps for
+the Grafana sidecar — see the
+[dashboards page](https://kozaktomas.github.io/digitalocean_exporter/dashboards/).
+
 ## Install
 
 Full instructions for each method are in the

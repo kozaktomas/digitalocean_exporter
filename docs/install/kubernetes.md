@@ -83,6 +83,13 @@ scrape_configs:
 Because collectors refresh in the background, the scrape interval is yours to choose — it
 does not affect how often DigitalOcean is called.
 
+## Getting the dashboards in
+
+Set `grafana.dashboards.enabled: true` and the chart renders one ConfigMap per bundled
+dashboard, labelled `grafana_dashboard: "1"` for the Grafana sidecar to load. It is off by
+default, since without that sidecar nothing reads them. [Dashboards](../dashboards.md)
+covers the label, the folder annotation and importing the JSON by hand instead.
+
 ## One replica, always
 
 Do not scale the Deployment up. Each replica refreshes independently, so two replicas

@@ -1,0 +1,20 @@
+{{- if .Values.grafana.dashboards.enabled }}
+{{- range $path, $_ := .Files.Glob "dashboards/*.json" }}
+{{- $name := base $path | trimSuffix ".json" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-dashboard-%s" (include "digitalocean-exporter.fullname" $) $name | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "digitalocean-exporter.labels" $ | nindent 4 }}
+    {{ $.Values.grafana.dashboards.label }}: {{ $.Values.grafana.dashboards.labelValue | quote }}
+  {{- with $.Values.grafana.dashboards.folder }}
+  annotations:
+    grafana_folder: {{ . | quote }}
+  {{- end }}
+data:
+  {{ base $path }}: |-
+    {{- $.Files.Get $path | nindent 4 }}
+{{- end }}
+{{- end }}

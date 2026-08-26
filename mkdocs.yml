@@ -100,6 +100,7 @@ nav:
       - Values reference: helm/values.md
       - Secrets: helm/secrets.md
   - Metrics: metrics.md
+  - Dashboards: dashboards.md
   - Operations: operations.md
   - Development: development.md
   - Design notes:

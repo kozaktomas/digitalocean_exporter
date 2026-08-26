@@ -202,6 +202,24 @@ serviceMonitor:
   # -- Extra labels for the ServiceMonitor, for whatever your Prometheus selects on.
   labels: {}
 
+grafana:
+  dashboards:
+    # -- Render the bundled Grafana dashboards as ConfigMaps, one per dashboard,
+    # labelled for the Grafana sidecar to load. Off by default: without the
+    # sidecar running, these are ConfigMaps nothing ever reads.
+    enabled: false
+    # -- Label key the Grafana sidecar watches for. The default matches the
+    # sidecar shipped with kube-prometheus-stack and the Grafana chart.
+    label: grafana_dashboard
+    # -- Value of that label.
+    labelValue: "1"
+    # -- Grafana folder to file the dashboards into, through a `grafana_folder`
+    # annotation. It only takes effect if the Grafana sidecar itself runs with
+    # `folderAnnotation: grafana_folder` and
+    # `provider.foldersFromFilesStructure: true`; without that the annotation is
+    # inert and the dashboards land in the sidecar's default folder.
+    folder: ""
+
 # -- Container resources. The exporter holds one snapshot per collector in memory
 # and does nothing between refreshes.
 resources:

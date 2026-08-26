@@ -71,6 +71,12 @@ See [secrets](secrets.md) for the two ways to supply it.
 Do not raise `replicaCount` — there is deliberately no such value. Each replica refreshes
 independently, so a second one doubles the API requests and reports the same account twice.
 
+## Dashboards
+
+The chart can render the bundled Grafana dashboards as ConfigMaps for the Grafana sidecar to
+pick up, with `grafana.dashboards.enabled=true`. It is off by default. See
+[dashboards](../dashboards.md) for what ships and for the folder annotation.
+
 ## Values
 
 Every key, its type and its default: [values reference](values.md).

@@ -66,6 +66,10 @@ helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
 | digitalocean.existingSecretKey | string | `"token"` | Key inside `digitalocean.existingSecret` that holds the token. |
 | digitalocean.token | string | `""` | DigitalOcean API token. The chart puts it in a Secret it owns and mounts it into the pod as a file, never as an environment variable, so it cannot leak through `kubectl describe pod`. Mutually exclusive with `existingSecret`. |
 | fullnameOverride | string | `""` | Replaces the generated resource name outright. The generated name is `<release>-<chart>`, collapsed to just the release name when the release name already contains the chart name, so the common `helm install digitalocean-exporter` needs nothing here. |
+| grafana.dashboards.enabled | bool | `false` | Render the bundled Grafana dashboards as ConfigMaps, one per dashboard, labelled for the Grafana sidecar to load. Off by default: without the sidecar running, these are ConfigMaps nothing ever reads. |
+| grafana.dashboards.folder | string | `""` | Grafana folder to file the dashboards into, through a `grafana_folder` annotation. It only takes effect if the Grafana sidecar itself runs with `folderAnnotation: grafana_folder` and `provider.foldersFromFilesStructure: true`; without that the annotation is inert and the dashboards land in the sidecar's default folder. |
+| grafana.dashboards.label | string | `"grafana_dashboard"` | Label key the Grafana sidecar watches for. The default matches the sidecar shipped with kube-prometheus-stack and the Grafana chart. |
+| grafana.dashboards.labelValue | string | `"1"` | Value of that label. |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy. |
 | image.repository | string | `"ghcr.io/kozaktomas/digitalocean_exporter"` | Container image repository. |
 | image.tag | string | `""` | Image tag. Empty means the chart's appVersion, which is the exporter release this chart version was published with. Set it only to pin something else. |
