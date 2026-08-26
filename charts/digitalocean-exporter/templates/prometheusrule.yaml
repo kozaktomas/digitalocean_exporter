@@ -1,3 +1,7 @@
+{{/*
+Files.Get returns the file verbatim, so the label references in the rules'
+annotations reach Prometheus rather than being rendered by Helm.
+*/}}
 {{- if .Values.prometheusRule.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -9,7 +13,5 @@ metadata:
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
-  # Files.Get returns the file verbatim, so the {{ "{{ $labels.x }}" }} in the
-  # annotations reaches Prometheus rather than being rendered by Helm.
 {{ .Files.Get "alerts/digitalocean.rules.yaml" | indent 2 }}
 {{- end }}
