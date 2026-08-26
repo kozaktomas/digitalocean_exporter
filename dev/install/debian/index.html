@@ -1441,7 +1441,7 @@ names. Both spellings are correct, in their own place.</p>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
 <p>Download the <code>.deb</code> for your architecture from the
 <a href="https://github.com/kozaktomas/digitalocean_exporter/releases">releases page</a>, then:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>sudo<span class="w"> </span>dpkg<span class="w"> </span>-i<span class="w"> </span>digitalocean-exporter_0.1.0_linux_arm64.deb
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>sudo<span class="w"> </span>dpkg<span class="w"> </span>-i<span class="w"> </span>digitalocean-exporter_0.3.0_linux_arm64.deb
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>sudoedit<span class="w"> </span>/etc/digitalocean-exporter/digitalocean-exporter.env<span class="w">   </span><span class="c1"># set DIGITALOCEAN_TOKEN</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>start<span class="w"> </span>digitalocean-exporter
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>curl<span class="w"> </span>-s<span class="w"> </span>localhost:9212/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>head
