@@ -72,7 +72,7 @@ type SpacesConfig struct {
 	// Buckets lists the buckets to measure. Empty means discovery, which
 	// needs a full-access key.
 	Buckets []SpacesBucket
-	// Concurrency caps how many buckets are listed at once.
+	// Concurrency caps how many buckets are measured at once.
 	Concurrency int
 }
 

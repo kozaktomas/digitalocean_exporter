@@ -121,11 +121,12 @@ Neither can be substituted for the other.
 
 | Key | What it allows | When the collector needs it |
 |---|---|---|
-| **Limited access**, Read on chosen buckets | Listing objects in those buckets | When you name your buckets with `--collector.spaces.bucket` |
+| **Limited access**, Read on chosen buckets | Reading those buckets, including the usage each one reports | When you name your buckets with `--collector.spaces.bucket` |
 | **Full access** | Listing all buckets, and everything else | Only for discovery, when you name no buckets |
 
-The collector never downloads an object — it lists metadata and adds up sizes — so **Read is
-enough**; there is no case for granting write.
+The collector never downloads an object, and never lists one either — it asks each bucket
+for its own size and object count — so **Read is enough**; there is no case for granting
+write.
 
 Prefer the limited key. Discovery needs full access purely because *listing the buckets that
 exist* is a full-access capability in Spaces, which is a lot of privilege to buy a

@@ -98,9 +98,10 @@ spaces.accessKey or spaces.existingSecret is required when the spaces collector 
 ## Which key to create
 
 A **Limited access** Spaces key with **Read** on the buckets you measure is enough — the
-collector lists objects and never downloads one. Discovery mode, where you name no buckets
-and let the collector find them, needs a **full-access** key, because listing all buckets is
-a full-access capability. Naming the buckets and using a limited key is the better trade.
+collector asks each bucket for its own usage and never lists or downloads an object.
+Discovery mode, where you name no buckets and let the collector find them, needs a
+**full-access** key, because listing all buckets is a full-access capability. Naming the
+buckets and using a limited key is the better trade.
 
 For the API token, **read-only** covers every collector except
 [`balance`](../configuration/collectors.md#balance), which needs the billing scope. If your

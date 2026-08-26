@@ -144,8 +144,8 @@ func TestSchedulerBoundsRefreshByItsOwnTimeoutByDefault(t *testing.T) {
 	})
 }
 
-// Listing every object of a Spaces bucket takes minutes, far past a timeout
-// sized for a single API call, so a collector may bring its own.
+// A collector that fans out over every droplet runs far past a timeout sized
+// for a single API call, so a collector may bring its own.
 func TestSchedulerBoundsRefreshByTheCollectorTimeout(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		reg := prometheus.NewRegistry()
