@@ -69,6 +69,10 @@ Before its first successful refresh a collector emits nothing, rather than zeros
 8. If a metric is worth watching, put it on a dashboard in
    `charts/digitalocean-exporter/dashboards/` and add a row to `docs/dashboards.md`. A
    dashboard that no page mentions ships invisibly, and the test says so.
+9. If it is worth waking somebody, add a rule to
+   `charts/digitalocean-exporter/alerts/digitalocean.rules.yaml` and a row to
+   `docs/alerting.md`. Every alert needs a `severity` of `critical`, `warning` or `info`, a
+   `summary` and a `description`; `make alerts-lint` runs promtool over the file.
 
 ## The dashboards are held against the collectors
 
@@ -78,8 +82,12 @@ collectors register — through `registerCollectors`, so the list cannot fall be
 or dropping a metric that a dashboard uses fails `make check` rather than quietly emptying a
 panel.
 
-The files are committed in a normalised form: no `id` or `version`, no remembered variable
-selections, sorted keys. After replacing one with an export from Grafana, run
+The alerting rules get the same treatment, plus a check that every `{{ $labels.x }}` in an
+annotation is a label the alert's own metrics carry — a mistyped one renders as a blank in
+Alertmanager and is invisible until it pages somebody.
+
+The dashboard files are committed in a normalised form: no `id` or `version`, no remembered
+variable selections, sorted keys. After replacing one with an export from Grafana, run
 `go test ./cmd/digitalocean_exporter -run TestDashboardsAreNormalised -update.dashboards`
 and commit what it writes. Never hand-edit a datasource UID into a dashboard; every one of
 them resolves through the `${datasource}` variable, and a test enforces that.

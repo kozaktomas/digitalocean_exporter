@@ -4,7 +4,7 @@ VERSION     ?= dev
 COMMIT      ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 LDFLAGS     := -s -w -X $(PKG)/internal/version.Version=$(VERSION) -X $(PKG)/internal/version.Commit=$(COMMIT)
 
-.PHONY: build run fmt vet lint test test-race check smoke docker snapshot chart-lint chart-docs docs docs-serve clean
+.PHONY: build run fmt vet lint test test-race check smoke docker snapshot alerts-lint chart-lint chart-docs docs docs-serve clean
 
 ## build: Compile the exporter binary.
 build:
@@ -51,6 +51,10 @@ docker:
 snapshot:
 	goreleaser release --snapshot --clean
 
+## alerts-lint: Check the bundled alerting rules with promtool.
+alerts-lint:
+	promtool check rules charts/digitalocean-exporter/alerts/*.yaml
+
 ## chart-lint: Lint and render the Helm chart.
 chart-lint:
 	helm lint charts/digitalocean-exporter --set digitalocean.token=dummy
@@ -59,6 +63,8 @@ chart-lint:
 # be exercised without a second run that switches them on.
 	helm template charts/digitalocean-exporter --set digitalocean.token=dummy \
 		--set grafana.dashboards.enabled=true --set grafana.dashboards.folder=DigitalOcean >/dev/null
+	helm template charts/digitalocean-exporter --set digitalocean.token=dummy \
+		--set prometheusRule.enabled=true >/dev/null
 
 ## chart-docs: Regenerate the chart README from the comments in values.yaml.
 chart-docs:

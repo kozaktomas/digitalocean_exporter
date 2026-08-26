@@ -202,6 +202,16 @@ serviceMonitor:
   # -- Extra labels for the ServiceMonitor, for whatever your Prometheus selects on.
   labels: {}
 
+prometheusRule:
+  # -- Create a Prometheus Operator PrometheusRule holding the bundled alerting
+  # rules. Requires the CRD to exist in the cluster. Off by default, like the
+  # ServiceMonitor: a chart that installs alerts nobody asked for is a chart that
+  # pages somebody at 3am.
+  enabled: false
+  # -- Extra labels for the PrometheusRule, for whatever your Prometheus selects
+  # rules on. For kube-prometheus-stack that is usually `release: <release name>`.
+  labels: {}
+
 grafana:
   dashboards:
     # -- Render the bundled Grafana dashboards as ConfigMaps, one per dashboard,

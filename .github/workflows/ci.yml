@@ -15,6 +15,7 @@ env:
   GOLANGCI_LINT_VERSION: "v2.11.4"
   HELM_DOCS_VERSION: "1.14.2"
   PYTHON_VERSION: "3.13"
+  PROMETHEUS_VERSION: "3.7.3"
 
 jobs:
   check:
@@ -47,6 +48,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: azure/setup-helm@v5
+
+      # promtool is the only thing that catches a malformed rule expression before
+      # Prometheus refuses to load the whole group. Taken from the release tarball
+      # rather than go install, which would compile all of Prometheus.
+      - name: Install promtool
+        run: |
+          set -euo pipefail
+          curl -sSfL "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz" \
+            | tar -xz -C /usr/local/bin --strip-components=1 "prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool"
+
+      - name: Check the alerting rules
+        run: make alerts-lint
 
       - name: Lint and render the chart
         run: make chart-lint

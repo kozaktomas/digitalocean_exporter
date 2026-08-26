@@ -371,15 +371,12 @@ one per node pool in it.
 The configured count and the running count are kept apart on purpose: a pool that is waiting
 for a node to come up reports the two apart, and that gap is the moment worth alerting on.
 
-```yaml
-      - alert: DigitalOceanKubernetesNodePoolShort
-        expr: >
-          digitalocean_kubernetes_node_pool_nodes_running
-            < digitalocean_kubernetes_node_pool_nodes
-        for: 15m
-        annotations:
-          summary: "Pool {{ $labels.pool }} of {{ $labels.cluster }} is short of nodes"
+```promql
+digitalocean_kubernetes_node_pool_nodes_running < digitalocean_kubernetes_node_pool_nodes
 ```
+
+That comparison ships as `DigitalOceanNodePoolUnderProvisioned` on the
+[alerting page](alerting.md#resources).
 
 `digitalocean_kubernetes_cluster_up` keeps the name and labels of the older, unmaintained
 exporter. The node pool metrics do not: that exporter labels a pool by its own id and name
@@ -570,33 +567,9 @@ budget is visible before it runs out and the exporter starts serving stale data.
 
 ## Alerting
 
-```yaml
-groups:
-  - name: digitalocean-exporter
-    rules:
-      - alert: DigitalOceanExporterCollectorFailing
-        expr: digitalocean_exporter_collector_success == 0
-        for: 15m
-        annotations:
-          summary: "Collector {{ $labels.collector }} has been failing for 15 minutes"
+Twenty-one rules ship with the exporter as a plain Prometheus rule file, covering the
+exporter's own health, account limits, resources that are down, certificates about to expire
+and volumes billed for nothing. The chart can install them as a `PrometheusRule`.
 
-      - alert: DigitalOceanAccountNearDropletLimit
-        expr: digitalocean_account_droplets / digitalocean_account_droplet_limit > 0.8
-        for: 1h
-        annotations:
-          summary: "The account uses over 80% of its droplet limit"
-
-      - alert: DigitalOceanRegistryStorageNearQuota
-        expr: >
-          digitalocean_registry_storage_usage_bytes
-            / digitalocean_registry_storage_included_bytes > 0.9
-        for: 1h
-        annotations:
-          summary: "Registry {{ $labels.registry }} uses over 90% of its included storage"
-
-      - alert: DigitalOceanExporterRateLimitLow
-        expr: digitalocean_exporter_api_rate_limit_remaining < 500
-        for: 5m
-        annotations:
-          summary: "Fewer than 500 DigitalOcean API requests left this hour"
-```
+See [alerting](alerting.md) for the full list, what each one fires on and what is deliberately
+left out.

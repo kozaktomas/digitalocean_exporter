@@ -1,0 +1,15 @@
+{{- if .Values.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "digitalocean-exporter.fullname" . }}
+  labels:
+    {{- include "digitalocean-exporter.labels" . | nindent 4 }}
+    {{- with .Values.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  # Files.Get returns the file verbatim, so the {{ "{{ $labels.x }}" }} in the
+  # annotations reaches Prometheus rather than being rendered by Helm.
+{{ .Files.Get "alerts/digitalocean.rules.yaml" | indent 2 }}
+{{- end }}

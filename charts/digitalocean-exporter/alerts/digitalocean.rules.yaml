@@ -1,0 +1,257 @@
+# Alerting rules for digitalocean_exporter.
+#
+# Plain Prometheus rule groups: point `rule_files` at this file directly, or let the
+# Helm chart wrap it in a PrometheusRule with `prometheusRule.enabled=true`.
+#
+# Every threshold here assumes collectors refresh on their 5m default. A collector
+# deliberately run slower needs the matching `for` raised to match.
+groups:
+  - name: digitalocean-exporter
+    rules:
+      - alert: DigitalOceanExporterAbsent
+        expr: absent(digitalocean_exporter_build_info) == 1
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: No digitalocean_exporter is reporting
+          description: >-
+            Prometheus has had no digitalocean_exporter_build_info sample for 15 minutes.
+            Nothing about the DigitalOcean account is being observed.
+
+      - alert: DigitalOceanExporterCollectorFailing
+        expr: digitalocean_exporter_collector_success == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Collector {{ $labels.collector }} has been failing for 15 minutes
+          description: >-
+            The collector keeps serving its last good snapshot, so its metrics are stale
+            rather than missing. Check the exporter's logs for the refresh error. A
+            `balance` collector failing this way is usually a token without the billing
+            scope.
+
+      - alert: DigitalOceanExporterCollectorStale
+        expr: time() - digitalocean_exporter_collector_last_success_timestamp_seconds > 3600
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Collector {{ $labels.collector }} has not refreshed for an hour
+          description: >-
+            This catches a refresh that hangs rather than fails, which leaves
+            collector_success at 1 while the data ages. Raise the threshold if this
+            collector is deliberately run at an interval longer than 30 minutes.
+
+      - alert: DigitalOceanExporterRateLimitLow
+        expr: digitalocean_exporter_api_rate_limit_remaining < 500
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Fewer than 500 DigitalOcean API requests left this hour
+          description: >-
+            The account allows 5000 requests an hour and shares them with everything else
+            using this token. Lengthen the interval of the expensive collectors —
+            dropletmetrics costs 10 requests per droplet per refresh.
+
+  - name: digitalocean-account
+    rules:
+      - alert: DigitalOceanAccountNearDropletLimit
+        expr: digitalocean_account_droplets / digitalocean_account_droplet_limit > 0.8
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: The account uses over 80% of its droplet limit
+          description: >-
+            Creating a droplet past the limit fails, which surfaces as a failed deploy or
+            a Kubernetes node pool that will not scale up.
+
+      - alert: DigitalOceanAccountNearVolumeLimit
+        expr: digitalocean_account_volumes / digitalocean_account_volume_limit > 0.8
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: The account uses over 80% of its volume limit
+          description: >-
+            A PersistentVolumeClaim that cannot be provisioned leaves a pod pending with
+            no obvious cause.
+
+      - alert: DigitalOceanAccountNearReservedIPLimit
+        expr: digitalocean_account_reserved_ips / digitalocean_account_reserved_ip_limit > 0.8
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: The account uses over 80% of its reserved IP limit
+          description: Reserving another IP address will fail once the limit is reached.
+
+  - name: digitalocean-resources
+    rules:
+      - alert: DigitalOceanDropletDown
+        expr: digitalocean_droplet_up == 0
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: Droplet {{ $labels.name }} is not active
+          description: >-
+            DigitalOcean reports the droplet in a status other than active. A droplet
+            being rebuilt or resized passes through this state briefly; fifteen minutes
+            of it is not routine.
+
+      - alert: DigitalOceanKubernetesClusterDown
+        expr: digitalocean_kubernetes_cluster_up == 0
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: Kubernetes cluster {{ $labels.name }} is not running
+          description: >-
+            The managed control plane is in a status other than running. This says
+            nothing about the workloads inside it, which kube-state-metrics reports.
+
+      - alert: DigitalOceanNodePoolUnderProvisioned
+        expr: >-
+          digitalocean_kubernetes_node_pool_nodes_running
+            < digitalocean_kubernetes_node_pool_nodes
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: Pool {{ $labels.pool }} of cluster {{ $labels.cluster }} is short of nodes
+          description: >-
+            Fewer nodes are running than the pool is sized for. Half an hour of it means
+            a node failed to come back rather than a rolling replacement in progress.
+
+      - alert: DigitalOceanLoadBalancerDown
+        expr: digitalocean_loadbalancer_status == 0
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: Load balancer {{ $labels.name }} is not active
+          description: The load balancer is in a status other than active.
+
+      - alert: DigitalOceanLoadBalancerWithoutBackends
+        expr: digitalocean_loadbalancer_status == 1 and digitalocean_loadbalancer_droplets == 0
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: Load balancer {{ $labels.name }} has no backend droplets
+          description: >-
+            An active load balancer proxying to nothing answers every request with an
+            error. A load balancer that selects its backends by tag reports zero until
+            something carries the tag.
+
+      - alert: DigitalOceanDatabaseUnhealthy
+        expr: digitalocean_database_status == 0
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: Database cluster {{ $labels.name }} is not online
+          description: >-
+            The managed cluster is in a status other than online. Load and query metrics
+            come from DigitalOcean's per-cluster endpoint, not from this exporter.
+
+      - alert: DigitalOceanDropletMetricsUnavailable
+        expr: digitalocean_droplet_metrics_up == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: No monitoring data for droplet {{ $labels.name }}
+          description: >-
+            DigitalOcean's monitoring API returned nothing for this droplet. The usual
+            cause is the droplet agent not running, which also blanks the graphs in the
+            DigitalOcean console.
+
+  - name: digitalocean-security
+    rules:
+      - alert: DigitalOceanCertificateExpiringSoon
+        expr: (digitalocean_certificate_expiry_timestamp_seconds - time()) / 86400 < 14
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: Certificate {{ $labels.name }} expires in under 14 days
+          description: >-
+            DigitalOcean renews a lets_encrypt certificate itself, but a renewal can fail
+            quietly: the certificate keeps its old expiry while its state turns to error.
+            Time remaining is the thing to watch, not state.
+
+      - alert: DigitalOceanCertificateExpiringCritical
+        expr: (digitalocean_certificate_expiry_timestamp_seconds - time()) / 86400 < 3
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: Certificate {{ $labels.name }} expires in under 3 days
+          description: >-
+            Automatic renewal has had its window and has not produced a new certificate.
+            Replace it by hand.
+
+      - alert: DigitalOceanFirewallChangesPending
+        expr: digitalocean_firewall_pending_changes > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Firewall {{ $labels.name }} has changes that have not landed
+          description: >-
+            The ruleset has not reached every droplet, so the firewall is not protecting
+            what it says it protects. This is normally zero within seconds of an edit.
+
+      - alert: DigitalOceanFirewallOpenRulesChanged
+        expr: changes(digitalocean_firewall_inbound_rules_open[1d]) > 0
+        labels:
+          severity: info
+        annotations:
+          summary: Firewall {{ $labels.name }} changed how much it exposes to the internet
+          description: >-
+            The number of inbound rules reachable from 0.0.0.0/0 or ::/0 moved in the last
+            day. The count itself is not a fault — a public web server needs one — but an
+            unexplained change is worth reading.
+
+  - name: digitalocean-cost
+    rules:
+      - alert: DigitalOceanRegistryStorageNearQuota
+        expr: >-
+          digitalocean_registry_storage_usage_bytes
+            / digitalocean_registry_storage_included_bytes > 0.9
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: The container registry uses over 90% of its included storage
+          description: >-
+            Storage past the tier's allowance is billed on top of the subscription.
+            Garbage-collect untagged manifests or move up a tier.
+
+      - alert: DigitalOceanVolumeUnattached
+        expr: digitalocean_volume_droplets == 0
+        for: 24h
+        labels:
+          severity: info
+        annotations:
+          summary: Volume {{ $labels.name }} is attached to nothing
+          description: >-
+            DigitalOcean bills a volume by its allocated size for as long as it exists,
+            attached or not. A day of this is usually a leftover from a deleted droplet
+            or a released PersistentVolumeClaim.
+
+      - alert: DigitalOceanSpacesBucketUnreachable
+        expr: digitalocean_spaces_bucket_up == 0
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: Bucket {{ $labels.bucket }} could not be measured
+          description: >-
+            The bucket kept its previous size and object count. The usual cause is a
+            Spaces key without read access to this bucket. Other buckets are unaffected.

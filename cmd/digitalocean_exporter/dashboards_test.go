@@ -32,9 +32,10 @@ var updateDashboards = flag.Bool("update.dashboards", false,
 // because Helm can only package files below the chart directory.
 const dashboardDir = "../../charts/digitalocean-exporter/dashboards"
 
-// fqNamePattern pulls the metric name out of a descriptor. prometheus.Desc
-// keeps its fields unexported and its String method is the only way in.
-var fqNamePattern = regexp.MustCompile(`fqName: "([^"]+)"`)
+// descPattern pulls the metric name and its variable labels out of a
+// descriptor. prometheus.Desc keeps its fields unexported and its String method
+// is the only way in.
+var descPattern = regexp.MustCompile(`fqName: "([^"]+)".*variableLabels: \{([^}]*)\}`)
 
 // metricPattern matches a metric name of this exporter wherever it appears in
 // a PromQL expression.
@@ -196,10 +197,10 @@ func (r *capturingRegisterer) MustRegister(cs ...prometheus.Collector) {
 	r.Registerer.MustRegister(cs...)
 }
 
-// exportedMetricNames builds the set of metric names the exporter can emit,
-// from the same wiring run uses. Every collector is enabled, so a metric only
+// exportedMetrics maps every metric the exporter can emit to its labels, from
+// the same wiring run uses. Every collector is enabled, so a metric only
 // reachable through a collector that is off by default still counts.
-func exportedMetricNames(t *testing.T) map[string]bool {
+func exportedMetrics(t *testing.T) map[string]map[string]bool {
 	t.Helper()
 
 	cfg, err := config.Parse([]string{
@@ -229,37 +230,46 @@ func exportedMetricNames(t *testing.T) map[string]bool {
 	registerCollectors(scheduler, cfg, client, logger)
 
 	// Describe performs no I/O, so the nil-bound client is never called.
-	names := make(map[string]bool)
+	metrics := make(map[string]map[string]bool)
 	for _, c := range append(capturing.collectors, scheduler) {
-		for _, name := range describeNames(c) {
-			names[name] = true
+		for name, labels := range describeMetrics(c) {
+			metrics[name] = labels
 		}
 	}
-	return names
+	return metrics
 }
 
-// describeNames returns the metric names a collector describes.
-func describeNames(c prometheus.Collector) []string {
+// describeMetrics returns the metrics a collector describes, each with its
+// variable labels.
+func describeMetrics(c prometheus.Collector) map[string]map[string]bool {
 	descs := make(chan *prometheus.Desc)
 	go func() {
 		c.Describe(descs)
 		close(descs)
 	}()
 
-	var names []string
+	metrics := make(map[string]map[string]bool)
 	for desc := range descs {
-		if match := fqNamePattern.FindStringSubmatch(desc.String()); match != nil {
-			names = append(names, match[1])
+		match := descPattern.FindStringSubmatch(desc.String())
+		if match == nil {
+			continue
 		}
+		labels := make(map[string]bool)
+		for _, label := range strings.Split(match[2], ",") {
+			if label = strings.TrimSpace(label); label != "" {
+				labels[label] = true
+			}
+		}
+		metrics[match[1]] = labels
 	}
-	return names
+	return metrics
 }
 
 // A metric can be renamed or dropped without anything failing: the graph that
 // used it simply goes empty, months before anyone looks. This holds every
 // bundled dashboard against the descriptors the exporter actually registers.
 func TestDashboardsOnlyUseExportedMetrics(t *testing.T) {
-	exported := exportedMetricNames(t)
+	exported := exportedMetrics(t)
 	if len(exported) == 0 {
 		t.Fatal("no exported metric names found")
 	}
@@ -280,12 +290,16 @@ func TestDashboardsOnlyUseExportedMetrics(t *testing.T) {
 // isExported reports whether a name from a query is one the exporter emits. A
 // name is retried without a histogram or summary suffix, which a query adds and
 // a descriptor never carries.
-func isExported(name string, exported map[string]bool) bool {
-	if exported[name] {
+func isExported(name string, exported map[string]map[string]bool) bool {
+	if _, ok := exported[name]; ok {
 		return true
 	}
 	for _, suffix := range []string{"_bucket", "_sum", "_count"} {
-		if base, found := strings.CutSuffix(name, suffix); found && exported[base] {
+		base, found := strings.CutSuffix(name, suffix)
+		if !found {
+			continue
+		}
+		if _, ok := exported[base]; ok {
 			return true
 		}
 	}

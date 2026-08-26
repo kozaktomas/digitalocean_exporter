@@ -101,6 +101,7 @@ nav:
       - Secrets: helm/secrets.md
   - Metrics: metrics.md
   - Dashboards: dashboards.md
+  - Alerting: alerting.md
   - Operations: operations.md
   - Development: development.md
   - Design notes:
