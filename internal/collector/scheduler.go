@@ -63,6 +63,15 @@ func (s *Scheduler) Register(c Collector, interval, timeout time.Duration) {
 	s.entries = append(s.entries, entry{collector: c, interval: interval, timeout: timeout})
 }
 
+// Names returns the names of the registered collectors, in registration order.
+func (s *Scheduler) Names() []string {
+	names := make([]string, 0, len(s.entries))
+	for _, e := range s.entries {
+		names = append(names, e.collector.Name())
+	}
+	return names
+}
+
 // Run refreshes every registered collector once immediately and then on its
 // own ticker. It returns once ctx is cancelled and all loops have stopped.
 func (s *Scheduler) Run(ctx context.Context) {

@@ -127,9 +127,92 @@ This is inventory, not traffic. DigitalOcean's API reports no request count, no 
 and no cache hit ratio for a CDN endpoint, so none of that can be exported here. What an
 endpoint fronts is a Spaces bucket, and the `spaces` collector measures that bucket's size.
 
-`certificate_id` is on the info metric so an endpoint can be joined to the certificate it
-serves once a certificate collector exists. An endpoint with a `custom_domain` and an empty
-`certificate_id` is serving that domain without TLS of its own.
+`certificate_id` is on the info metric so an endpoint can be joined to the `id` of the
+[certificate](#certificates) that serves it, and with it that certificate's expiry. An
+endpoint with a `custom_domain` and an empty `certificate_id` is serving that domain without
+TLS of its own.
+
+## Domains
+
+Collected by `domains` from `/v2/domains`, one metric per DNS zone.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_domain_ttl_seconds` | `domain` | Default TTL of the zone |
+
+There is no metric counting the zones. `count(digitalocean_domain_ttl_seconds)` is the
+number of them, the same way the number of droplets is `count(digitalocean_droplet_up)`.
+
+The records inside a zone are deliberately absent: counting them costs one API request per
+zone. The [collector page](configuration/collectors.md#domains) explains the trade-off.
+
+## Firewalls
+
+Collected by `firewalls` from `/v2/firewalls`, one set of metrics per firewall. Off by
+default.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_firewall_info` | `id`, `name`, `status` | Always 1 |
+| `digitalocean_firewall_droplets` | `id`, `name` | Droplets attached directly |
+| `digitalocean_firewall_tags` | `id`, `name` | Tags attached; droplets carrying one are covered too |
+| `digitalocean_firewall_inbound_rules` | `id`, `name` | Inbound rules |
+| `digitalocean_firewall_outbound_rules` | `id`, `name` | Outbound rules |
+| `digitalocean_firewall_inbound_rules_open` | `id`, `name` | Inbound rules whose sources include `0.0.0.0/0` or `::/0` |
+| `digitalocean_firewall_pending_changes` | `id`, `name` | Droplets a change has not reached yet |
+
+`pending_changes` is normally zero within seconds of an edit. One that stays non-zero means
+the firewall is not yet protecting what its ruleset says it protects:
+
+```promql
+digitalocean_firewall_pending_changes > 0
+```
+
+`inbound_rules_open` counts the rules reachable from the whole internet. Alerting on `> 0`
+is wrong — a public web server needs one — but an unexplained change in the number is worth
+knowing about:
+
+```promql
+changes(digitalocean_firewall_inbound_rules_open[1d]) > 0
+```
+
+This is configuration, not traffic: DigitalOcean reports no packet or connection counts for
+a firewall, so what a rule actually lets through cannot be exported.
+
+## Certificates
+
+Collected by `certificates` from `/v2/certificates`, one set of metrics per certificate. Off
+by default.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_certificate_expiry_timestamp_seconds` | `id`, `name`, `type` | Expiry as a Unix timestamp |
+| `digitalocean_certificate_info` | `id`, `name`, `type`, `state`, `sha1_fingerprint` | Always 1 |
+| `digitalocean_certificate_dns_names` | `id`, `name` | DNS names the certificate covers |
+
+`type` is `lets_encrypt` or `custom`. DigitalOcean renews a `lets_encrypt` certificate
+itself, but renewal can fail quietly — the certificate keeps its old expiry and its `state`
+turns to `error` — so the alert to write is on time remaining rather than on state:
+
+```promql
+(digitalocean_certificate_expiry_timestamp_seconds - time()) / 86400 < 14
+```
+
+The `id` label matches the `certificate_id` on `digitalocean_cdn_endpoint_info`, so the
+endpoint serving a certificate that is about to expire can be found with a join:
+
+```promql
+label_replace(digitalocean_cdn_endpoint_info, "id", "$1", "certificate_id", "(.*)")
+  * on(id) group_left(name)
+    ((digitalocean_certificate_expiry_timestamp_seconds - time()) / 86400 < 14)
+```
+
+The endpoints are the many side of that join: one certificate can serve several of them. The
+result is the days remaining, labelled with the endpoint serving it.
+
+A certificate whose `not_after` the API omits has no expiry sample at all rather than one at
+the Unix epoch, which would fire every alert written against it. Its other metrics are
+reported as usual.
 
 ## Droplet metrics
 

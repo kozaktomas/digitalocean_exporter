@@ -81,20 +81,22 @@ DigitalOcean applies [two limits at once](https://docs.digitalocean.com/referenc
 The burst limit can be tripped while the hourly budget is nearly untouched, which is the
 trap worth knowing about — see [the monitoring API](monitoring-api.md#the-budget).
 
-The ten collectors that are on by default cost one to three requests each per refresh. On a
-real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database and a
-registry, one full refresh measured **14 requests**:
+The eleven collectors that are on by default cost one to three requests each per refresh. On
+a real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database, a
+registry and a DNS zone, one full refresh measured **15 requests**:
 
 ```
-account 1 · cdn 1 · databases 1 · droplets 2 · kubernetes 1
-load_balancers 1 · registry 3 · reserved_ips 1 · volumes 2 · balance 1
+account 1 · balance 1 · cdn 1 · databases 1 · domains 1 · droplets 2
+kubernetes 1 · load_balancers 1 · registry 3 · reserved_ips 1 · volumes 2
 ```
 
-At the default `5m` that is 12 refreshes an hour — **168 requests, 3.4% of the hourly
-budget**, and 14 in a burst, 5.6% of the per-minute one. Comfortable, and it scales with how
+At the default `5m` that is 12 refreshes an hour — **180 requests, 3.6% of the hourly
+budget**, and 15 in a burst, 6% of the per-minute one. Comfortable, and it scales with how
 much you own rather than with how often Prometheus scrapes.
 
-The three collectors that are off by default are off because they are not like that; see
+Enabling [`firewalls`](collectors.md#firewalls) and
+[`certificates`](collectors.md#certificates) adds one request each, so the same account costs
+17. The other three that are off by default are off because they are not like that; see
 [Spaces](spaces.md) and [the monitoring API](monitoring-api.md).
 
 !!! note "One endpoint has a stricter limit of its own"
@@ -164,6 +166,23 @@ basic_auth_users:
 | `--collector.loadbalancers.interval` | `COLLECTOR_LOADBALANCERS_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.cdn` | `COLLECTOR_CDN` | `true` | [CDN endpoints](collectors.md#cdn) |
 | `--collector.cdn.interval` | `COLLECTOR_CDN_INTERVAL` | `5m` | Its refresh interval |
+| `--collector.domains` | `COLLECTOR_DOMAINS` | `true` | [DNS zones](collectors.md#domains) |
+| `--collector.domains.interval` | `COLLECTOR_DOMAINS_INTERVAL` | `5m` | Its refresh interval |
+
+### Firewalls and certificates
+
+Off by default, but not because of what they cost — one request each per refresh, the same as
+the collectors above. They are off because a firewall ruleset changes when somebody deploys
+and a certificate when it is renewed, so most accounts have no reason to scrape them. Enable
+them to alert on [pending firewall changes](collectors.md#firewalls) or
+[certificate expiry](collectors.md#certificates).
+
+| Flag | Environment variable | Default | Description |
+|---|---|---|---|
+| `--collector.firewalls` | `COLLECTOR_FIREWALLS` | `false` | [Cloud firewalls](collectors.md#firewalls) |
+| `--collector.firewalls.interval` | `COLLECTOR_FIREWALLS_INTERVAL` | `5m` | Its refresh interval |
+| `--collector.certificates` | `COLLECTOR_CERTIFICATES` | `false` | [TLS certificates](collectors.md#certificates) |
+| `--collector.certificates.interval` | `COLLECTOR_CERTIFICATES_INTERVAL` | `5m` | Its refresh interval |
 
 ### Spaces
 

@@ -46,6 +46,22 @@ CDN = {"endpoints": [{"id": "cdn", "origin": "smoke.fra1.digitaloceanspaces.com"
                       "endpoint": "smoke.fra1.cdn.digitaloceanspaces.com",
                       "ttl": 3600, "certificate_id": "cert"}],
        "meta": {"total": 1}}
+DOMAINS = {"domains": [{"name": "smoke.example", "ttl": 1800,
+                       "zone_file": "$ORIGIN smoke.example.\n$TTL 1800\n"}],
+           "meta": {"total": 1}}
+FIREWALLS = {"firewalls": [{"id": "fw", "name": "web", "status": "succeeded",
+                            "droplet_ids": [1], "tags": ["web"],
+                            "inbound_rules": [{"protocol": "tcp", "ports": "443",
+                                               "sources": {"addresses": ["0.0.0.0/0", "::/0"]}}],
+                            "outbound_rules": [{"protocol": "tcp", "ports": "0",
+                                                "destinations": {"addresses": ["0.0.0.0/0"]}}],
+                            "pending_changes": []}],
+             "meta": {"total": 1}}
+CERTIFICATES = {"certificates": [{"id": "cert", "name": "cdn", "type": "lets_encrypt",
+                                  "state": "verified", "not_after": "2026-11-05T07:18:56Z",
+                                  "sha1_fingerprint": "a4b4e231",
+                                  "dns_names": ["smoke.example"]}],
+                "meta": {"total": 1}}
 DATABASES = {"databases": [{"id": "1", "name": "main", "engine": "mysql", "version": "8",
                             "num_nodes": 1, "size": "db-2vcpu-4gb", "region": "fra1",
                             "status": "online", "storage_size_mib": 102400,
@@ -78,6 +94,9 @@ ROUTES = {"/v2/customers/my/balance": BALANCE,
           "/v2/volumes": VOLUMES,
           "/v2/load_balancers": LOAD_BALANCERS,
           "/v2/cdn/endpoints": CDN,
+          "/v2/domains": DOMAINS,
+          "/v2/firewalls": FIREWALLS,
+          "/v2/certificates": CERTIFICATES,
           "/v2/registry": REGISTRY,
           "/v2/registry/subscription": SUBSCRIPTION,
           "/v2/registry/smoke/repositoriesV2": REPOSITORIES}
@@ -128,6 +147,9 @@ DO_SPACES_ENDPOINT="http://127.0.0.1:${API_PORT}" \
          --collector.registry.interval=1s --collector.limits.interval=1s \
          --collector.droplets.interval=1s --collector.databases.interval=1s \
          --collector.kubernetes.interval=1s \
+         --collector.domains.interval=1s \
+         --collector.firewalls --collector.firewalls.interval=1s \
+         --collector.certificates --collector.certificates.interval=1s \
          --collector.spaces --collector.spaces.interval=1s \
          --spaces.access-key=smoke --spaces.secret-key=smoke \
          --spaces.region=fra1 --collector.spaces.bucket=smoke &
@@ -138,13 +160,14 @@ for _ in $(seq 1 50); do
   sleep 0.2
 done
 
-# Every collector this run enables: the defaults plus spaces. The count is
+# Every collector this run enables: the defaults plus spaces, firewalls and
+# certificates. The count is
 # spelled out because collector_success is a GaugeVec whose per-collector
 # sample only appears once that collector's first refresh has finished. Waiting
 # for "no sample equals 0" would therefore pass while a collector had not
 # started yet, and the assertions below would race it — a flake that looks
 # exactly like a broken collector. Bump this when adding a collector.
-EXPECTED_COLLECTORS=11
+EXPECTED_COLLECTORS=14
 
 # Poll until all of them have reported a successful refresh.
 METRICS=""
@@ -186,7 +209,12 @@ for metric in \
   digitalocean_volume_droplets \
   digitalocean_loadbalancer_status \
   digitalocean_loadbalancer_droplets \
-  digitalocean_cdn_endpoint_ttl_seconds
+  digitalocean_cdn_endpoint_ttl_seconds \
+  digitalocean_domain_ttl_seconds \
+  digitalocean_firewall_inbound_rules_open \
+  digitalocean_firewall_pending_changes \
+  digitalocean_certificate_expiry_timestamp_seconds \
+  digitalocean_certificate_dns_names
 do
   if grep -q "^${metric}" <<<"$METRICS"; then
     echo "ok   ${metric}"

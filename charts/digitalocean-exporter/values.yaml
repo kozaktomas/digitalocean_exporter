@@ -55,6 +55,15 @@ collectors:
     enabled: true
     # -- How often the balance collector refreshes.
     interval: 5m
+  certificates:
+    # -- Report the TLS certificates the account holds, and when each one
+    # expires. Off by default because a certificate changes when it is renewed
+    # and not otherwise; enable it to alert on
+    # `digitalocean_certificate_expiry_timestamp_seconds`, which catches a
+    # `lets_encrypt` renewal that failed quietly.
+    enabled: false
+    # -- How often the certificates collector refreshes.
+    interval: 5m
   databases:
     # -- Report the state, node count and storage of every managed database
     # cluster. This is inventory, not load: connections and queries come from a
@@ -62,11 +71,26 @@ collectors:
     enabled: true
     # -- How often the databases collector refreshes.
     interval: 5m
+  domains:
+    # -- Report the DNS zones the account hosts and their default TTL. One list
+    # request covers the whole account. The records inside a zone are not
+    # reported: counting them would cost a request per zone.
+    enabled: true
+    # -- How often the domains collector refreshes.
+    interval: 5m
   droplets:
     # -- Report the state, size and price of every droplet, including the droplets
     # that make up a managed Kubernetes cluster.
     enabled: true
     # -- How often the droplets collector refreshes.
+    interval: 5m
+  firewalls:
+    # -- Report cloud firewalls: what each is attached to, how many rules it
+    # carries, how many of those are open to the whole internet, and how many
+    # droplets a change has not reached yet. Off by default because a ruleset
+    # changes on deploys rather than continuously.
+    enabled: false
+    # -- How often the firewalls collector refreshes.
     interval: 5m
   kubernetes:
     # -- Report managed Kubernetes clusters and their node pools from the outside.

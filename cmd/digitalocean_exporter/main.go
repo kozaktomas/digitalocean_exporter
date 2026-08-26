@@ -23,9 +23,12 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/account"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/balance"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/cdn"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/certificates"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/databases"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/domains"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/dropletmetrics"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/droplets"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/firewalls"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/kubernetes"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/limits"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/loadbalancermetrics"
@@ -116,6 +119,9 @@ func registerCollectors(
 		{"volumes", func() collector.Collector { return volumes.New(client) }},
 		{"loadbalancers", func() collector.Collector { return loadbalancers.New(client) }},
 		{"cdn", func() collector.Collector { return cdn.New(client) }},
+		{"domains", func() collector.Collector { return domains.New(client) }},
+		{"firewalls", func() collector.Collector { return firewalls.New(client) }},
+		{"certificates", func() collector.Collector { return certificates.New(client) }},
 		{"dropletmetrics", func() collector.Collector {
 			return dropletmetrics.New(client, cfg.DropletMetricsConcurrency, logger)
 		}},

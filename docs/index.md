@@ -59,14 +59,18 @@ Three things follow from that, and they are worth knowing before you tune anythi
 | [`volumes`](configuration/collectors.md#volumes) | Block storage volumes and what uses them | on |
 | [`loadbalancers`](configuration/collectors.md#loadbalancers) | Load balancers, backends, billed size | on |
 | [`cdn`](configuration/collectors.md#cdn) | CDN endpoints and their certificates | on |
+| [`domains`](configuration/collectors.md#domains) | DNS zones the account hosts, and their TTL | on |
+| [`firewalls`](configuration/collectors.md#firewalls) | Firewall rules, attachments and pending changes | **off** |
+| [`certificates`](configuration/collectors.md#certificates) | TLS certificates and when each one expires | **off** |
 | [`spaces`](configuration/spaces.md) | Bucket size and object count | **off** |
 | [`dropletmetrics`](configuration/monitoring-api.md#dropletmetrics) | CPU, memory, disk and load per droplet | **off** |
 | [`loadbalancermetrics`](configuration/monitoring-api.md#loadbalancermetrics) | Traffic and backend health per load balancer | **off** |
 
-The three that are off by default are off for a reason — each one costs far more API
-requests than the others, or takes far longer. The pages linked above do the arithmetic.
-
-Domains, firewalls and certificates are planned.
+Three of the five that are off cost far more API requests than the others, or take far
+longer; the pages linked above do the arithmetic. `firewalls` and `certificates` are the
+exception — they cost one request each, the same as the collectors that default on, and are
+off only because a ruleset or a certificate changes on human timescales rather than
+continuously.
 
 A token scoped `api:read` runs all of them and can change nothing;
 [token permissions](configuration/permissions.md) covers scoping it more tightly.

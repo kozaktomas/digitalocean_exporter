@@ -3,11 +3,16 @@
 One page per question you might have about a collector: what it reports, what it costs, and
 when to turn it off. The metric names themselves are in the [metrics reference](../metrics.md).
 
-Ten collectors are on by default. They are on because each costs one or two API requests per
-refresh, which is negligible against the limit of 5000 an hour. The three that are off —
-[`spaces`](spaces.md), [`dropletmetrics`](monitoring-api.md#dropletmetrics) and
+Eleven collectors are on by default. They are on because each costs one or two API requests
+per refresh, which is negligible against the limit of 5000 an hour.
+
+Five are off. Three of them — [`spaces`](spaces.md),
+[`dropletmetrics`](monitoring-api.md#dropletmetrics) and
 [`loadbalancermetrics`](monitoring-api.md#loadbalancermetrics) — have pages of their own,
-because deciding to enable them means doing arithmetic first.
+because deciding to enable them means doing arithmetic first. The other two,
+[`firewalls`](#firewalls) and [`certificates`](#certificates), cost no more than the
+collectors that default on; they are off because what they report changes when somebody
+deploys or renews something, not continuously, so most accounts have no use for them.
 
 Every collector reports `digitalocean_exporter_collector_success` and
 `digitalocean_exporter_collector_duration_seconds`, so the health of each one is visible
@@ -163,3 +168,75 @@ expiring certificate is easier to catch here than in the control panel.
 [stricter limit of their own](https://docs.digitalocean.com/reference/api/reference/public-apis/) —
 5 requests per 10 seconds, independent of the account-wide limits. One request every 5
 minutes is nowhere near it, but do not set this interval to seconds.
+
+---
+
+## domains
+
+Every DNS zone the account hosts, and the zone's default TTL.
+
+One list request covers the whole account, however many zones there are, which is what makes
+this cheap enough to leave on. How many zones you have is
+`count(digitalocean_domain_ttl_seconds)`, and a zone disappearing from that count is the
+alert worth writing.
+
+**The records inside a zone are not reported.** Counting them costs one request per zone, so
+on an account with two hundred domains a five-minute interval would spend roughly half the
+hourly rate limit on data that changes a few times a year. The list response does include
+each zone's full BIND zone file, and record counts could be derived from it without any extra
+request, but that file is a text format DigitalOcean documents no guarantees about — a
+silently miscounted record is worse than an absent one.
+
+**Cost:** one request per refresh.
+
+---
+
+## firewalls
+
+Cloud firewalls: what each one is attached to, how many rules it carries, and how far
+DigitalOcean has got applying it.
+
+Two of these are alerts rather than dashboard panels.
+
+`digitalocean_firewall_pending_changes` counts the droplets a rule change has not reached
+yet. It is normally zero within seconds of an edit; one that stays non-zero means the
+firewall is not protecting what its ruleset says it protects.
+
+`digitalocean_firewall_inbound_rules_open` counts the inbound rules whose sources include
+`0.0.0.0/0` or `::/0` — the rules reachable from the whole internet. The useful alert is not
+`> 0`, since a public web server needs one, but a change in the number nobody intended.
+
+**Configuration, not traffic.** DigitalOcean reports no packet or connection counts for a
+firewall, so there is no way to see what a rule actually allows through.
+
+**Off by default**, and not because of what it costs: one list request per refresh, the same
+as the collectors that default on. A ruleset changes when somebody deploys, so most accounts
+have no reason to scrape it. Turn it on when you want to alert on the two metrics above.
+
+**Cost:** one request per refresh.
+
+---
+
+## certificates
+
+Every TLS certificate the account holds for its load balancers and CDN endpoints, and when
+each one expires.
+
+`digitalocean_certificate_expiry_timestamp_seconds` is the reason this collector exists.
+DigitalOcean renews a `lets_encrypt` certificate on its own, but renewal can fail quietly:
+the certificate keeps its old `not_after` and its `state` turns to `error`. Alerting on the
+expiry timestamp catches that; alerting on the state alone does not catch a certificate that
+is simply old.
+
+The `id` label matches the `certificate_id` on `digitalocean_cdn_endpoint_info`, so the
+endpoint serving an expiring certificate can be found with a join rather than by hand.
+
+A certificate whose `not_after` the API omits keeps its other metrics and has no expiry
+sample, rather than reporting an expiry at the Unix epoch that would fire every alert written
+against it.
+
+**Off by default** for the same reason as `firewalls`: one list request per refresh, but a
+certificate changes when it is renewed and not otherwise. Enable it if you terminate TLS at a
+DigitalOcean load balancer or CDN endpoint.
+
+**Cost:** one request per refresh.

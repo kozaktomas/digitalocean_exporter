@@ -28,7 +28,7 @@ actually deserves.
 
 ## Status
 
-Early. This release ships the exporter, the full build and release pipeline, and thirteen
+Early. This release ships the exporter, the full build and release pipeline, and sixteen
 collectors:
 
 | Collector | State |
@@ -44,9 +44,11 @@ collectors:
 | `volumes` — size of every block storage volume and what it is attached to | available |
 | `loadbalancers` — state, backends and billed size of every load balancer | available |
 | `cdn` — CDN endpoints, their cache TTL and the certificate each one serves | available |
+| `domains` — DNS zones the account hosts and their default TTL | available |
+| `firewalls` — rules, attachments and pending changes of every cloud firewall (off by default) | available |
+| `certificates` — TLS certificates and when each one expires (off by default) | available |
 | `dropletmetrics` — CPU, memory, disk and load per droplet (off by default) | available |
 | `loadbalancermetrics` — traffic and backend health per load balancer (off by default) | available |
-| domains, firewalls, certificates | planned |
 
 ## Install
 

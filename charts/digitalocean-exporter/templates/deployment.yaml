@@ -41,17 +41,35 @@ spec:
             {{- else }}
             - --no-collector.balance
             {{- end }}
+            {{- if .Values.collectors.certificates.enabled }}
+            - --collector.certificates
+            - --collector.certificates.interval={{ .Values.collectors.certificates.interval }}
+            {{- else }}
+            - --no-collector.certificates
+            {{- end }}
             {{- if .Values.collectors.databases.enabled }}
             - --collector.databases
             - --collector.databases.interval={{ .Values.collectors.databases.interval }}
             {{- else }}
             - --no-collector.databases
             {{- end }}
+            {{- if .Values.collectors.domains.enabled }}
+            - --collector.domains
+            - --collector.domains.interval={{ .Values.collectors.domains.interval }}
+            {{- else }}
+            - --no-collector.domains
+            {{- end }}
             {{- if .Values.collectors.droplets.enabled }}
             - --collector.droplets
             - --collector.droplets.interval={{ .Values.collectors.droplets.interval }}
             {{- else }}
             - --no-collector.droplets
+            {{- end }}
+            {{- if .Values.collectors.firewalls.enabled }}
+            - --collector.firewalls
+            - --collector.firewalls.interval={{ .Values.collectors.firewalls.interval }}
+            {{- else }}
+            - --no-collector.firewalls
             {{- end }}
             {{- if .Values.collectors.kubernetes.enabled }}
             - --collector.kubernetes

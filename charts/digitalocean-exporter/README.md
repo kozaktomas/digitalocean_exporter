@@ -28,14 +28,20 @@ helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
 | collectors.balance.interval | string | `"5m"` | How often the balance collector refreshes. |
 | collectors.cdn.enabled | bool | `true` | Report CDN endpoints, their cache TTL and the certificate each one serves. DigitalOcean exposes no traffic figures for CDN endpoints, so this is inventory only. |
 | collectors.cdn.interval | string | `"5m"` | How often the cdn collector refreshes. |
+| collectors.certificates.enabled | bool | `false` | Report the TLS certificates the account holds, and when each one expires. Off by default because a certificate changes when it is renewed and not otherwise; enable it to alert on `digitalocean_certificate_expiry_timestamp_seconds`, which catches a `lets_encrypt` renewal that failed quietly. |
+| collectors.certificates.interval | string | `"5m"` | How often the certificates collector refreshes. |
 | collectors.databases.enabled | bool | `true` | Report the state, node count and storage of every managed database cluster. This is inventory, not load: connections and queries come from a per-cluster Prometheus endpoint DigitalOcean runs with credentials of its own. |
 | collectors.databases.interval | string | `"5m"` | How often the databases collector refreshes. |
+| collectors.domains.enabled | bool | `true` | Report the DNS zones the account hosts and their default TTL. One list request covers the whole account. The records inside a zone are not reported: counting them would cost a request per zone. |
+| collectors.domains.interval | string | `"5m"` | How often the domains collector refreshes. |
 | collectors.dropletmetrics.concurrency | int | `4` | How many droplets are queried at once. |
 | collectors.dropletmetrics.enabled | bool | `false` | Report CPU, memory, disk and load per droplet from DigitalOcean's monitoring API. Off by default because that API answers one metric of one droplet per request: a refresh costs one droplet listing plus 10 requests per droplet, against an account limit of 5000 requests an hour. Work out `3600/interval * (1 + droplets*10)` before enabling it. |
 | collectors.dropletmetrics.interval | string | `"5m"` | How often the dropletmetrics collector refreshes. The API samples every 2m, so anything shorter buys nothing. |
 | collectors.dropletmetrics.timeout | string | `"2m"` | Timeout of one full dropletmetrics refresh. |
 | collectors.droplets.enabled | bool | `true` | Report the state, size and price of every droplet, including the droplets that make up a managed Kubernetes cluster. |
 | collectors.droplets.interval | string | `"5m"` | How often the droplets collector refreshes. |
+| collectors.firewalls.enabled | bool | `false` | Report cloud firewalls: what each is attached to, how many rules it carries, how many of those are open to the whole internet, and how many droplets a change has not reached yet. Off by default because a ruleset changes on deploys rather than continuously. |
+| collectors.firewalls.interval | string | `"5m"` | How often the firewalls collector refreshes. |
 | collectors.kubernetes.enabled | bool | `true` | Report managed Kubernetes clusters and their node pools from the outside. What runs inside a cluster is kube-state-metrics' job, not this exporter's. |
 | collectors.kubernetes.interval | string | `"5m"` | How often the kubernetes collector refreshes. |
 | collectors.limits.enabled | bool | `true` | Report droplets, reserved IPs and volumes in use, which pair with the account limits the account collector reports. |

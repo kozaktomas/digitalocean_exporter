@@ -46,6 +46,9 @@ one needs exactly the read scope for the resource it reports:
 | [`volumes`](collectors.md#volumes) | `block_storage:read` |
 | [`loadbalancers`](collectors.md#loadbalancers) | `load_balancer:read` |
 | [`cdn`](collectors.md#cdn) | `cdn:read` |
+| [`domains`](collectors.md#domains) | `domain:read` |
+| [`firewalls`](collectors.md#firewalls) | `firewall:read` |
+| [`certificates`](collectors.md#certificates) | `certificate:read` |
 | [`dropletmetrics`](monitoring-api.md#dropletmetrics) | `monitoring:read`, `droplet:read` |
 | [`loadbalancermetrics`](monitoring-api.md#loadbalancermetrics) | `monitoring:read`, `load_balancer:read` |
 | [`spaces`](spaces.md) | none — it uses a Spaces key, not the token |
@@ -72,7 +75,8 @@ digitalocean_exporter \
   --no-collector.databases \
   --no-collector.kubernetes \
   --no-collector.registry \
-  --no-collector.cdn
+  --no-collector.cdn \
+  --no-collector.domains
 ```
 
 ```yaml
@@ -83,6 +87,7 @@ collectors:
   kubernetes: { enabled: false }
   registry: { enabled: false }
   cdn: { enabled: false }
+  domains: { enabled: false }
 ```
 
 A token scoped to `droplet:read`, `block_storage:read`, `reserved_ip:read` and

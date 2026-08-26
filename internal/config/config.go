@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -103,53 +104,79 @@ type Config struct {
 	LoadBalancerMetricsConcurrency int
 }
 
+// collectorFlags holds the two flags every collector has.
+type collectorFlags struct {
+	enabled  *bool
+	interval *time.Duration
+}
+
 // flags holds every bound flag before validation turns them into a Config.
 type flags struct {
-	listen             *string
-	webConfig          *string
-	token              *string
-	tokenFile          *string
-	timeout            *time.Duration
-	logLevel           *string
-	logFormat          *string
-	account            *bool
-	accountInterval    *time.Duration
-	balance            *bool
-	balanceInterval    *time.Duration
-	registry           *bool
-	registryInterval   *time.Duration
-	limits             *bool
-	limitsInterval     *time.Duration
-	droplets           *bool
-	dropletsInterval   *time.Duration
-	databases          *bool
-	databasesInterval  *time.Duration
-	kubernetes         *bool
-	kubernetesInterval *time.Duration
-	volumes            *bool
-	volumesInterval    *time.Duration
-	loadBalancers      *bool
-	lbInterval         *time.Duration
-	cdn                *bool
-	cdnInterval        *time.Duration
-	dropletMetrics     *bool
-	dmInterval         *time.Duration
-	dmTimeout          *time.Duration
-	dmConcurrency      *int
-	lbMetrics          *bool
-	lbmInterval        *time.Duration
-	lbmTimeout         *time.Duration
-	lbmConcurrency     *int
-	spaces             *bool
-	spacesInterval     *time.Duration
-	spacesTimeout      *time.Duration
-	spacesBuckets      *[]string
-	spacesConcurrent   *int
-	spacesKey          *string
-	spacesKeyFile      *string
-	spacesSecret       *string
-	spacesSecretFile   *string
-	spacesRegion       *string
+	listen    *string
+	webConfig *string
+	token     *string
+	tokenFile *string
+	timeout   *time.Duration
+	logLevel  *string
+	logFormat *string
+	// simple holds the collectors configured by nothing but an enable switch
+	// and an interval, keyed by collector name.
+	simple           map[string]*collectorFlags
+	dropletMetrics   *bool
+	dmInterval       *time.Duration
+	dmTimeout        *time.Duration
+	dmConcurrency    *int
+	lbMetrics        *bool
+	lbmInterval      *time.Duration
+	lbmTimeout       *time.Duration
+	lbmConcurrency   *int
+	spaces           *bool
+	spacesInterval   *time.Duration
+	spacesTimeout    *time.Duration
+	spacesBuckets    *[]string
+	spacesConcurrent *int
+	spacesKey        *string
+	spacesKeyFile    *string
+	spacesSecret     *string
+	spacesSecretFile *string
+	spacesRegion     *string
+}
+
+// simpleCollectors are the collectors that need nothing but an enable switch
+// and a refresh interval. The ones that carry a timeout or a concurrency of
+// their own — the two monitoring-API collectors and spaces — are bound
+// separately.
+//
+// A collector is on by default when it costs one or two API requests per
+// refresh and its metrics suit any account. firewalls and certificates are the
+// exception: they cost the same as the others, but a firewall ruleset changes
+// when somebody deploys and a certificate when it is renewed, so scraping them
+// every five minutes is a deliberate choice rather than a default.
+//
+// This is a slice rather than a map so the flags appear in --help in the same
+// order every run.
+var simpleCollectors = []struct {
+	name    string
+	help    string
+	enabled bool
+}{
+	{"account", "Enable the account collector.", true},
+	{"balance", "Enable the balance collector, which needs a billing-scoped token.", true},
+	{"registry", "Enable the container registry collector.", true},
+	{"limits", "Enable the limits collector, which counts droplets, reserved IPs and volumes.", true},
+	{"droplets", "Enable the droplets collector.", true},
+	{"databases", "Enable the managed databases collector.", true},
+	{"kubernetes", "Enable the managed Kubernetes collector.", true},
+	{"volumes", "Enable the block storage volumes collector.", true},
+	{"loadbalancers", "Enable the load balancers collector.", true},
+	{"cdn", "Enable the CDN endpoints collector.", true},
+	{"domains", "Enable the DNS domains collector.", true},
+	{"firewalls",
+		"Enable the cloud firewalls collector, which reports rule counts and how far each firewall is applied.",
+		false},
+	{"certificates",
+		"Enable the certificates collector, which reports when each TLS certificate expires.",
+		false},
 }
 
 // Parse builds a Config from args, falling back to environment variables.
@@ -192,58 +219,32 @@ func bind(app *kingpin.Application) *flags {
 		Envar("LOG_LEVEL").Default("info").Enum("debug", "info", "warn", "error")
 	f.logFormat = app.Flag("log.format", "Log format: logfmt or json.").
 		Envar("LOG_FORMAT").Default("logfmt").Enum("logfmt", "json")
-	f.account = app.Flag("collector.account", "Enable the account collector.").
-		Envar("COLLECTOR_ACCOUNT").Default("true").Bool()
-	f.accountInterval = app.Flag("collector.account.interval", "Refresh interval of the account collector.").
-		Envar("COLLECTOR_ACCOUNT_INTERVAL").Default("5m").Duration()
-	f.balance = app.Flag("collector.balance", "Enable the balance collector, which needs a billing-scoped token.").
-		Envar("COLLECTOR_BALANCE").Default("true").Bool()
-	f.balanceInterval = app.Flag("collector.balance.interval", "Refresh interval of the balance collector.").
-		Envar("COLLECTOR_BALANCE_INTERVAL").Default("5m").Duration()
-	f.registry = app.Flag("collector.registry", "Enable the container registry collector.").
-		Envar("COLLECTOR_REGISTRY").Default("true").Bool()
-	f.registryInterval = app.Flag("collector.registry.interval", "Refresh interval of the registry collector.").
-		Envar("COLLECTOR_REGISTRY_INTERVAL").Default("5m").Duration()
-	f.limits = app.Flag("collector.limits",
-		"Enable the limits collector, which counts droplets, reserved IPs and volumes.").
-		Envar("COLLECTOR_LIMITS").Default("true").Bool()
-	f.limitsInterval = app.Flag("collector.limits.interval", "Refresh interval of the limits collector.").
-		Envar("COLLECTOR_LIMITS_INTERVAL").Default("5m").Duration()
-	f.droplets = app.Flag("collector.droplets", "Enable the droplets collector.").
-		Envar("COLLECTOR_DROPLETS").Default("true").Bool()
-	f.dropletsInterval = app.Flag("collector.droplets.interval", "Refresh interval of the droplets collector.").
-		Envar("COLLECTOR_DROPLETS_INTERVAL").Default("5m").Duration()
-	f.databases = app.Flag("collector.databases", "Enable the managed databases collector.").
-		Envar("COLLECTOR_DATABASES").Default("true").Bool()
-	f.databasesInterval = app.Flag("collector.databases.interval", "Refresh interval of the databases collector.").
-		Envar("COLLECTOR_DATABASES_INTERVAL").Default("5m").Duration()
-	f.kubernetes = app.Flag("collector.kubernetes", "Enable the managed Kubernetes collector.").
-		Envar("COLLECTOR_KUBERNETES").Default("true").Bool()
-	f.kubernetesInterval = app.Flag("collector.kubernetes.interval",
-		"Refresh interval of the Kubernetes collector.").
-		Envar("COLLECTOR_KUBERNETES_INTERVAL").Default("5m").Duration()
-	bindInventory(app, f)
+	f.simple = bindSimple(app)
 	bindMonitoring(app, f)
 	bindSpaces(app, f)
 	return f
 }
 
-// bindInventory declares the flags of the collectors that read one list
-// endpoint each. They are grouped here to keep bind short enough to read.
-func bindInventory(app *kingpin.Application, f *flags) {
-	f.volumes = app.Flag("collector.volumes", "Enable the block storage volumes collector.").
-		Envar("COLLECTOR_VOLUMES").Default("true").Bool()
-	f.volumesInterval = app.Flag("collector.volumes.interval", "Refresh interval of the volumes collector.").
-		Envar("COLLECTOR_VOLUMES_INTERVAL").Default("5m").Duration()
-	f.loadBalancers = app.Flag("collector.loadbalancers", "Enable the load balancers collector.").
-		Envar("COLLECTOR_LOADBALANCERS").Default("true").Bool()
-	f.lbInterval = app.Flag("collector.loadbalancers.interval",
-		"Refresh interval of the load balancers collector.").
-		Envar("COLLECTOR_LOADBALANCERS_INTERVAL").Default("5m").Duration()
-	f.cdn = app.Flag("collector.cdn", "Enable the CDN endpoints collector.").
-		Envar("COLLECTOR_CDN").Default("true").Bool()
-	f.cdnInterval = app.Flag("collector.cdn.interval", "Refresh interval of the CDN collector.").
-		Envar("COLLECTOR_CDN_INTERVAL").Default("5m").Duration()
+// bindSimple declares the enable switch and the refresh interval of every
+// collector in simpleCollectors. The pair has the same shape for all of them,
+// so it is spelled out once here rather than thirteen times.
+//
+// The environment variable follows from the name: COLLECTOR_<NAME> and
+// COLLECTOR_<NAME>_INTERVAL, which is the convention every collector already
+// used.
+func bindSimple(app *kingpin.Application) map[string]*collectorFlags {
+	bound := make(map[string]*collectorFlags, len(simpleCollectors))
+	for _, c := range simpleCollectors {
+		envar := "COLLECTOR_" + strings.ToUpper(c.name)
+		bound[c.name] = &collectorFlags{
+			enabled: app.Flag("collector."+c.name, c.help).
+				Envar(envar).Default(strconv.FormatBool(c.enabled)).Bool(),
+			interval: app.Flag("collector."+c.name+".interval",
+				"Refresh interval of the "+c.name+" collector.").
+				Envar(envar + "_INTERVAL").Default("5m").Duration(),
+		}
+	}
+	return bound
 }
 
 // bindMonitoring declares the flags of the collectors that read the monitoring
@@ -315,40 +316,28 @@ func (f *flags) config() (*Config, error) {
 		return nil, err
 	}
 
+	collectors := make(map[string]CollectorConfig, len(f.simple)+3)
+	for name, bound := range f.simple {
+		collectors[name] = CollectorConfig{Enabled: *bound.enabled, Interval: *bound.interval}
+	}
+	collectors["dropletmetrics"] = CollectorConfig{
+		Enabled: *f.dropletMetrics, Interval: *f.dmInterval, Timeout: *f.dmTimeout,
+	}
+	collectors["loadbalancermetrics"] = CollectorConfig{
+		Enabled: *f.lbMetrics, Interval: *f.lbmInterval, Timeout: *f.lbmTimeout,
+	}
+	collectors["spaces"] = CollectorConfig{
+		Enabled: *f.spaces, Interval: *f.spacesInterval, Timeout: *f.spacesTimeout,
+	}
+
 	return &Config{
-		ListenAddress: *f.listen,
-		WebConfigFile: *f.webConfig,
-		Token:         token,
-		Timeout:       *f.timeout,
-		LogLevel:      *f.logLevel,
-		LogFormat:     *f.logFormat,
-		Collectors: map[string]CollectorConfig{
-			"account":       {Enabled: *f.account, Interval: *f.accountInterval},
-			"balance":       {Enabled: *f.balance, Interval: *f.balanceInterval},
-			"registry":      {Enabled: *f.registry, Interval: *f.registryInterval},
-			"limits":        {Enabled: *f.limits, Interval: *f.limitsInterval},
-			"droplets":      {Enabled: *f.droplets, Interval: *f.dropletsInterval},
-			"databases":     {Enabled: *f.databases, Interval: *f.databasesInterval},
-			"kubernetes":    {Enabled: *f.kubernetes, Interval: *f.kubernetesInterval},
-			"volumes":       {Enabled: *f.volumes, Interval: *f.volumesInterval},
-			"loadbalancers": {Enabled: *f.loadBalancers, Interval: *f.lbInterval},
-			"cdn":           {Enabled: *f.cdn, Interval: *f.cdnInterval},
-			"dropletmetrics": {
-				Enabled:  *f.dropletMetrics,
-				Interval: *f.dmInterval,
-				Timeout:  *f.dmTimeout,
-			},
-			"loadbalancermetrics": {
-				Enabled:  *f.lbMetrics,
-				Interval: *f.lbmInterval,
-				Timeout:  *f.lbmTimeout,
-			},
-			"spaces": {
-				Enabled:  *f.spaces,
-				Interval: *f.spacesInterval,
-				Timeout:  *f.spacesTimeout,
-			},
-		},
+		ListenAddress:                  *f.listen,
+		WebConfigFile:                  *f.webConfig,
+		Token:                          token,
+		Timeout:                        *f.timeout,
+		LogLevel:                       *f.logLevel,
+		LogFormat:                      *f.logFormat,
+		Collectors:                     collectors,
 		Spaces:                         spaces,
 		DropletMetricsConcurrency:      *f.dmConcurrency,
 		LoadBalancerMetricsConcurrency: *f.lbmConcurrency,

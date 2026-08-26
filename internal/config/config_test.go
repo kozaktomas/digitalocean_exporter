@@ -430,6 +430,65 @@ func TestCDNCollectorDefaultsOnAndCanBeDisabled(t *testing.T) {
 	}
 }
 
+func TestDomainsCollectorDefaultsOnAndCanBeDisabled(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	c, ok := cfg.Collectors["domains"]
+	if !ok {
+		t.Fatal("domains collector missing from config")
+	}
+	if !c.Enabled || c.Interval != 5*time.Minute {
+		t.Errorf("domains = %+v, want enabled with a 5m interval", c)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--no-collector.domains"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Collectors["domains"].Enabled {
+		t.Error("domains collector = enabled, want disabled")
+	}
+}
+
+// Firewalls and certificates cost one list request each, the same as the
+// inventory collectors that default on. They stay off because what they report
+// changes on human timescales, not because of what they cost.
+func TestSlowMovingCollectorsDefaultOffAndCanBeEnabled(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, name := range []string{"firewalls", "certificates"} {
+		c, ok := cfg.Collectors[name]
+		if !ok {
+			t.Fatalf("%s collector missing from config", name)
+		}
+		if c.Enabled {
+			t.Errorf("%s collector = enabled by default, want disabled", name)
+		}
+		if c.Interval != 5*time.Minute {
+			t.Errorf("%s interval = %v, want 5m", name, c.Interval)
+		}
+	}
+
+	cfg, err = config.Parse([]string{
+		"--do.token", "secret",
+		"--collector.firewalls", "--collector.firewalls.interval", "15m",
+		"--collector.certificates", "--collector.certificates.interval", "1h",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fw := cfg.Collectors["firewalls"]; !fw.Enabled || fw.Interval != 15*time.Minute {
+		t.Errorf("firewalls = %+v, want enabled with a 15m interval", fw)
+	}
+	if cert := cfg.Collectors["certificates"]; !cert.Enabled || cert.Interval != time.Hour {
+		t.Errorf("certificates = %+v, want enabled with a 1h interval", cert)
+	}
+}
+
 // The droplet metrics collector costs API requests in proportion to the size
 // of the account, so it must stay off until it is asked for.
 func TestDropletMetricsCollectorDefaultsOff(t *testing.T) {
