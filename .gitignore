@@ -3,7 +3,8 @@ dist/
 dist-chart/
 coverage.out
 
-# Built documentation site.
+# Documentation toolchain and the site it builds.
+.venv/
 site/
 *.deb
 *.tar.gz

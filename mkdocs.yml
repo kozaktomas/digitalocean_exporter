@@ -106,3 +106,4 @@ nav:
       - design/2026-08-24-spaces-collector.md
       - design/2026-08-25-documentation-site-and-chart-repository.md
       - design/2026-08-26-spaces-bucket-usage-headers.md
+      - design/2026-08-26-grafana-dashboards.md
