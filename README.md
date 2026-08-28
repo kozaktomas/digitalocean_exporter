@@ -53,16 +53,16 @@ collectors:
 Nine Grafana dashboards ship with it, covering every collector. Import the JSON from
 `charts/digitalocean-exporter/dashboards/`, or let the chart render them as ConfigMaps for
 the Grafana sidecar — see the
-[dashboards page](https://kozaktomas.github.io/digitalocean_exporter/dashboards/).
+[dashboards page](https://kozaktomas.github.io/digitalocean_exporter/latest/dashboards/).
 
 Twenty-one alerting rules ship alongside them, as a plain Prometheus rule file the chart can
 install as a `PrometheusRule` — see the
-[alerting page](https://kozaktomas.github.io/digitalocean_exporter/alerting/).
+[alerting page](https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/).
 
 ## Install
 
 Full instructions for each method are in the
-[documentation](https://kozaktomas.github.io/digitalocean_exporter/install/).
+[documentation](https://kozaktomas.github.io/digitalocean_exporter/latest/install/).
 
 ### Helm
 
@@ -99,7 +99,7 @@ sudo systemctl start digitalocean-exporter
 ## Configuration
 
 Every flag has an environment-variable equivalent, and flags win over the environment. The
-[full reference](https://kozaktomas.github.io/digitalocean_exporter/configuration/) lists
+[full reference](https://kozaktomas.github.io/digitalocean_exporter/latest/configuration/) lists
 all of them; `--help` prints the same list from the binary itself.
 
 ### Token
@@ -107,7 +107,7 @@ all of them; `--help` prints the same list from the binary itself.
 The exporter only ever reads, so a token with the single scope **`api:read`** — every read
 permission, no write permission — runs every collector. You can scope it more tightly and
 switch off the collectors you scoped it out of; see
-[token permissions](https://kozaktomas.github.io/digitalocean_exporter/configuration/permissions/).
+[token permissions](https://kozaktomas.github.io/digitalocean_exporter/latest/configuration/permissions/).
 
 The `spaces` collector is the exception: it uses a Spaces access key, which is an S3
 credential unrelated to the API token, and a Read-only limited key is enough.
@@ -147,7 +147,7 @@ make smoke        # end-to-end run against a stub API, no token needed
 make docs-serve   # the documentation site, locally
 ```
 
-See the [development guide](https://kozaktomas.github.io/digitalocean_exporter/development/)
+See the [development guide](https://kozaktomas.github.io/digitalocean_exporter/latest/development/)
 for the architecture, how to add a collector, and how a release is cut.
 
 ## Licence
