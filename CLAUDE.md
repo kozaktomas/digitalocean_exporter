@@ -119,9 +119,10 @@ keeps, and the branch push that follows becomes the harmless no-op instead.
     git push origin v0.3.0
     git push origin main
 
-This is enforced rather than merely written down: a push whose commit already carries a
-`vX.Y.Z` tag makes `pages.yml` stand down, leaving the publish to the release. Push the tag
-first and the guard does the rest. `pages.yml` then verifies after deploying that the site
+This is enforced rather than merely written down: a push to a *branch* whose commit already
+carries a `vX.Y.Z` tag makes `pages.yml` stand down, leaving the publish to the release —
+the release's own run of `pages.yml` arrives on the tag and publishes. Push the tag first
+and the guard does the rest. `pages.yml` then verifies after deploying that the site
 really serves the version it just published, so getting the order wrong fails the workflow
 instead of going green over an unchanged site.
 

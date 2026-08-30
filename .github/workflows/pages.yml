@@ -63,9 +63,18 @@ jobs:
   # touches charts/ and docs/, so this workflow fires twice for one SHA: once for the push
   # to main, once for the tag. Only one of them can publish, and it has to be the release.
   #
-  # So a push whose commit is already tagged stands down. With the tag pushed before the
-  # branch, as the release notes in CLAUDE.md say, that makes the release's deployment the
-  # one Pages keeps — without anyone having to remember why.
+  # So a push to a branch whose commit is already tagged stands down. With the tag pushed
+  # before the branch, as the release notes in CLAUDE.md say, that makes the release's
+  # deployment the one Pages keeps — without anyone having to remember why.
+  #
+  # Careful with the context here: a workflow reached through `workflow_call` inherits the
+  # *caller's* `github` context, it does not get one of its own. release.yml is triggered
+  # by a tag push, so in the release's run of this workflow `github.event_name` is `push`
+  # — never `workflow_call` — and the tag does point at HEAD. Deciding on `event_name`
+  # alone therefore stands the release itself down, which is the one run that must publish.
+  # `github.ref_type` is inherited the same way but tells the two apart: it is `tag` for
+  # the release and `branch` for a push to main, and this workflow's own `on: push` only
+  # ever fires for a branch.
   guard:
     name: Decide whether this run publishes
     runs-on: ubuntu-latest
@@ -77,9 +86,13 @@ jobs:
           fetch-depth: 0 # tags, which is what this job is here to look at
 
       - id: decide
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" != "push" ]; then
+          if [ "${EVENT_NAME}" != "push" ] || [ "${REF_TYPE}" != "branch" ]; then
+            echo "${EVENT_NAME} on a ${REF_TYPE}: not a branch push, so nothing to stand down for"
             echo "publish=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
