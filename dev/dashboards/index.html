@@ -1436,8 +1436,9 @@ Nothing about them is Helm-specific: the JSON imports into any Grafana.</p>
 </tbody>
 </table>
 <p>A dashboard whose collector is switched off shows empty panels rather than breaking, which is
-why all nine ship together. <code>billing</code>, <code>security</code> and parts of <code>droplets</code> and <code>loadbalancers</code>
-depend on collectors that are <a href="../configuration/collectors/">off by default</a>.</p>
+why all nine ship together. <code>security</code>, <code>spaces</code> and parts of <code>droplets</code> and <code>loadbalancers</code>
+depend on collectors that are <a href="../configuration/collectors/">off by default</a>; every other
+dashboard fills itself from the collectors an untouched install already runs.</p>
 <h2 id="importing-them-by-hand">Importing them by hand<a class="headerlink" href="#importing-them-by-hand" title="Permanent link">&para;</a></h2>
 <p>Download the JSON, then in Grafana pick <strong>Dashboards → New → Import</strong>, upload the file and
 choose your Prometheus datasource. Repeat per file, or point Grafana's
@@ -1482,7 +1483,8 @@ folder. If your sidecar watches a different label, <code>grafana.dashboards.labe
   with <code>All</code>. Every query filters on it, so two exporters scraped by one Prometheus — a
   personal account and a company one, say — stay apart.</li>
 </ul>
-<p><code>droplets</code>, <code>loadbalancers</code> and <code>spaces</code> add a third for the resource they break down by.</p>
+<p><code>droplets</code>, <code>kubernetes</code>, <code>loadbalancers</code> and <code>spaces</code> add a third for the resource they
+break down by.</p>
 <p>The dashboards are tagged <code>digitalocean</code> and each carries a links dropdown filtered to that
 tag, so they navigate between each other. A dashboard added to the folder with the same tag
 joins that dropdown by itself.</p>

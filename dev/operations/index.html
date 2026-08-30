@@ -1568,8 +1568,8 @@ panel from:</p>
 </tr>
 </tbody>
 </table>
-<p>The full list, with labels and suggested alerting rules, is in the
-<a href="../metrics/">metrics reference</a>.</p>
+<p>The full list, with labels, is in the <a href="../metrics/">metrics reference</a>; the rules written
+against them are in <a href="../alerting/">alerting</a>.</p>
 <h2 id="reading-a-failure-correctly">Reading a failure correctly<a class="headerlink" href="#reading-a-failure-correctly" title="Permanent link">&para;</a></h2>
 <p>Two states look similar on a dashboard and mean completely different things.</p>
 <p><strong>The exporter is up, one collector is failing.</strong> <code>up</code> is 1, that collector's
@@ -1630,16 +1630,20 @@ raising the rate limit into DigitalOcean's own.</p>
 bucket's name. Wrong region and a key that lost its grant are the usual causes; a refresh
 that hits <code>--collector.spaces.timeout</code> is the other. See <a href="../configuration/spaces/#tuning">Spaces</a>.</p>
 <h3 id="metrics-are-stale-but-everything-reports-success">Metrics are stale but everything reports success<a class="headerlink" href="#metrics-are-stale-but-everything-reports-success" title="Permanent link">&para;</a></h3>
-<p>Check the interval. A collector doing its job every 6 hours — which is the <code>spaces</code>
-default — is not stale at hour five. <code>time() - digitalocean_exporter_collector_last_success_timestamp_seconds</code>
-against that collector's configured interval is the honest comparison.</p>
+<p>Check the interval. Every collector defaults to <code>5m</code>, but one you deliberately slowed down
+— <code>dropletmetrics</code> at an hour on a large account, say — is not stale at minute fifty.
+<code>time() - digitalocean_exporter_collector_last_success_timestamp_seconds</code> against that
+collector's <strong>configured</strong> interval is the honest comparison; against a fixed number it is
+not.</p>
 <h2 id="alerting">Alerting<a class="headerlink" href="#alerting" title="Permanent link">&para;</a></h2>
-<p>Suggested rules, including thresholds, are kept next to the metrics they use in the
-<a href="../metrics/">metrics reference</a>. The three worth having on day one:</p>
+<p>Twenty-one rules ship with the exporter as a plain Prometheus rule file, which the chart can
+install as a <code>PrometheusRule</code>. <a href="../alerting/">Alerting</a> lists every one of them, what it fires
+on and what is deliberately left out. The three worth having on day one:</p>
 <ul>
-<li><code>digitalocean_exporter_collector_success == 0</code> for longer than a few refresh intervals.</li>
-<li><code>digitalocean_exporter_api_rate_limit_remaining &lt; 500</code>.</li>
-<li><code>digitalocean_volume_droplets == 0</code> — a volume billed while attached to nothing.</li>
+<li><code>DigitalOceanExporterCollectorFailing</code> — <code>digitalocean_exporter_collector_success == 0</code>.</li>
+<li><code>DigitalOceanExporterRateLimitLow</code> — <code>digitalocean_exporter_api_rate_limit_remaining &lt; 500</code>.</li>
+<li><code>DigitalOceanVolumeUnattached</code> — <code>digitalocean_volume_droplets == 0</code>, a volume billed while
+  attached to nothing.</li>
 </ul>
 
 

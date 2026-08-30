@@ -890,6 +890,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#alerting-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alerting rules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#values" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1360,6 +1371,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#alerting-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alerting rules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#values" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1438,11 +1460,21 @@ This section documents the chart itself.</p>
 <td><code>ServiceMonitor</code></td>
 <td>when <code>serviceMonitor.enabled</code> is true</td>
 </tr>
+<tr>
+<td><code>PrometheusRule</code></td>
+<td>when <code>prometheusRule.enabled</code> is true</td>
+</tr>
+<tr>
+<td><code>ConfigMap</code> (dashboards)</td>
+<td>when <code>grafana.dashboards.enabled</code> is true, one per bundled dashboard</td>
+</tr>
 </tbody>
 </table>
-<p>No PVC, no ConfigMap, no RBAC beyond the ServiceAccount. The exporter is stateless and
-talks only to the DigitalOcean API — it does not read the Kubernetes API, so it needs no
-cluster permissions at all.</p>
+<p>No PVC, no RBAC beyond the ServiceAccount, and no ConfigMap unless you ask for the
+dashboards. The exporter is stateless and talks only to the DigitalOcean API — it does not
+read the Kubernetes API, so it needs no cluster permissions at all.</p>
+<p>The two Prometheus Operator objects need their CRDs to exist in the cluster; both are off by
+default, so a cluster without the Operator renders the chart unchanged.</p>
 <h2 id="how-values-become-flags">How values become flags<a class="headerlink" href="#how-values-become-flags" title="Permanent link">&para;</a></h2>
 <p>The chart does not pass a config file; it renders command-line flags. <code>collectors.&lt;name&gt;.enabled</code>
 decides which form each switch takes:</p>
@@ -1479,6 +1511,12 @@ independently, so a second one doubles the API requests and reports the same acc
 <p>The chart can render the bundled Grafana dashboards as ConfigMaps for the Grafana sidecar to
 pick up, with <code>grafana.dashboards.enabled=true</code>. It is off by default. See
 <a href="../dashboards/">dashboards</a> for what ships and for the folder annotation.</p>
+<h2 id="alerting-rules">Alerting rules<a class="headerlink" href="#alerting-rules" title="Permanent link">&para;</a></h2>
+<p>The chart can also wrap the bundled Prometheus rule file in a <code>PrometheusRule</code>, with
+<code>prometheusRule.enabled=true</code>. It is off by default too — a chart that installs alerts
+nobody asked for is a chart that pages somebody at 3am — and <code>prometheusRule.labels</code> has to
+match whatever your Prometheus selects rules on. See <a href="../alerting/">alerting</a> for the
+twenty-one rules and for using the file without the Operator.</p>
 <h2 id="values">Values<a class="headerlink" href="#values" title="Permanent link">&para;</a></h2>
 <p>Every key, its type and its default: <a href="values/">values reference</a>.</p>
 

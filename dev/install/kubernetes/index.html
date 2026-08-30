@@ -1490,9 +1490,12 @@ ambiguous. The exporter holds one snapshot per collector in memory and does noth
 refreshes; one replica is enough for any account size.</p>
 <h2 id="upgrading">Upgrading<a class="headerlink" href="#upgrading" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>helm<span class="w"> </span>repo<span class="w"> </span>update
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>helm<span class="w"> </span>upgrade<span class="w"> </span>digitalocean-exporter<span class="w"> </span>digitalocean-exporter/digitalocean-exporter<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>--version<span class="w"> </span><span class="m">0</span>.2.0<span class="w"> </span>--namespace<span class="w"> </span>monitoring<span class="w"> </span>-f<span class="w"> </span>values.yaml
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>helm<span class="w"> </span>search<span class="w"> </span>repo<span class="w"> </span>digitalocean-exporter/digitalocean-exporter<span class="w"> </span>--versions
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>helm<span class="w"> </span>upgrade<span class="w"> </span>digitalocean-exporter<span class="w"> </span>digitalocean-exporter/digitalocean-exporter<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span>--version<span class="w"> </span><span class="m">0</span>.4.0<span class="w"> </span>--namespace<span class="w"> </span>monitoring<span class="w"> </span>-f<span class="w"> </span>values.yaml
 </code></pre></div>
+<p><code>helm search</code> after <code>helm repo update</code> is what tells you which versions exist; <code>0.4.0</code> here
+is only standing in for a version newer than the one installed above.</p>
 <p><code>image.tag</code> defaults to the chart's <code>appVersion</code>, so moving the chart version moves the
 exporter with it. Check the documentation for the version you are moving to — while the
 project is <code>0.x</code>, a minor bump may change metric names or values.</p>

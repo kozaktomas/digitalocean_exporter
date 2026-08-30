@@ -1438,6 +1438,10 @@ exporter against a stub API, so you do not need a DigitalOcean token to work on 
 <td>End-to-end run against a stub API, no token needed</td>
 </tr>
 <tr>
+<td><code>make alerts-lint</code></td>
+<td>Check the bundled alerting rules with promtool</td>
+</tr>
+<tr>
 <td><code>make chart-lint</code></td>
 <td><code>helm lint</code> and <code>helm template</code> the chart</td>
 </tr>
@@ -1498,8 +1502,8 @@ failure never reaches the scheduler. It must not cost the ones that succeeded.</
 <li>Implement the four methods, following the rules above.</li>
 <li>Add <code>--collector.&lt;name&gt;</code> and <code>--collector.&lt;name&gt;.interval</code> in <code>internal/config</code>.</li>
 <li>Register it in <code>cmd/digitalocean_exporter/main.go</code>. <code>Register</code> takes a per-collector
-   timeout; pass 0 unless the refresh is far slower than an API call, as listing a Spaces
-   bucket is.</li>
+   timeout; pass 0 — meaning <code>--do.timeout</code> — unless the refresh fans out over many
+   resources, as <code>spaces</code> and the two monitoring-API collectors do.</li>
 <li>Tests: drive <code>Refresh</code> against an <code>httptest</code> server and compare <code>Collect</code> against golden
    exposition text with <code>testutil.CollectAndCompare</code>. Cover the failure path.</li>
 <li>Add it to the chart: <code>values.yaml</code> — with a <code># --</code> comment, which is what generates the
@@ -1507,7 +1511,14 @@ failure never reaches the scheduler. It must not cost the ones that succeeded.</
    remembering the <code>--no-collector.&lt;name&gt;</code> branch.</li>
 <li>Document it: <code>docs/metrics.md</code> for the metrics, and
    <a href="../configuration/collectors/"><code>docs/configuration/collectors.md</code></a> for what it costs and
-   when to turn it off.</li>
+   when to turn it off. Every page has to be in the <code>nav</code> of <code>mkdocs.yml</code>.</li>
+<li>If a metric is worth watching, put it on a dashboard in
+   <code>charts/digitalocean-exporter/dashboards/</code> and add a row to
+   <a href="../dashboards/"><code>docs/dashboards.md</code></a> — a dashboard no page mentions ships invisibly, and
+   the test says so.</li>
+<li>If it is worth waking somebody, add a rule to
+   <code>charts/digitalocean-exporter/alerts/digitalocean.rules.yaml</code> and a row to
+   <a href="../alerting/"><code>docs/alerting.md</code></a>. <code>make alerts-lint</code> runs promtool over the file.</li>
 </ol>
 <h2 id="naming-traps">Naming traps<a class="headerlink" href="#naming-traps" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1538,12 +1549,20 @@ same thing on every pull request.</p>
 CI fails if the generated file is out of date.</p>
 <h2 id="releasing">Releasing<a class="headerlink" href="#releasing" title="Permanent link">&para;</a></h2>
 <p>Tag it. Everything else follows.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>tag<span class="w"> </span>v0.2.0
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v0.2.0
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>tag<span class="w"> </span>v0.3.0
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v0.3.0<span class="w">     </span><span class="c1"># the tag first</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>main<span class="w">       </span><span class="c1"># then the branch</span>
 </code></pre></div>
 <p>That runs goreleaser (binaries, tarballs, deb packages, GitHub Release), packages the chart
 at the same version and attaches it to the release, then publishes the documentation for
-<code>0.2</code> and repoints <code>latest</code> at it and regenerates the chart repository index.</p>
+<code>0.3</code> and repoints <code>latest</code> at it and regenerates the chart repository index.</p>
+<p><strong>Push the tag before the branch.</strong> Pages identifies a deployment by commit SHA and keeps the
+first one it saw, and a release tags the commit that bumps the chart version — so a branch
+push that goes first would publish <code>dev</code> from that SHA and leave the release's own deployment
+reporting success over an unchanged site. The workflow enforces the order rather than
+trusting it: a push to a branch whose commit already carries a <code>vX.Y.Z</code> tag stands down and
+leaves the publishing to the release. The tag must be plain <code>vMAJOR.MINOR.PATCH</code>; anything
+else is rejected.</p>
 <p>Semantic versioning, with one number for everything: exporter, chart, <code>appVersion</code> and the
 documentation directory. While the project is <code>0.x</code>, a minor bump is allowed to break
 compatibility.</p>

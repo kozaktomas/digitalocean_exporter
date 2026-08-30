@@ -1747,10 +1747,13 @@ gives a Deployment called <code>digitalocean-exporter</code>, not
 <code>digitalocean-exporter-digitalocean-exporter</code>. Setting <code>fullnameOverride</code> on a release that
 already exists renames every object in it, which for Helm means creating the new ones and
 deleting the old.</p>
-<p><strong><code>collectors.*.interval</code></strong> spends from a budget of 5000 API requests an hour. For the ten
-collectors that are on by default the total is a few per cent at <code>5m</code>; for <code>spaces</code>,
-<code>dropletmetrics</code> and <code>loadbalancermetrics</code> it is not, which is why they are off. See
-<a href="../../configuration/monitoring-api/">the monitoring API</a>.</p>
+<p><strong><code>collectors.*.interval</code></strong> spends from a budget of 5000 API requests an hour. For the eleven
+collectors that are on by default the total is a few per cent at <code>5m</code>; for <code>dropletmetrics</code>
+and <code>loadbalancermetrics</code> it is not, which is why those two are off. See
+<a href="../../configuration/monitoring-api/">the monitoring API</a>. <code>spaces</code> is off for a different
+reason — it needs a Spaces key pair rather than the API token — and <code>firewalls</code> and
+<code>certificates</code> because most accounts have no reason to watch them, not because of what they
+cost.</p>
 <p><strong><code>serviceMonitor.labels</code></strong> must match your Prometheus' <code>serviceMonitorSelector</code>, or the
 ServiceMonitor is created and quietly ignored. For <code>kube-prometheus-stack</code> that is usually
 <code>release: &lt;release name&gt;</code>.</p>

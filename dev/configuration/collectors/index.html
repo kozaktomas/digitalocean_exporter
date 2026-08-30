@@ -1552,12 +1552,13 @@
 <h1 id="collectors">Collectors<a class="headerlink" href="#collectors" title="Permanent link">&para;</a></h1>
 <p>One page per question you might have about a collector: what it reports, what it costs, and
 when to turn it off. The metric names themselves are in the <a href="../../metrics/">metrics reference</a>.</p>
-<p>Eleven collectors are on by default. They are on because each costs one or two API requests
-per refresh, which is negligible against the limit of 5000 an hour.</p>
+<p>Eleven collectors are on by default. They are on because each costs one to three API
+requests per refresh, which is negligible against the limit of 5000 an hour.</p>
 <p>Five are off. Three of them — <a href="../spaces/"><code>spaces</code></a>,
 <a href="../monitoring-api/#dropletmetrics"><code>dropletmetrics</code></a> and
 <a href="../monitoring-api/#loadbalancermetrics"><code>loadbalancermetrics</code></a> — have pages of their own,
-because deciding to enable them means doing arithmetic first. The other two,
+because enabling them takes more than flipping a switch: arithmetic for the two
+monitoring-API collectors, a second credential for <code>spaces</code>. The other two,
 <a href="#firewalls"><code>firewalls</code></a> and <a href="#certificates"><code>certificates</code></a>, cost no more than the
 collectors that default on; they are off because what they report changes when somebody
 deploys or renews something, not continuously, so most accounts have no use for them.</p>
@@ -1621,7 +1622,9 @@ as having three nodes while the cluster sees two is a real incident.</p>
 <a href="#account"><code>account</code></a> reports.</p>
 <p>The alert this exists for is "you are at 90% of your droplet limit", which you want to know
 before an autoscaler discovers it.</p>
-<p><strong>Cost:</strong> shares the droplet listing where it can; one to three requests per refresh.</p>
+<p><strong>Cost:</strong> three requests per refresh, one for each of the three resources. Every one asks
+for a single item and takes its figure from <code>meta.total</code>, so nothing more than a count
+travels.</p>
 <hr />
 <h2 id="registry">registry<a class="headerlink" href="#registry" title="Permanent link">&para;</a></h2>
 <p>Container Registry storage usage, subscription tier and the repositories in it.</p>
@@ -1630,7 +1633,8 @@ keeps <code>collector_success 1</code>, so it is safe to leave enabled everywher
 accounts that will never have one.</p>
 <p>Storage usage is the number to alert on: registry tiers have hard storage ceilings, and
 pushing past one fails a deploy at the worst moment.</p>
-<p><strong>Cost:</strong> one request for the registry, plus one for its repositories.</p>
+<p><strong>Cost:</strong> three requests per refresh — the registry, its subscription tier and its
+repositories.</p>
 <hr />
 <h2 id="volumes">volumes<a class="headerlink" href="#volumes" title="Permanent link">&para;</a></h2>
 <p>Every block storage volume: size, region, and how many droplets it is attached to.</p>

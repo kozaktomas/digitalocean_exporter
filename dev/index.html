@@ -1497,11 +1497,12 @@ snapshot.</p>
 </tr>
 </tbody>
 </table>
-<p>Three of the five that are off cost far more API requests than the others, or take far
-longer; the pages linked above do the arithmetic. <code>firewalls</code> and <code>certificates</code> are the
-exception — they cost one request each, the same as the collectors that default on, and are
-off only because a ruleset or a certificate changes on human timescales rather than
-continuously.</p>
+<p>The five that are off are off for three different reasons. <code>dropletmetrics</code> and
+<code>loadbalancermetrics</code> cost far more API requests than the rest — the page linked above does
+the arithmetic. <code>spaces</code> costs one request per bucket, but it needs a Spaces key pair, which
+is a separate credential from the API token. <code>firewalls</code> and <code>certificates</code> cost one request
+each, the same as the collectors that default on, and are off only because a ruleset or a
+certificate changes on human timescales rather than continuously.</p>
 <p>A token scoped <code>api:read</code> runs all of them and can change nothing;
 <a href="configuration/permissions/">token permissions</a> covers scoping it more tightly.</p>
 <h2 id="versioning">Versioning<a class="headerlink" href="#versioning" title="Permanent link">&para;</a></h2>

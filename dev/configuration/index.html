@@ -1523,9 +1523,10 @@ the environment.</strong> <code>--help</code> prints the same list the binary ac
 authority if this page ever falls behind, and <code>--version</code> reports which build you are
 holding:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">$ </span>digitalocean_exporter<span class="w"> </span>--version
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="go">digitalocean_exporter, version 0.1.0 (commit e67249b, go1.26.1)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="go">digitalocean_exporter, version 0.3.0 (commit 57f5e48, go1.26.1)</span>
 </code></pre></div>
-<p>Both print and exit 0 without needing a token.</p>
+<p>The version, commit and Go version are whatever your build was stamped with; the line above
+is one release's, not a fixed string. Both flags print and exit 0 without needing a token.</p>
 <h2 id="credentials">Credentials<a class="headerlink" href="#credentials" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>digitalocean_exporter<span class="w"> </span>--do.token-file<span class="o">=</span>/etc/digitalocean-exporter/token
 </code></pre></div>
@@ -1602,8 +1603,9 @@ budget</strong>, and 15 in a burst, 6% of the per-minute one. Comfortable, and i
 much you own rather than with how often Prometheus scrapes.</p>
 <p>Enabling <a href="collectors/#firewalls"><code>firewalls</code></a> and
 <a href="collectors/#certificates"><code>certificates</code></a> adds one request each, so the same account costs
-17. The other three that are off by default are off because they are not like that; see
-<a href="spaces/">Spaces</a> and <a href="monitoring-api/">the monitoring API</a>.</p>
+17. The other three are off for reasons of their own: <a href="spaces/"><code>spaces</code></a> needs a second
+credential, and the two <a href="monitoring-api/">monitoring API</a> collectors cost a multiple of
+everything above.</p>
 <div class="admonition note">
 <p class="admonition-title">One endpoint has a stricter limit of its own</p>
 <p>CDN endpoints allow only <strong>5 requests per 10 seconds</strong>, independently of the two limits
