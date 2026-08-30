@@ -1448,6 +1448,8 @@ names. Both spellings are correct, in their own place.</p>
 </code></pre></div>
 <p>The package creates a dedicated unprivileged system user, <code>digitalocean-exporter</code>, enables
 the unit, and does <strong>not</strong> start it — there is no token yet at that point.</p>
+<p>The shipped env file lists every collector switch, with the ones that are off by default
+commented out, so configuring it is mostly a matter of deleting <code>#</code>.</p>
 <h2 id="what-it-puts-where">What it puts where<a class="headerlink" href="#what-it-puts-where" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1511,12 +1513,18 @@ a credential-holding daemon exposed on a port is not much of a risk.</p>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>digitalocean-exporter<span class="w"> </span>-f
 </code></pre></div>
 <h2 id="upgrading-and-removing">Upgrading and removing<a class="headerlink" href="#upgrading-and-removing" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>sudo<span class="w"> </span>dpkg<span class="w"> </span>-i<span class="w"> </span>digitalocean-exporter_0.2.0_linux_arm64.deb<span class="w">   </span><span class="c1"># keeps the env file</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>digitalocean-exporter
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>sudo<span class="w"> </span>dpkg<span class="w"> </span>-i<span class="w"> </span>digitalocean-exporter_0.3.0_linux_arm64.deb<span class="w">   </span><span class="c1"># keeps the env file</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>sudo<span class="w"> </span>apt<span class="w"> </span>remove<span class="w"> </span>digitalocean-exporter<span class="w">    </span><span class="c1"># leaves /etc/digitalocean-exporter</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>sudo<span class="w"> </span>apt<span class="w"> </span>purge<span class="w"> </span>digitalocean-exporter<span class="w">     </span><span class="c1"># removes it, and the system user</span>
+<p>An upgrade leaves the service alone in the sense that matters: if it was running it is
+restarted onto the new binary, and if it was stopped it stays stopped. There is nothing to
+do by hand.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>sudo<span class="w"> </span>apt<span class="w"> </span>remove<span class="w"> </span>digitalocean-exporter<span class="w">    </span><span class="c1"># stops and disables it, keeps /etc/digitalocean-exporter</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>sudo<span class="w"> </span>apt<span class="w"> </span>purge<span class="w"> </span>digitalocean-exporter<span class="w">     </span><span class="c1"># also removes /etc/digitalocean-exporter</span>
 </code></pre></div>
+<p>The <code>digitalocean-exporter</code> system user survives a purge. It may still own files the
+package never installed — a token file you put next to the env file, for instance — and
+handing a stale uid back to the next package that asks for one is worse than leaving an
+unused account behind.</p>
 
 
 
