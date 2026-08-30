@@ -1660,7 +1660,7 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>service.port</td>
 <td>int</td>
 <td><code>9212</code></td>
-<td>Port the service exposes. The container always listens on 9212.</td>
+<td>Port the service exposes, and the port the container listens on: the chart renders this value into <code>--web.listen-address</code> as well as into <code>containerPort</code>.</td>
 </tr>
 <tr>
 <td>service.type</td>

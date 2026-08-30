@@ -1466,7 +1466,11 @@ partly to keep you out of it.</p>
 <p>The pod runs as UID 65532, non-root, with <code>seccompProfile: RuntimeDefault</code>. The token is
 mounted at <code>/etc/digitalocean-exporter/token</code> and passed with <code>--do.token-file</code>, never as
 an environment variable — so it does not appear in <code>kubectl describe pod</code>, in the container's
-environment, or in anything that dumps <code>/proc/*/environ</code>.</p>
+environment, or in anything that dumps <code>/proc/*/environ</code>. The Spaces key pair, when the
+spaces collector is on, mounts the same way at <code>/etc/digitalocean-exporter-spaces/</code>.</p>
+<p>The pod also sets <code>automountServiceAccountToken: false</code>. The exporter never calls the
+Kubernetes API, so a token for it would be one more credential sitting in the container
+for nothing.</p>
 <p>See <a href="secrets/">secrets</a> for the two ways to supply it.</p>
 <h2 id="one-replica">One replica<a class="headerlink" href="#one-replica" title="Permanent link">&para;</a></h2>
 <p>Do not raise <code>replicaCount</code> — there is deliberately no such value. Each replica refreshes
