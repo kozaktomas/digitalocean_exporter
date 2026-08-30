@@ -147,11 +147,13 @@ arranged this way.
 
 ## Working rules
 
-- `make check` (gofmt, go vet, golangci-lint, tests, race detector) must pass before every
+- `make check` (`gofmt -l`, go vet, golangci-lint, tests, race detector) must pass before every
   commit. Touching the chart also means `make chart-docs`; touching `docs/` means
   `make docs`. The lint configuration is strict on purpose; do not soften it. The race detector
   is part of the gate because CI runs it and a collector that fans out over buckets can
-  race in its own test stub, which the plain test run will not notice.
+  race in its own test stub, which the plain test run will not notice. The gate only reports
+  formatting (`make fmt-check`) and never rewrites; `make fmt` is the one that formats in
+  place, for local work.
 - `make smoke` runs the exporter end to end against a stub API and needs no token.
 - **Commit and push straight to `main`.** The project is in its development phase: no feature
   branches, no pull requests. `make check` still has to pass first.

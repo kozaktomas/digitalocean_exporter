@@ -34,11 +34,11 @@ jobs:
             | sh -s -- -b "$(go env GOPATH)/bin" "${GOLANGCI_LINT_VERSION}"
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
+      # `make check` is gofmt (reporting, never rewriting), go vet, golangci-lint,
+      # the tests and then the race detector. The race detector is the slowest part
+      # of the gate, so it gets exactly one step here and no separate run.
       - name: Quality gate
         run: make check
-
-      - name: Tests under the race detector
-        run: make test-race
 
       - name: Smoke test
         run: make smoke

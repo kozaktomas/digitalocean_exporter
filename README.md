@@ -142,7 +142,7 @@ compatibility, so pin an exact version.
 ## Development
 
 ```bash
-make check        # gofmt, go vet, golangci-lint, tests, race detector
+make check        # gofmt -l, go vet, golangci-lint, tests, race detector
 make smoke        # end-to-end run against a stub API, no token needed
 make docs-serve   # the documentation site, locally
 ```

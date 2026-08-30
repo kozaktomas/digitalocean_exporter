@@ -14,7 +14,9 @@ exporter against a stub API, so you do not need a DigitalOcean token to work on 
 | Target | What it does |
 |---|---|
 | `make build` | Compile the binary, stamping version and commit |
-| `make check` | The quality gate: gofmt, go vet, golangci-lint, tests, race detector |
+| `make check` | The quality gate: `fmt-check`, go vet, golangci-lint, tests, race detector |
+| `make fmt` | Format the Go sources in place |
+| `make fmt-check` | List the unformatted files and fail, changing nothing |
 | `make test` | Tests with coverage |
 | `make test-race` | Tests under the race detector |
 | `make smoke` | End-to-end run against a stub API, no token needed |
@@ -28,7 +30,12 @@ exporter against a stub API, so you do not need a DigitalOcean token to work on 
 **`make check` must pass before every commit.** The lint configuration is strict on
 purpose. The race detector is part of the gate because CI runs it, and a collector that fans
 out over buckets or droplets can race in its own test stub in a way the plain test run does
-not notice.
+not notice. CI runs it exactly once: `make check` ends with it, so there is no separate step.
+
+The gate checks the formatting with `gofmt -l` and refuses to touch the tree — `gofmt -w`
+would quietly reformat the workspace in CI, leaving every later step to see clean files and
+the job to pass over code that was never formatted in the repository. `make fmt` is the one
+that rewrites, and it is for local work.
 
 ## The one architectural rule
 

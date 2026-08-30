@@ -5,7 +5,8 @@ name: Docker Build & Publish
 #   push of a vX.Y.Z tag -> semver tags
 # The publication gate is deliberately duplicated here rather than inherited
 # from ci.yml: an image must never ship from a direct push to main that
-# bypassed CI.
+# bypassed CI. It is one `make check` and nothing else, so this run does not
+# repeat the tests or the race detector it has already carried out.
 
 on:
   push:
@@ -36,6 +37,7 @@ jobs:
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
             | sh -s -- -b "$(go env GOPATH)/bin" "${GOLANGCI_LINT_VERSION}"
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      # The whole gate, race detector included, in a single step.
       - name: Quality gate
         run: make check
 

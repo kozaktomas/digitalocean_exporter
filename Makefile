@@ -4,7 +4,7 @@ VERSION     ?= dev
 COMMIT      ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 LDFLAGS     := -s -w -X $(PKG)/internal/version.Version=$(VERSION) -X $(PKG)/internal/version.Commit=$(COMMIT)
 
-.PHONY: build run fmt vet lint test test-race check smoke docker snapshot alerts-lint chart-lint chart-docs docs docs-serve clean
+.PHONY: build run fmt fmt-check vet lint test test-race check smoke docker snapshot alerts-lint chart-lint chart-docs docs docs-serve clean
 
 ## build: Compile the exporter binary.
 build:
@@ -14,9 +14,21 @@ build:
 run: build
 	./$(APP_NAME)
 
-## fmt: Format all Go source files.
+## fmt: Format all Go source files in place.
 fmt:
 	gofmt -w .
+
+## fmt-check: Report unformatted Go source files and fail, changing nothing.
+fmt-check:
+# The gate must not rewrite the tree: `gofmt -w` in CI formats the workspace, every
+# later step then sees clean files, and the job goes green over code that was never
+# formatted in the repository. `gofmt -l` only reports, so the failure is visible.
+	@unformatted=$$(gofmt -l .); \
+	if [ -n "$$unformatted" ]; then \
+		echo "not gofmt-formatted (run 'make fmt'):" >&2; \
+		echo "$$unformatted" >&2; \
+		exit 1; \
+	fi
 
 ## vet: Run go vet on all packages.
 vet:
@@ -35,8 +47,8 @@ test:
 test-race:
 	CGO_ENABLED=1 go test -race ./...
 
-## check: The full quality gate: fmt, vet, lint, test, race detector.
-check: fmt vet lint test test-race
+## check: The full quality gate: formatting, vet, lint, test, race detector.
+check: fmt-check vet lint test test-race
 
 ## smoke: Run the end-to-end smoke test against a locally built binary.
 smoke: build
