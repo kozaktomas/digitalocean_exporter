@@ -1573,6 +1573,12 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>DigitalOcean API token. The chart puts it in a Secret it owns and mounts it into the pod as a file, never as an environment variable, so it cannot leak through <code>kubectl describe pod</code>. Mutually exclusive with <code>existingSecret</code>.</td>
 </tr>
 <tr>
+<td>extraArgs</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Extra command-line flags for the exporter, appended after the ones the chart renders. This is for a flag that has no value of its own here yet, such as <code>--do.timeout=20s</code>. It cannot override one the chart already renders: the flag parser rejects a repeated flag and the container then crash-loops.</td>
+</tr>
+<tr>
 <td>fullnameOverride</td>
 <td>string</td>
 <td><code>""</code></td>
@@ -1621,6 +1627,12 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>Image tag. Empty means the chart's appVersion, which is the exporter release this chart version was published with. Set it only to pin something else.</td>
 </tr>
 <tr>
+<td>imagePullSecrets</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Secrets granting the node access to the image registry, as <code>[{name: my-pull-secret}]</code>. Only needed when <code>image.repository</code> has been repointed at a private mirror; the public GHCR image needs none.</td>
+</tr>
+<tr>
 <td>log.format</td>
 <td>string</td>
 <td><code>"logfmt"</code></td>
@@ -1643,6 +1655,18 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>object</td>
 <td><code>{}</code></td>
 <td>Node selector for the pod.</td>
+</tr>
+<tr>
+<td>podAnnotations</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Extra annotations for the pod. The chart already sets a checksum of the Secret here, and merges these on top of it.</td>
+</tr>
+<tr>
+<td>priorityClassName</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>PriorityClass for the pod. An exporter is worth less than what it watches, so a cluster with priority classes usually wants a low one here rather than the default.</td>
 </tr>
 <tr>
 <td>prometheusRule.enabled</td>
@@ -1763,6 +1787,15 @@ grows is the number of series, which is bounded by how many resources you own.</
 <p><strong><code>digitalocean.token</code> versus <code>digitalocean.existingSecret</code></strong> — the two are mutually
 exclusive, and the second is the one you want outside a test cluster.
 <a href="../secrets/">Secrets</a> covers both.</p>
+<p><strong><code>extraArgs</code></strong> is appended after every flag the chart renders, for a flag the chart has no
+value of its own for. It cannot override one it does render: the exporter's flag parser
+rejects a flag given twice rather than taking the later one, so the container would
+crash-loop. A collector is switched off with <code>collectors.&lt;name&gt;.enabled: false</code>, which
+renders <code>--no-collector.&lt;name&gt;</code>, and never through this list.</p>
+<p><strong><code>imagePullSecrets</code>, <code>podAnnotations</code> and <code>priorityClassName</code></strong> are the escape hatches for
+what a cluster imposes rather than what the exporter needs: a private mirror of the image, a
+pod annotation something else in the cluster reads, and a priority low enough that the
+exporter is evicted before what it watches. All three render nothing when unset.</p>
 
 
 

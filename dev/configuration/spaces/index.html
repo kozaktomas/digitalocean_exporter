@@ -1538,6 +1538,9 @@ at a Secret holding both — see <a href="../../helm/secrets/">secrets</a>.</p>
 <code>name@region</code>. A bucket without a region falls back to <code>--spaces.region</code>. This works with a
 limited-access key, and it is what you want in production: you measure the buckets you care
 about and nothing else.</p>
+<p>A bucket is identified by its name <em>and</em> its region, here and in the metrics, because a
+Spaces name is only unique within a region. Naming <code>backups@fra1</code> and <code>backups@ams3</code>
+measures two buckets and reports two series, one per region label.</p>
 <p><strong>Discovery</strong> — pass no buckets and the collector lists them itself, then locates each one.
 Listing all buckets is a full-access capability, so this needs a <strong>full-access</strong> key; a
 limited key is told to name its buckets instead. Convenient for a first look, more
