@@ -186,7 +186,8 @@ log:
 service:
   # -- Service type.
   type: ClusterIP
-  # -- Port the service exposes. The container always listens on 9212.
+  # -- Port the service exposes, and the port the container listens on: the chart
+  # renders this value into `--web.listen-address` as well as into `containerPort`.
   port: 9212
 
 serviceMonitor:

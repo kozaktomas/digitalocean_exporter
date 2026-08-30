@@ -11,10 +11,22 @@ spec:
       {{- include "digitalocean-exporter.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      annotations:
+        {{- /*
+        The exporter reads its credentials once, at startup. Without a checksum of
+        the Secret in the pod template, a `helm upgrade` that rotates the token
+        would update the Secret and leave the pod running with the old one.
+        */}}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
       labels:
         {{- include "digitalocean-exporter.labels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "digitalocean-exporter.fullname" . }}
+      {{- /*
+      The exporter talks only to the DigitalOcean API. A token for the Kubernetes
+      API is one more credential in the container for no reason.
+      */}}
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
@@ -100,8 +112,8 @@ spec:
             {{- range .Values.collectors.spaces.buckets }}
             - --collector.spaces.bucket={{ . }}
             {{- end }}
-            - --spaces.access-key-file=/etc/digitalocean-exporter/spaces/access-key
-            - --spaces.secret-key-file=/etc/digitalocean-exporter/spaces/secret-key
+            - --spaces.access-key-file=/etc/digitalocean-exporter-spaces/access-key
+            - --spaces.secret-key-file=/etc/digitalocean-exporter-spaces/secret-key
             {{- else }}
             - --no-collector.spaces
             {{- end }}
@@ -162,8 +174,13 @@ spec:
               mountPath: /etc/digitalocean-exporter
               readOnly: true
             {{- if .Values.collectors.spaces.enabled }}
+            {{- /*
+            A sibling of the token mount, not a directory inside it: kubelet
+            manages a secret volume's contents with atomic symlink swaps, and a
+            second mount point nested in one is needlessly fragile.
+            */}}
             - name: spaces
-              mountPath: /etc/digitalocean-exporter/spaces
+              mountPath: /etc/digitalocean-exporter-spaces
               readOnly: true
             {{- end }}
       volumes:

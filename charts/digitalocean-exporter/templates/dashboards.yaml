@@ -1,11 +1,19 @@
 {{- if .Values.grafana.dashboards.enabled }}
+{{- $fullname := include "digitalocean-exporter.fullname" . }}
 {{- range $path, $_ := .Files.Glob "dashboards/*.json" }}
 {{- $name := base $path | trimSuffix ".json" }}
+{{- $suffix := printf "-dashboard-%s" $name }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ printf "%s-dashboard-%s" (include "digitalocean-exporter.fullname" $) $name | trunc 63 | trimSuffix "-" }}
+  {{- /*
+  Truncating the assembled name to 63 characters would eat into the dashboard
+  name, which is the only part that differs: a 51-character release name left
+  "security", "spaces" and "storage" sharing one ConfigMap. The release part is
+  what every dashboard has in common, so that is the part that gives way.
+  */}}
+  name: {{ printf "%s%s" (trunc (int (sub 63 (len $suffix))) $fullname | trimSuffix "-") $suffix }}
   labels:
     {{- include "digitalocean-exporter.labels" $ | nindent 4 }}
     {{ $.Values.grafana.dashboards.label }}: {{ $.Values.grafana.dashboards.labelValue | quote }}

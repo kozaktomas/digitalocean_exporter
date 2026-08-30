@@ -80,7 +80,7 @@ helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
 | prometheusRule.enabled | bool | `false` | Create a Prometheus Operator PrometheusRule holding the bundled alerting rules. Requires the CRD to exist in the cluster. Off by default, like the ServiceMonitor: a chart that installs alerts nobody asked for is a chart that pages somebody at 3am. |
 | prometheusRule.labels | object | `{}` | Extra labels for the PrometheusRule, for whatever your Prometheus selects rules on. For kube-prometheus-stack that is usually `release: <release name>`. |
 | resources | object | `{"limits":{"memory":"128Mi"},"requests":{"cpu":"10m","memory":"32Mi"}}` | Container resources. The exporter holds one snapshot per collector in memory and does nothing between refreshes. |
-| service.port | int | `9212` | Port the service exposes. The container always listens on 9212. |
+| service.port | int | `9212` | Port the service exposes, and the port the container listens on: the chart renders this value into `--web.listen-address` as well as into `containerPort`. |
 | service.type | string | `"ClusterIP"` | Service type. |
 | serviceMonitor.enabled | bool | `false` | Create a Prometheus Operator ServiceMonitor. Requires the CRD to exist in the cluster. |
 | serviceMonitor.interval | string | `"60s"` | Scrape interval. Collectors refresh in the background, so this is independent of how often the DigitalOcean API is called. |

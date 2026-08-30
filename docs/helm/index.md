@@ -62,7 +62,12 @@ collectors:
 The pod runs as UID 65532, non-root, with `seccompProfile: RuntimeDefault`. The token is
 mounted at `/etc/digitalocean-exporter/token` and passed with `--do.token-file`, never as
 an environment variable — so it does not appear in `kubectl describe pod`, in the container's
-environment, or in anything that dumps `/proc/*/environ`.
+environment, or in anything that dumps `/proc/*/environ`. The Spaces key pair, when the
+spaces collector is on, mounts the same way at `/etc/digitalocean-exporter-spaces/`.
+
+The pod also sets `automountServiceAccountToken: false`. The exporter never calls the
+Kubernetes API, so a token for it would be one more credential sitting in the container
+for nothing.
 
 See [secrets](secrets.md) for the two ways to supply it.
 

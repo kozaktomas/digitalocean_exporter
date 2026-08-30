@@ -115,13 +115,24 @@ collectors:
 
 ## Rotating a credential
 
-With an existing Secret, update the Secret and restart the pod — the chart is not involved:
+The exporter reads its credentials once, at startup. A rotated Secret therefore takes
+effect only when the pod restarts, and how that restart happens depends on who owns the
+Secret.
+
+With a **Secret the chart created**, change the value and run `helm upgrade`. The pod
+template carries a `checksum/secret` annotation over the rendered Secret, so a changed
+token changes the annotation, which rolls the Deployment by itself:
+
+```bash
+helm upgrade digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
+  --namespace monitoring --reuse-values --set digitalocean.token=dop_v1_new...
+```
+
+With an **existing Secret**, the chart cannot see the value and the annotation does not
+move, so restart the pod yourself:
 
 ```bash
 kubectl create secret generic digitalocean-token --namespace monitoring \
   --from-literal=token=dop_v1_new... --dry-run=client -o yaml | kubectl apply -f -
 kubectl rollout restart deployment/digitalocean-exporter --namespace monitoring
 ```
-
-The token is read at startup, so a rotated Secret does not take effect until the pod
-restarts.

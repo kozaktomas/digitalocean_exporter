@@ -65,6 +65,8 @@ chart-lint:
 		--set grafana.dashboards.enabled=true --set grafana.dashboards.folder=DigitalOcean >/dev/null
 	helm template charts/digitalocean-exporter --set digitalocean.token=dummy \
 		--set prometheusRule.enabled=true >/dev/null
+# Name collisions and an unstable pod-template checksum both render without error.
+	./scripts/chart-invariants.sh
 
 ## chart-docs: Regenerate the chart README from the comments in values.yaml.
 chart-docs:
