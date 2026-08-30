@@ -1415,7 +1415,15 @@ exporter against a stub API, so you do not need a DigitalOcean token to work on 
 </tr>
 <tr>
 <td><code>make check</code></td>
-<td>The quality gate: gofmt, go vet, golangci-lint, tests, race detector</td>
+<td>The quality gate: <code>fmt-check</code>, go vet, golangci-lint, tests, race detector</td>
+</tr>
+<tr>
+<td><code>make fmt</code></td>
+<td>Format the Go sources in place</td>
+</tr>
+<tr>
+<td><code>make fmt-check</code></td>
+<td>List the unformatted files and fail, changing nothing</td>
 </tr>
 <tr>
 <td><code>make test</code></td>
@@ -1458,7 +1466,11 @@ exporter against a stub API, so you do not need a DigitalOcean token to work on 
 <p><strong><code>make check</code> must pass before every commit.</strong> The lint configuration is strict on
 purpose. The race detector is part of the gate because CI runs it, and a collector that fans
 out over buckets or droplets can race in its own test stub in a way the plain test run does
-not notice.</p>
+not notice. CI runs it exactly once: <code>make check</code> ends with it, so there is no separate step.</p>
+<p>The gate checks the formatting with <code>gofmt -l</code> and refuses to touch the tree — <code>gofmt -w</code>
+would quietly reformat the workspace in CI, leaving every later step to see clean files and
+the job to pass over code that was never formatted in the repository. <code>make fmt</code> is the one
+that rewrites, and it is for local work.</p>
 <h2 id="the-one-architectural-rule">The one architectural rule<a class="headerlink" href="#the-one-architectural-rule" title="Permanent link">&para;</a></h2>
 <p><strong>Refreshing is separate from scraping.</strong> Every collector implements
 <code>internal/collector.Collector</code>:</p>
