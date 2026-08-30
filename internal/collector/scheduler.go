@@ -9,6 +9,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// defaultInterval is what a collector registered with a non-positive interval
+// falls back to. It matches the default of every --collector.<name>.interval
+// flag, so the fallback behaves like an unconfigured collector.
+const defaultInterval = 5 * time.Minute
+
 // Scheduler refreshes each registered collector on its own interval and
 // exposes them, plus the exporter's own health metrics, to Prometheus.
 type Scheduler struct {
@@ -56,9 +61,20 @@ func NewScheduler(timeout time.Duration, logger *slog.Logger, reg prometheus.Reg
 // refresh by timeout. A timeout of zero means the scheduler's own: a collector
 // whose refresh is a single API call needs nothing special, while one that fans
 // out over every droplet has to say so. It must be called before Run.
+//
+// A non-positive interval falls back to defaultInterval. Config rejects such a
+// value at startup, so this is only the second line of defence — but it is
+// worth having, because time.NewTicker panics on a non-positive duration and it
+// would do so in a goroutine raised long after the metrics server bound its
+// port, killing the process with a stack trace.
 func (s *Scheduler) Register(c Collector, interval, timeout time.Duration) {
 	if timeout <= 0 {
 		timeout = s.timeout
+	}
+	if interval <= 0 {
+		s.logger.Warn("collector registered with a non-positive interval",
+			"collector", c.Name(), "interval", interval, "using", defaultInterval)
+		interval = defaultInterval
 	}
 	s.entries = append(s.entries, entry{collector: c, interval: interval, timeout: timeout})
 }

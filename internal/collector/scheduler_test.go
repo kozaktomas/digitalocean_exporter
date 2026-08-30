@@ -164,3 +164,36 @@ func TestSchedulerBoundsRefreshByTheCollectorTimeout(t *testing.T) {
 		}
 	})
 }
+
+// Config rejects a non-positive interval, but the scheduler must survive one
+// anyway: time.NewTicker panics on it, inside a goroutine raised after the
+// metrics server has already bound its port.
+func TestSchedulerFallsBackToADefaultIntervalInsteadOfPanicking(t *testing.T) {
+	for name, interval := range map[string]time.Duration{"zero": 0, "negative": -time.Minute} {
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				reg := prometheus.NewRegistry()
+				scheduler := collector.NewScheduler(time.Second, discardLogger(), reg)
+				f := newFake()
+				scheduler.Register(f, interval, 0)
+				reg.MustRegister(scheduler)
+
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				go scheduler.Run(ctx)
+
+				synctest.Wait()
+				if got := f.calls.Load(); got != 1 {
+					t.Fatalf("refresh calls after start = %d, want 1 immediate refresh", got)
+				}
+
+				// The fallback is five minutes, so ten of them are two ticks.
+				time.Sleep(10 * time.Minute)
+				synctest.Wait()
+				if got := f.calls.Load(); got != 3 {
+					t.Fatalf("refresh calls after 10m = %d, want 3 on the 5m fallback", got)
+				}
+			})
+		})
+	}
+}

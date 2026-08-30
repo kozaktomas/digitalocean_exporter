@@ -110,6 +110,12 @@ work is genuinely slower carry a timeout of their own instead — `spaces`,
 `dropletmetrics` and `loadbalancermetrics`. Raising the global timeout to accommodate a
 slow collector is the wrong lever.
 
+**Every interval and every timeout must be greater than zero**, and the exporter refuses to
+start otherwise, naming the flag and the value on stderr and exiting 1. Neither is
+survivable at runtime: a zero interval would panic the scheduler once the metrics port was
+already bound, and a zero timeout would fail every refresh with a deadline exceeded,
+forever. Both are reachable from a chart value, so they are caught at startup instead.
+
 ## Serving metrics
 
 `--web.listen-address` defaults to `:9212`, the port

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -550,5 +551,84 @@ func TestLoadBalancerMetricsCollectorDefaultsOff(t *testing.T) {
 	}
 	if !cfg.Collectors["loadbalancermetrics"].Enabled {
 		t.Error("loadbalancermetrics collector = disabled, want enabled")
+	}
+}
+
+// A zero interval reaches time.NewTicker, which panics — in a goroutine started
+// after the metrics server has already bound its port. Fail at startup instead.
+func TestParseRejectsAZeroInterval(t *testing.T) {
+	_, err := config.Parse([]string{"--do.token", "secret", "--collector.account.interval", "0s"})
+	if !errors.Is(err, config.ErrNonPositiveInterval) {
+		t.Fatalf("error = %v, want ErrNonPositiveInterval", err)
+	}
+}
+
+func TestParseRejectsANegativeInterval(t *testing.T) {
+	_, err := config.Parse([]string{"--do.token", "secret", "--collector.droplets.interval=-1m"})
+	if !errors.Is(err, config.ErrNonPositiveInterval) {
+		t.Fatalf("error = %v, want ErrNonPositiveInterval", err)
+	}
+}
+
+// The collectors with a timeout of their own carry an interval too, and it is
+// bound separately from the simple ones.
+func TestParseRejectsAZeroIntervalOnATimeoutCarryingCollector(t *testing.T) {
+	_, err := config.Parse([]string{"--do.token", "secret", "--collector.spaces.interval", "0s"})
+	if !errors.Is(err, config.ErrNonPositiveInterval) {
+		t.Fatalf("error = %v, want ErrNonPositiveInterval", err)
+	}
+}
+
+// A zero timeout is accepted quietly today and every refresh then fails with a
+// deadline exceeded, forever.
+func TestParseRejectsAZeroTimeout(t *testing.T) {
+	_, err := config.Parse([]string{"--do.token", "secret", "--do.timeout", "0s"})
+	if !errors.Is(err, config.ErrNonPositiveTimeout) {
+		t.Fatalf("error = %v, want ErrNonPositiveTimeout", err)
+	}
+}
+
+func TestParseRejectsANegativeTimeout(t *testing.T) {
+	_, err := config.Parse([]string{"--do.token", "secret", "--do.timeout=-30s"})
+	if !errors.Is(err, config.ErrNonPositiveTimeout) {
+		t.Fatalf("error = %v, want ErrNonPositiveTimeout", err)
+	}
+}
+
+func TestParseRejectsAZeroCollectorTimeout(t *testing.T) {
+	_, err := config.Parse([]string{"--do.token", "secret", "--collector.dropletmetrics.timeout", "0s"})
+	if !errors.Is(err, config.ErrNonPositiveTimeout) {
+		t.Fatalf("error = %v, want ErrNonPositiveTimeout", err)
+	}
+}
+
+func TestParseRejectsANegativeCollectorTimeout(t *testing.T) {
+	_, err := config.Parse([]string{
+		"--do.token", "secret", "--collector.loadbalancermetrics.timeout=-2m"})
+	if !errors.Is(err, config.ErrNonPositiveTimeout) {
+		t.Fatalf("error = %v, want ErrNonPositiveTimeout", err)
+	}
+}
+
+// The message has to say which flag was wrong: an operator reading stderr gets
+// nothing from a bare "interval must be greater than zero".
+func TestParseNamesTheOffendingFlagAndValue(t *testing.T) {
+	_, err := config.Parse([]string{"--do.token", "secret", "--collector.account.interval", "0s"})
+	if err == nil {
+		t.Fatal("no error for a zero interval")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "--collector.account.interval") || !strings.Contains(msg, "0s") {
+		t.Errorf("error = %q, want it to name the flag and the value", msg)
+	}
+}
+
+// A disabled collector's interval is validated too: it is one --collector.<name>
+// away from being switched on, and a chart value sets both independently.
+func TestParseRejectsAZeroIntervalOnADisabledCollector(t *testing.T) {
+	_, err := config.Parse([]string{
+		"--do.token", "secret", "--no-collector.account", "--collector.account.interval", "0s"})
+	if !errors.Is(err, config.ErrNonPositiveInterval) {
+		t.Fatalf("error = %v, want ErrNonPositiveInterval", err)
 	}
 }

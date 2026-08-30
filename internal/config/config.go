@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -41,6 +42,17 @@ var ErrSpacesCredentialConflict = errors.New(
 // ErrNoSpacesRegion reports that a bucket, or discovery, has no region to talk
 // to. Failing at startup beats a refresh that fails hours later.
 var ErrNoSpacesRegion = errors.New("no Spaces region: set --spaces.region or use bucket@region")
+
+// ErrNonPositiveInterval reports that a refresh interval was zero or negative.
+// time.NewTicker panics on such a duration, and it would do so in a scheduler
+// goroutine started after the metrics server has already bound its port, so the
+// process would die with a stack trace instead of a configuration error.
+var ErrNonPositiveInterval = errors.New("refresh interval must be greater than zero")
+
+// ErrNonPositiveTimeout reports that a timeout was zero or negative. A refresh
+// bounded by one is over before it starts: every refresh of every affected
+// collector fails with a deadline exceeded, forever.
+var ErrNonPositiveTimeout = errors.New("timeout must be greater than zero")
 
 // CollectorConfig holds the switches of a single collector.
 type CollectorConfig struct {
@@ -306,6 +318,13 @@ func bindSpaces(app *kingpin.Application, f *flags) {
 
 // config validates the parsed flags and assembles the configuration.
 func (f *flags) config() (*Config, error) {
+	// Durations first: the check is pure flag validation, and a value that
+	// would panic the scheduler or stall every refresh is worth reporting even
+	// when the token is missing too.
+	if err := f.validateDurations(); err != nil {
+		return nil, err
+	}
+
 	token, err := resolveSecret(*f.token, *f.tokenFile, ErrTokenConflict, ErrNoToken)
 	if err != nil {
 		return nil, err
@@ -342,6 +361,58 @@ func (f *flags) config() (*Config, error) {
 		DropletMetricsConcurrency:      *f.dmConcurrency,
 		LoadBalancerMetricsConcurrency: *f.lbmConcurrency,
 	}, nil
+}
+
+// validateDurations rejects a non-positive interval or timeout, naming the flag
+// that carries it. Both are unrecoverable at runtime and both are reachable
+// from a Helm value, so they fail the process at startup instead.
+func (f *flags) validateDurations() error {
+	if err := requirePositive("do.timeout", *f.timeout, ErrNonPositiveTimeout); err != nil {
+		return err
+	}
+
+	// The map iterates in a random order, so sort the names: two bad intervals
+	// must not report a different one on every run.
+	names := make([]string, 0, len(f.simple))
+	for name := range f.simple {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		flag := "collector." + name + ".interval"
+		if err := requirePositive(flag, *f.simple[name].interval, ErrNonPositiveInterval); err != nil {
+			return err
+		}
+	}
+
+	// The collectors that carry a timeout of their own. A simple collector has
+	// none, and its zero means "use --do.timeout" rather than "no time at all".
+	for _, c := range []struct {
+		name              string
+		interval, timeout time.Duration
+	}{
+		{"dropletmetrics", *f.dmInterval, *f.dmTimeout},
+		{"loadbalancermetrics", *f.lbmInterval, *f.lbmTimeout},
+		{"spaces", *f.spacesInterval, *f.spacesTimeout},
+	} {
+		if err := requirePositive("collector."+c.name+".interval",
+			c.interval, ErrNonPositiveInterval); err != nil {
+			return err
+		}
+		if err := requirePositive("collector."+c.name+".timeout",
+			c.timeout, ErrNonPositiveTimeout); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// requirePositive wraps sentinel with the flag and the value it was given.
+func requirePositive(flag string, d time.Duration, sentinel error) error {
+	if d > 0 {
+		return nil
+	}
+	return fmt.Errorf("--%s is %s: %w", flag, d, sentinel)
 }
 
 // spacesConfig resolves the Spaces settings. Credentials and regions are only
