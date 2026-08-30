@@ -39,6 +39,12 @@ theme:
         icon: material/weather-sunny
         name: Switch to light mode
 
+# Task specifications live under docs/specs/ while work is in progress. They are
+# neither committed nor published, and the strict build would otherwise fail on
+# every page under docs/ that no nav entry mentions.
+exclude_docs: |
+  specs/
+
 # --strict turns these into build failures. anchors catches a link to a heading that
 # was renamed or never existed, which plain link checking misses.
 validation:

@@ -12,3 +12,6 @@ site/
 
 # Internal working documents (design notes, plan) — never published.
 .internal/
+# Task specifications dropped into docs/ while work is in progress. They are
+# working input, not documentation, and are excluded from the site as well.
+docs/specs/

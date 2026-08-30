@@ -24,6 +24,9 @@ curl -s localhost:9212/metrics | head
 The package creates a dedicated unprivileged system user, `digitalocean-exporter`, enables
 the unit, and does **not** start it — there is no token yet at that point.
 
+The shipped env file lists every collector switch, with the ones that are off by default
+commented out, so configuring it is mostly a matter of deleting `#`.
+
 ## What it puts where
 
 | Path | What |
@@ -94,11 +97,19 @@ journalctl -u digitalocean-exporter -f
 ## Upgrading and removing
 
 ```bash
-sudo dpkg -i digitalocean-exporter_0.2.0_linux_arm64.deb   # keeps the env file
-sudo systemctl restart digitalocean-exporter
+sudo dpkg -i digitalocean-exporter_0.3.0_linux_arm64.deb   # keeps the env file
 ```
 
+An upgrade leaves the service alone in the sense that matters: if it was running it is
+restarted onto the new binary, and if it was stopped it stays stopped. There is nothing to
+do by hand.
+
 ```bash
-sudo apt remove digitalocean-exporter    # leaves /etc/digitalocean-exporter
-sudo apt purge digitalocean-exporter     # removes it, and the system user
+sudo apt remove digitalocean-exporter    # stops and disables it, keeps /etc/digitalocean-exporter
+sudo apt purge digitalocean-exporter     # also removes /etc/digitalocean-exporter
 ```
+
+The `digitalocean-exporter` system user survives a purge. It may still own files the
+package never installed — a token file you put next to the env file, for instance — and
+handing a stale uid back to the next package that asks for one is worse than leaving an
+unused account behind.

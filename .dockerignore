@@ -2,10 +2,19 @@
 .github
 .internal
 dist
+dist-chart
 docs
+site
 charts
 deb
 scripts
 coverage.out
 digitalocean_exporter
 *.md
+*.deb
+*.tar.gz
+
+# Gitignored working files that have no business in a build layer: .env holds a
+# real API token, .venv is the 150 MB documentation toolchain.
+.env
+.venv/
