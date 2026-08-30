@@ -1561,6 +1561,12 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>Key inside <code>digitalocean.existingSecret</code> that holds the token.</td>
 </tr>
 <tr>
+<td>digitalocean.rateLimit</td>
+<td>int</td>
+<td><code>4</code></td>
+<td>Client-side limit on API requests per second, shared by every collector. DigitalOcean allows 250 requests a minute, and the collectors would otherwise spend their refreshes in bursts; 4 a second is 240 a minute, just inside it. Set it to <code>0</code> to turn the limiter off.</td>
+</tr>
+<tr>
 <td>digitalocean.token</td>
 <td>string</td>
 <td><code>""</code></td>

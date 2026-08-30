@@ -669,6 +669,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#staying-under-the-burst-limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Staying under the burst limit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#serving-metrics" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1388,6 +1399,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#staying-under-the-burst-limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Staying under the burst limit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#serving-metrics" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1566,7 +1588,9 @@ refreshes alone, on their own intervals.</p>
 </tbody>
 </table>
 <p>The burst limit can be tripped while the hourly budget is nearly untouched, which is the
-trap worth knowing about — see <a href="monitoring-api/#the-budget">the monitoring API</a>.</p>
+trap worth knowing about — see <a href="monitoring-api/#the-budget">the monitoring API</a>. The
+exporter defends it by <a href="#staying-under-the-burst-limit">rate-limiting itself</a>, which is on
+by default.</p>
 <p>The eleven collectors that are on by default cost one to three requests each per refresh. On
 a real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database, a
 registry and a DNS zone, one full refresh measured <strong>15 requests</strong>:</p>
@@ -1595,18 +1619,46 @@ start otherwise, naming the flag and the value on stderr and exiting 1. Neither 
 survivable at runtime: a zero interval would panic the scheduler once the metrics port was
 already bound, and a zero timeout would fail every refresh with a deadline exceeded,
 forever. Both are reachable from a chart value, so they are caught at startup instead.</p>
+<h2 id="staying-under-the-burst-limit">Staying under the burst limit<a class="headerlink" href="#staying-under-the-burst-limit" title="Permanent link">&para;</a></h2>
+<p>Three things keep the exporter inside the 250-requests-a-minute allowance, and none of them
+needs tuning on an ordinary account.</p>
+<p><strong>A client-side rate limit.</strong> <code>--do.rate-limit</code> (<code>DO_RATE_LIMIT</code>, default <code>4</code>) caps how many
+API requests per second the exporter makes, across every collector at once. Four a second is
+240 a minute, just inside the limit, and requests are paced evenly rather than let out in a
+clump — an even trickle is what the burst limit is asking for. It applies to the DigitalOcean
+API only; the <code>spaces</code> collector talks to the S3-compatible endpoint, which has limits of its
+own. Set it to <code>0</code> to turn it off, which is what a stub API deserves and a real one does not.</p>
+<p>Lowering it below the default is the lever to reach for when
+<a href="monitoring-api/"><code>dropletmetrics</code></a> makes a large account uncomfortable; raising it above
+<code>4</code> moves the exporter towards being rejected rather than throttled.</p>
+<p><strong>Retries.</strong> A request rejected with <code>429</code>, or failed with a <code>5xx</code>, is tried again — three
+attempts in total, waiting as long as the response's <code>Retry-After</code> header asks for, or one
+second and then two when it sends none. So a rejected burst costs a slower refresh rather
+than a failed one. Every attempt is counted by <code>digitalocean_exporter_api_requests_total</code>,
+because every attempt spends from the budget:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">status</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
+</code></pre></div>
+<p>A rising <code>429</code> rate means the rate limit is set too high for what the collectors are asking
+of it. Retries do not cover <code>4xx</code> responses other than <code>429</code>: a <code>401</code> is a bad token and a
+<code>403</code> a missing scope, and neither improves on a second attempt.</p>
+<p><strong>Staggered refreshes.</strong> Collectors all default to a <code>5m</code> interval and all start together, so
+without help they would fire as one burst every five minutes. Each one's first refresh is
+therefore held back by an even share of a window — its own interval, or <strong>three seconds</strong>,
+whichever is shorter — and every later refresh keeps that phase. The ceiling is what keeps
+<code>/metrics</code> worth scraping moments after startup; the order is the order the collectors are
+registered in, so it is the same on every run.</p>
 <h2 id="serving-metrics">Serving metrics<a class="headerlink" href="#serving-metrics" title="Permanent link">&para;</a></h2>
 <p><code>--web.listen-address</code> defaults to <code>:9212</code>, the port
 <a href="https://github.com/prometheus/prometheus/wiki/Default-port-allocations">allocated to this exporter</a>.</p>
 <p><code>--web.config.file</code> takes an <a href="https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md">exporter-toolkit</a>
 web configuration, which is how you get TLS and basic auth:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># web-config.yml</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nt">tls_server_config</span><span class="p">:</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="nt">cert_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/digitalocean-exporter/tls.crt</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span><span class="nt">key_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/digitalocean-exporter/tls.key</span>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="nt">basic_auth_users</span><span class="p">:</span>
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">  </span><span class="nt">prometheus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$2y$10$...</span><span class="w">   </span><span class="c1"># bcrypt, e.g. from `htpasswd -nBC 10 "" | tr -d ':\n'`</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># web-config.yml</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nt">tls_server_config</span><span class="p">:</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="nt">cert_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/digitalocean-exporter/tls.crt</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span><span class="nt">key_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/digitalocean-exporter/tls.key</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="nt">basic_auth_users</span><span class="p">:</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">  </span><span class="nt">prometheus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$2y$10$...</span><span class="w">   </span><span class="c1"># bcrypt, e.g. from `htpasswd -nBC 10 "" | tr -d ':\n'`</span>
 </code></pre></div>
 <h2 id="full-reference">Full reference<a class="headerlink" href="#full-reference" title="Permanent link">&para;</a></h2>
 <h3 id="server-and-credentials">Server and credentials<a class="headerlink" href="#server-and-credentials" title="Permanent link">&para;</a></h3>
@@ -1649,6 +1701,12 @@ web configuration, which is how you get TLS and basic auth:</p>
 <td><code>DO_TIMEOUT</code></td>
 <td><code>30s</code></td>
 <td>Timeout of a single collector refresh</td>
+</tr>
+<tr>
+<td><code>--do.rate-limit</code></td>
+<td><code>DO_RATE_LIMIT</code></td>
+<td><code>4</code></td>
+<td>API requests per second, over all collectors; <code>0</code> disables it</td>
 </tr>
 <tr>
 <td><code>--log.level</code></td>

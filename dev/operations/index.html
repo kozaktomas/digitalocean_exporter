@@ -1083,6 +1083,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#a-refresh-takes-much-longer-than-the-api-does" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A refresh takes much longer than the API does
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#a-spaces-bucket-stopped-updating" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1431,6 +1442,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#a-refresh-takes-much-longer-than-the-api-does" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A refresh takes much longer than the API does
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#a-spaces-bucket-stopped-updating" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1589,6 +1611,19 @@ always <code>dropletmetrics</code> on an account with more droplets than the ari
 <a href="../configuration/monitoring-api/#the-budget">the monitoring API</a>. Lengthen that collector's
 interval, or turn it off.</p>
 <p>Note that a second replica of the exporter doubles the spend. Run one.</p>
+<p>The per-minute limit is a separate matter, and the exporter defends it itself: it paces its
+requests at <code>--do.rate-limit</code> a second and retries the rejections it does get. A <code>429</code> rate
+that is not zero means the limit is set higher than the collectors can afford —
+<code>sum by (status) (rate(digitalocean_exporter_api_requests_total[5m]))</code> shows it. See
+<a href="../configuration/#staying-under-the-burst-limit">staying under the burst limit</a>.</p>
+<h3 id="a-refresh-takes-much-longer-than-the-api-does">A refresh takes much longer than the API does<a class="headerlink" href="#a-refresh-takes-much-longer-than-the-api-does" title="Permanent link">&para;</a></h3>
+<p>The rate limiter is between the collector and the API, and a collector that fans out over
+every droplet or bucket spends most of its refresh waiting in it: at the default 4 requests
+a second, 200 requests take 50 seconds however fast the API answers.
+<code>digitalocean_exporter_collector_duration_seconds</code> is measuring the queue as much as the
+API. That is the intended trade — a slow refresh beats a rejected one — but if a collector
+is timing out on it, raise that collector's timeout or lengthen its interval rather than
+raising the rate limit into DigitalOcean's own.</p>
 <h3 id="a-spaces-bucket-stopped-updating">A Spaces bucket stopped updating<a class="headerlink" href="#a-spaces-bucket-stopped-updating" title="Permanent link">&para;</a></h3>
 <p>Buckets are isolated: one failing bucket keeps its own previous values and reports its own
 <code>_up 0</code> without affecting the others or the collector as a whole. Check the logs for that
