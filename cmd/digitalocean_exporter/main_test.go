@@ -41,7 +41,10 @@ func TestRegisterCollectorsCoversEveryConfiguredCollector(t *testing.T) {
 	}
 
 	reg := prometheus.NewRegistry()
-	client, err := doclient.New("secret", "", "test", time.Second, doclient.NewMetrics(reg))
+	client, err := doclient.New(doclient.Config{
+		Token: "secret", UserAgent: "test", Timeout: time.Second,
+		Metrics: doclient.NewMetrics(reg),
+	})
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}

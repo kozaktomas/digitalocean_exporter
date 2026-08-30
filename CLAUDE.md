@@ -32,9 +32,18 @@ ad-hoc command in this repository to change the state of the account.
   the collector's own interval, never a scrape.
 - `Collect(ch)` reads that snapshot and must never perform I/O.
 
-This exists because the DigitalOcean API is slow and rate-limited (5000 requests/hour), and
-because a collector that fans out over every droplet takes far past any scrape timeout. Do
-not add a collector that calls the API from `Collect`.
+This exists because the DigitalOcean API is slow and rate-limited (5000 requests an hour,
+250 a minute), and because a collector that fans out over every droplet takes far past any
+scrape timeout. Do not add a collector that calls the API from `Collect`.
+
+**The burst limit is defended in two places, and a new collector inherits both.** Every
+request goes through the one instrumented transport in `internal/doclient`, which paces
+requests at `--do.rate-limit` across all collectors at once and retries a 429 or a 5xx up to
+three attempts, honouring `Retry-After`; each attempt is counted separately, because each
+one spends from the budget. The scheduler then offsets each collector's first refresh by an
+even share of the smaller of its interval and three seconds, so the set never fires as one
+burst and every later refresh keeps that phase. Neither needs anything from a collector, and
+neither belongs inside one.
 
 A collector that measures many things at once — buckets, say — isolates them: one that
 fails keeps its own previous values and reports its own `_up 0`, and logs why, since that

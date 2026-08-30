@@ -97,6 +97,22 @@ interval, or turn it off.
 
 Note that a second replica of the exporter doubles the spend. Run one.
 
+The per-minute limit is a separate matter, and the exporter defends it itself: it paces its
+requests at `--do.rate-limit` a second and retries the rejections it does get. A `429` rate
+that is not zero means the limit is set higher than the collectors can afford —
+`sum by (status) (rate(digitalocean_exporter_api_requests_total[5m]))` shows it. See
+[staying under the burst limit](configuration/index.md#staying-under-the-burst-limit).
+
+### A refresh takes much longer than the API does
+
+The rate limiter is between the collector and the API, and a collector that fans out over
+every droplet or bucket spends most of its refresh waiting in it: at the default 4 requests
+a second, 200 requests take 50 seconds however fast the API answers.
+`digitalocean_exporter_collector_duration_seconds` is measuring the queue as much as the
+API. That is the intended trade — a slow refresh beats a rejected one — but if a collector
+is timing out on it, raise that collector's timeout or lengthen its interval rather than
+raising the rate limit into DigitalOcean's own.
+
 ### A Spaces bucket stopped updating
 
 Buckets are isolated: one failing bucket keeps its own previous values and reports its own

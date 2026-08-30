@@ -40,15 +40,31 @@ load balancers at `5m` is 12 × 70 = 840 requests an hour, which is affordable.
 
 !!! danger "The per-minute limit bites first"
 
-    A refresh fires its requests back to back, so a large account can trip the burst limit
-    while the hourly budget looks fine. Fifty droplets is 501 requests in **one** refresh —
-    twice the 250-per-minute allowance, spent in seconds, regardless of how long the
-    interval is. Lengthening the interval does not help with this; it is the size of a
-    single refresh that matters. Lowering `--collector.dropletmetrics.concurrency` spreads
-    the same requests over more time, which does.
+    A refresh would otherwise fire its requests back to back, and a large account trips the
+    burst limit long before the hourly budget looks worrying. Fifty droplets is 501 requests
+    in **one** refresh — twice the 250-per-minute allowance, spent in seconds, regardless of
+    how long the interval is. Lengthening the interval does not help with this; it is the
+    size of a single refresh that matters.
 
-    A burst rejection comes back with a `retry-after` header, and the refresh fails and
-    keeps its previous snapshot.
+    **The client-side rate limit is what holds it back**, and it is on by default:
+    `--do.rate-limit` (`4` a second, 240 a minute) paces every request the exporter makes, so
+    a refresh of any size goes out as a trickle rather than a burst. The cost is that a large
+    refresh now takes as long as its size implies: 501 requests at 4 a second is just over
+    two minutes, past `--collector.dropletmetrics.timeout`. It then fails on its own deadline
+    rather than on a rejection — the same signal as ever,
+    `digitalocean_exporter_collector_success 0` with the previous snapshot kept — and the
+    answer is a longer timeout, fewer droplets or a longer interval, not a higher limit.
+
+    `--collector.dropletmetrics.concurrency` is the secondary lever. With the rate limit in
+    place it no longer decides how fast the requests go out — the limiter does — so lowering
+    it changes little; raising it only piles more requests up behind the limiter. Leave it
+    at `4` unless you have turned the rate limit off.
+
+    A burst rejection that does get through comes back with a `retry-after` header, and the
+    exporter honours it: the request is retried, up to three attempts, and only then does the
+    refresh fail and keep its previous snapshot. Every attempt is counted by
+    `digitalocean_exporter_api_requests_total`. See
+    [staying under the burst limit](index.md#staying-under-the-burst-limit).
 
 Watch the result rather than trusting the arithmetic:
 
@@ -81,8 +97,10 @@ and the collector carries on.
 
 `--collector.dropletmetrics.concurrency` (default `4`) sets how many droplets are queried
 at once, and `--collector.dropletmetrics.timeout` (default `2m`) bounds one full refresh.
-With many droplets the refresh has to fit in that timeout: at concurrency 4 and ten requests
-each, fifty droplets is 125 sequential rounds.
+With many droplets the refresh has to fit in that timeout, and what decides how long it
+takes is the [rate limit](index.md#staying-under-the-burst-limit) rather than the
+concurrency: at 4 requests a second, fifty droplets is 501 requests and a little over two
+minutes, whatever the concurrency is set to.
 
 !!! question "Should you use this at all?"
 

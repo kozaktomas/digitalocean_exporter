@@ -80,7 +80,14 @@ func run(args []string) error {
 	// DO_API_BASE_URL points the client at a stub API. It exists so the smoke
 	// test can run offline; in production it is unset and the public endpoint
 	// is used.
-	client, err := doclient.New(cfg.Token, os.Getenv("DO_API_BASE_URL"), userAgent, cfg.Timeout, apiMetrics)
+	client, err := doclient.New(doclient.Config{
+		Token:     cfg.Token,
+		BaseURL:   os.Getenv("DO_API_BASE_URL"),
+		UserAgent: userAgent,
+		Timeout:   cfg.Timeout,
+		RateLimit: cfg.RateLimit,
+		Metrics:   apiMetrics,
+	})
 	if err != nil {
 		return fmt.Errorf("build API client: %w", err)
 	}

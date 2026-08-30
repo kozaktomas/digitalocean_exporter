@@ -100,6 +100,9 @@ type Config struct {
 	// Timeout bounds a single collector refresh unless the collector sets its
 	// own.
 	Timeout time.Duration
+	// RateLimit caps how many API requests per second the exporter makes,
+	// across every collector at once. Zero or less turns the limiter off.
+	RateLimit float64
 	// LogLevel is the slog level name.
 	LogLevel string
 	// LogFormat is either logfmt or json.
@@ -129,6 +132,7 @@ type flags struct {
 	token     *string
 	tokenFile *string
 	timeout   *time.Duration
+	rateLimit *float64
 	logLevel  *string
 	logFormat *string
 	// simple holds the collectors configured by nothing but an enable switch
@@ -227,6 +231,9 @@ func bind(app *kingpin.Application) *flags {
 		Envar("DIGITALOCEAN_TOKEN_FILE").Default("").String()
 	f.timeout = app.Flag("do.timeout", "Timeout of a single collector refresh.").
 		Envar("DO_TIMEOUT").Default("30s").Duration()
+	f.rateLimit = app.Flag("do.rate-limit",
+		"Client-side limit on API requests per second, shared by every collector. 0 disables it.").
+		Envar("DO_RATE_LIMIT").Default("4").Float64()
 	f.logLevel = app.Flag("log.level", "Log level: debug, info, warn or error.").
 		Envar("LOG_LEVEL").Default("info").Enum("debug", "info", "warn", "error")
 	f.logFormat = app.Flag("log.format", "Log format: logfmt or json.").
@@ -354,6 +361,7 @@ func (f *flags) config() (*Config, error) {
 		WebConfigFile:                  *f.webConfig,
 		Token:                          token,
 		Timeout:                        *f.timeout,
+		RateLimit:                      *f.rateLimit,
 		LogLevel:                       *f.logLevel,
 		LogFormat:                      *f.logFormat,
 		Collectors:                     collectors,

@@ -22,6 +22,10 @@ func TestParseDefaults(t *testing.T) {
 	if cfg.Timeout != 30*time.Second {
 		t.Errorf("timeout = %v, want 30s", cfg.Timeout)
 	}
+	// Four a second is 240 a minute, just inside DigitalOcean's burst limit.
+	if cfg.RateLimit != 4 {
+		t.Errorf("rate limit = %v, want 4 requests per second", cfg.RateLimit)
+	}
 	account, ok := cfg.Collectors["account"]
 	if !ok {
 		t.Fatal("account collector missing from config")
@@ -630,5 +634,26 @@ func TestParseRejectsAZeroIntervalOnADisabledCollector(t *testing.T) {
 		"--do.token", "secret", "--no-collector.account", "--collector.account.interval", "0s"})
 	if !errors.Is(err, config.ErrNonPositiveInterval) {
 		t.Fatalf("error = %v, want ErrNonPositiveInterval", err)
+	}
+}
+
+// Zero is how an operator turns the client-side limit off, which is what the
+// smoke run does against a stub API that has no limits of its own.
+func TestParseRateLimitCanBeSet(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret", "--do.rate-limit", "0"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.RateLimit != 0 {
+		t.Errorf("rate limit = %v, want 0", cfg.RateLimit)
+	}
+
+	t.Setenv("DO_RATE_LIMIT", "2.5")
+	cfg, err = config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.RateLimit != 2.5 {
+		t.Errorf("rate limit from the environment = %v, want 2.5", cfg.RateLimit)
 	}
 }

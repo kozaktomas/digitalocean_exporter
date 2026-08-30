@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -21,23 +22,29 @@ import (
 // fake is a Collector whose refresh behaviour the test controls.
 type fake struct {
 	mu       sync.Mutex
+	name     string
 	calls    atomic.Int64
 	err      error
 	desc     *prometheus.Desc
 	snapshot float64
 	budget   atomic.Int64
+	first    atomic.Int64
 }
 
-func newFake() *fake {
-	return &fake{desc: prometheus.NewDesc("fake_metric", "Fake.", nil, nil)}
+func newFake() *fake { return newNamedFake("fake") }
+
+func newNamedFake(name string) *fake {
+	return &fake{name: name, desc: prometheus.NewDesc("fake_metric", "Fake.", nil, nil)}
 }
 
-func (f *fake) Name() string { return "fake" }
+func (f *fake) Name() string { return f.name }
 
 func (f *fake) Describe(ch chan<- *prometheus.Desc) { ch <- f.desc }
 
 func (f *fake) Refresh(ctx context.Context) error {
-	f.calls.Add(1)
+	if f.calls.Add(1) == 1 {
+		f.first.Store(time.Now().UnixNano())
+	}
 	if deadline, ok := ctx.Deadline(); ok {
 		f.budget.Store(int64(time.Until(deadline)))
 	}
@@ -54,6 +61,11 @@ func (f *fake) Collect(ch chan<- prometheus.Metric) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	ch <- prometheus.MustNewConstMetric(f.desc, prometheus.GaugeValue, f.snapshot)
+}
+
+// firstRefresh reports when the collector was first refreshed.
+func (f *fake) firstRefresh() time.Time {
+	return time.Unix(0, f.first.Load())
 }
 
 func (f *fake) setErr(err error) {
@@ -196,4 +208,76 @@ func TestSchedulerFallsBackToADefaultIntervalInsteadOfPanicking(t *testing.T) {
 			})
 		})
 	}
+}
+
+// Every collector shares the same interval by default, so without a stagger the
+// whole set fires at once, every interval — the burst DigitalOcean's
+// 250-a-minute limit objects to.
+func TestSchedulerStaggersTheFirstRefreshOfEachCollector(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		reg := prometheus.NewRegistry()
+		scheduler := collector.NewScheduler(time.Second, discardLogger(), reg)
+
+		fakes := make([]*fake, 5)
+		for i := range fakes {
+			fakes[i] = newNamedFake("fake-" + strconv.Itoa(i))
+			scheduler.Register(fakes[i], time.Minute, 0)
+		}
+
+		start := time.Now()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go scheduler.Run(ctx)
+
+		// The ceiling is three seconds, so by then every one of them has run
+		// once and none has ticked again on its one-minute interval.
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+
+		seen := make(map[time.Duration]string, len(fakes))
+		for i, f := range fakes {
+			if got := f.calls.Load(); got != 1 {
+				t.Fatalf("%s refreshed %d times in the first 3s, want 1", f.Name(), got)
+			}
+			offset := f.firstRefresh().Sub(start)
+			if other, clash := seen[offset]; clash {
+				t.Errorf("%s and %s both refreshed at %v", f.Name(), other, offset)
+			}
+			seen[offset] = f.Name()
+
+			// Five collectors sharing a three-second window: one every 600ms,
+			// the first of them straight away.
+			if want := time.Duration(i) * 600 * time.Millisecond; offset != want {
+				t.Errorf("%s first refreshed after %v, want %v", f.Name(), offset, want)
+			}
+		}
+	})
+}
+
+// The spread is bounded so that /metrics is worth scraping moments after
+// startup, however long the collectors' intervals are.
+func TestSchedulerStaggerStaysUnderItsCeiling(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		reg := prometheus.NewRegistry()
+		scheduler := collector.NewScheduler(time.Second, discardLogger(), reg)
+
+		fakes := make([]*fake, 20)
+		for i := range fakes {
+			fakes[i] = newNamedFake("fake-" + strconv.Itoa(i))
+			scheduler.Register(fakes[i], time.Hour, 0)
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go scheduler.Run(ctx)
+
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+
+		for _, f := range fakes {
+			if got := f.calls.Load(); got != 1 {
+				t.Errorf("%s refreshed %d times within the 3s ceiling, want 1", f.Name(), got)
+			}
+		}
+	})
 }

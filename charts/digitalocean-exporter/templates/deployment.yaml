@@ -39,6 +39,7 @@ spec:
           args:
             - --web.listen-address=:{{ .Values.service.port }}
             - --do.token-file=/etc/digitalocean-exporter/token
+            - --do.rate-limit={{ .Values.digitalocean.rateLimit }}
             - --log.level={{ .Values.log.level }}
             - --log.format={{ .Values.log.format }}
             {{- if .Values.collectors.account.enabled }}

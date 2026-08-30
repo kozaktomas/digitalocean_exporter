@@ -14,6 +14,20 @@ import (
 // flag, so the fallback behaves like an unconfigured collector.
 const defaultInterval = 5 * time.Minute
 
+// maxStagger caps how long the last collector waits for its first refresh.
+//
+// Collectors are otherwise all registered with the same interval and all
+// started at once, so every interval the whole set fires within milliseconds of
+// itself — the shape of traffic that trips DigitalOcean's 250-requests-a-minute
+// burst limit while the hourly budget is barely touched. Spreading the first
+// refresh spreads every later one with it, because each collector keeps the
+// phase its first refresh gave it.
+//
+// The ceiling is what keeps /metrics useful moments after startup: a few
+// seconds of spread is enough to matter to the burst limit and short enough
+// that nobody waits for it.
+const maxStagger = 3 * time.Second
+
 // Scheduler refreshes each registered collector on its own interval and
 // exposes them, plus the exporter's own health metrics, to Prometheus.
 type Scheduler struct {
@@ -88,22 +102,48 @@ func (s *Scheduler) Names() []string {
 	return names
 }
 
-// Run refreshes every registered collector once immediately and then on its
-// own ticker. It returns once ctx is cancelled and all loops have stopped.
+// Run refreshes every registered collector — the first one straight away, the
+// rest staggered — and then on its own ticker. It returns once ctx is cancelled
+// and all loops have stopped.
 func (s *Scheduler) Run(ctx context.Context) {
 	var wg sync.WaitGroup
-	for _, e := range s.entries {
+	for index, e := range s.entries {
+		offset := stagger(index, len(s.entries), e.interval)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s.loop(ctx, e)
+			s.loop(ctx, e, offset)
 		}()
 	}
 	wg.Wait()
 }
 
-// loop drives a single collector until ctx is cancelled.
-func (s *Scheduler) loop(ctx context.Context, e entry) {
+// stagger returns how long the collector at index waits before its first
+// refresh: an even share of the window, which is the collector's own interval
+// or maxStagger, whichever is shorter. Deriving it from the registration order
+// rather than from the clock or a hash of the name makes it the same on every
+// run, and gives two collectors the same offset only if there is one of them.
+func stagger(index, count int, interval time.Duration) time.Duration {
+	if index <= 0 || count <= 1 {
+		return 0
+	}
+	window := min(interval, maxStagger)
+	return time.Duration(int64(window) / int64(count) * int64(index))
+}
+
+// loop drives a single collector until ctx is cancelled, holding its first
+// refresh back by offset.
+func (s *Scheduler) loop(ctx context.Context, e entry, offset time.Duration) {
+	if offset > 0 {
+		timer := time.NewTimer(offset)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+		}
+	}
+
 	ticker := time.NewTicker(e.interval)
 	defer ticker.Stop()
 

@@ -140,9 +140,14 @@ for _ in $(seq 1 50); do
   sleep 0.2
 done
 
+# The client-side rate limit defends DigitalOcean's 250-requests-a-minute burst
+# limit, which the stub does not have. At the default of 4 a second the 1s
+# intervals below would queue up behind the limiter and refreshes would start
+# timing out, so this run raises it well past what it needs.
 DO_API_BASE_URL="http://127.0.0.1:${API_PORT}/" \
 DO_SPACES_ENDPOINT="http://127.0.0.1:${API_PORT}" \
   "$BIN" --do.token=smoke-token --web.listen-address="127.0.0.1:${PORT}" \
+         --do.rate-limit=100 \
          --collector.account.interval=1s --collector.balance.interval=1s \
          --collector.registry.interval=1s --collector.limits.interval=1s \
          --collector.droplets.interval=1s --collector.databases.interval=1s \

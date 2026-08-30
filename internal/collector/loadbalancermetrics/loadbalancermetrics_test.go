@@ -109,8 +109,12 @@ func newTestCollector(
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 
-	client, err := doclient.New("token", srv.URL+"/", "test", 5*time.Second,
-		doclient.NewMetrics(prometheus.NewRegistry()))
+	client, err := doclient.New(doclient.Config{
+		Token: "token", BaseURL: srv.URL + "/", UserAgent: "test", Timeout: 5 * time.Second,
+		// One attempt: retrying a stubbed failure only makes this test sit
+		// through the backoff, and the retries have their own test in doclient.
+		MaxAttempts: 1, Metrics: doclient.NewMetrics(prometheus.NewRegistry()),
+	})
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}

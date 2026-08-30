@@ -79,7 +79,9 @@ DigitalOcean applies [two limits at once](https://docs.digitalocean.com/referenc
 | Burst | **250 requests per minute** |
 
 The burst limit can be tripped while the hourly budget is nearly untouched, which is the
-trap worth knowing about — see [the monitoring API](monitoring-api.md#the-budget).
+trap worth knowing about — see [the monitoring API](monitoring-api.md#the-budget). The
+exporter defends it by [rate-limiting itself](#staying-under-the-burst-limit), which is on
+by default.
 
 The eleven collectors that are on by default cost one to three requests each per refresh. On
 a real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database, a
@@ -116,6 +118,43 @@ survivable at runtime: a zero interval would panic the scheduler once the metric
 already bound, and a zero timeout would fail every refresh with a deadline exceeded,
 forever. Both are reachable from a chart value, so they are caught at startup instead.
 
+## Staying under the burst limit
+
+Three things keep the exporter inside the 250-requests-a-minute allowance, and none of them
+needs tuning on an ordinary account.
+
+**A client-side rate limit.** `--do.rate-limit` (`DO_RATE_LIMIT`, default `4`) caps how many
+API requests per second the exporter makes, across every collector at once. Four a second is
+240 a minute, just inside the limit, and requests are paced evenly rather than let out in a
+clump — an even trickle is what the burst limit is asking for. It applies to the DigitalOcean
+API only; the `spaces` collector talks to the S3-compatible endpoint, which has limits of its
+own. Set it to `0` to turn it off, which is what a stub API deserves and a real one does not.
+
+Lowering it below the default is the lever to reach for when
+[`dropletmetrics`](monitoring-api.md) makes a large account uncomfortable; raising it above
+`4` moves the exporter towards being rejected rather than throttled.
+
+**Retries.** A request rejected with `429`, or failed with a `5xx`, is tried again — three
+attempts in total, waiting as long as the response's `Retry-After` header asks for, or one
+second and then two when it sends none. So a rejected burst costs a slower refresh rather
+than a failed one. Every attempt is counted by `digitalocean_exporter_api_requests_total`,
+because every attempt spends from the budget:
+
+```promql
+sum by (status) (rate(digitalocean_exporter_api_requests_total[5m]))
+```
+
+A rising `429` rate means the rate limit is set too high for what the collectors are asking
+of it. Retries do not cover `4xx` responses other than `429`: a `401` is a bad token and a
+`403` a missing scope, and neither improves on a second attempt.
+
+**Staggered refreshes.** Collectors all default to a `5m` interval and all start together, so
+without help they would fire as one burst every five minutes. Each one's first refresh is
+therefore held back by an even share of a window — its own interval, or **three seconds**,
+whichever is shorter — and every later refresh keeps that phase. The ceiling is what keeps
+`/metrics` worth scraping moments after startup; the order is the order the collectors are
+registered in, so it is the same on every run.
+
 ## Serving metrics
 
 `--web.listen-address` defaults to `:9212`, the port
@@ -145,6 +184,7 @@ basic_auth_users:
 | `--do.token` | `DIGITALOCEAN_TOKEN` | — | API token; read-only is enough |
 | `--do.token-file` | `DIGITALOCEAN_TOKEN_FILE` | — | File holding the API token |
 | `--do.timeout` | `DO_TIMEOUT` | `30s` | Timeout of a single collector refresh |
+| `--do.rate-limit` | `DO_RATE_LIMIT` | `4` | API requests per second, over all collectors; `0` disables it |
 | `--log.level` | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
 | `--log.format` | `LOG_FORMAT` | `logfmt` | `logfmt` or `json` |
 

@@ -26,6 +26,11 @@ digitalocean:
   existingSecret: ""
   # -- Key inside `digitalocean.existingSecret` that holds the token.
   existingSecretKey: token
+  # -- Client-side limit on API requests per second, shared by every collector.
+  # DigitalOcean allows 250 requests a minute, and the collectors would
+  # otherwise spend their refreshes in bursts; 4 a second is 240 a minute, just
+  # inside it. Set it to `0` to turn the limiter off.
+  rateLimit: 4
 
 spaces:
   # -- Spaces access key, used only by the spaces collector. This is an S3

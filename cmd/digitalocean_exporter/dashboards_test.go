@@ -219,7 +219,10 @@ func exportedMetrics(t *testing.T) map[string]map[string]bool {
 	}
 
 	capturing := &capturingRegisterer{Registerer: prometheus.NewRegistry()}
-	client, err := doclient.New("secret", "", "test", time.Second, doclient.NewMetrics(capturing))
+	client, err := doclient.New(doclient.Config{
+		Token: "secret", UserAgent: "test", Timeout: time.Second,
+		Metrics: doclient.NewMetrics(capturing),
+	})
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
