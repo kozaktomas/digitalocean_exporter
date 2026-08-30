@@ -40,6 +40,15 @@ sum by (size) (
 )
 ```
 
+`digitalocean_droplet_up` is 0 for every status that is not `active`, including the `off` of
+a droplet somebody powered off on purpose. The same join separates the two, which is what
+`DigitalOceanDropletDown` does so that it only pages for a droplet that stopped on its own:
+
+```promql
+digitalocean_droplet_up == 0
+  unless on (id) digitalocean_droplet_info{status=~"off|archive"}
+```
+
 **One figure deliberately differs from the older exporter.** It reads DigitalOcean's disk
 gigabytes as decimal and its memory megabytes as binary; this collector reads both as
 binary, which makes `digitalocean_droplet_disk_bytes` about 7% larger. A droplet sold as
@@ -362,11 +371,11 @@ one per node pool in it.
 | `digitalocean_kubernetes_cluster_auto_upgrade` | `id`, `name`, `region` | 1 if the cluster upgrades itself in its maintenance window |
 | `digitalocean_kubernetes_cluster_surge_upgrade` | `id`, `name`, `region` | 1 if it adds a node before replacing one |
 | `digitalocean_kubernetes_cluster_ha` | `id`, `name`, `region` | 1 if the control plane is highly available |
-| `digitalocean_kubernetes_node_pool_nodes` | `cluster`, `pool`, `size` | Nodes the pool is configured to run |
-| `digitalocean_kubernetes_node_pool_nodes_running` | `cluster`, `pool`, `size` | Nodes in the pool reporting `running` |
-| `digitalocean_kubernetes_node_pool_auto_scale` | `cluster`, `pool`, `size` | 1 if the pool scales itself |
-| `digitalocean_kubernetes_node_pool_min_nodes` | `cluster`, `pool`, `size` | Smallest size the pool may scale to |
-| `digitalocean_kubernetes_node_pool_max_nodes` | `cluster`, `pool`, `size` | Largest size the pool may scale to |
+| `digitalocean_kubernetes_node_pool_nodes` | `cluster_id`, `cluster`, `pool`, `size` | Nodes the pool is configured to run |
+| `digitalocean_kubernetes_node_pool_nodes_running` | `cluster_id`, `cluster`, `pool`, `size` | Nodes in the pool reporting `running` |
+| `digitalocean_kubernetes_node_pool_auto_scale` | `cluster_id`, `cluster`, `pool`, `size` | 1 if the pool scales itself |
+| `digitalocean_kubernetes_node_pool_min_nodes` | `cluster_id`, `cluster`, `pool`, `size` | Smallest size the pool may scale to |
+| `digitalocean_kubernetes_node_pool_max_nodes` | `cluster_id`, `cluster`, `pool`, `size` | Largest size the pool may scale to |
 
 The configured count and the running count are kept apart on purpose: a pool that is waiting
 for a node to come up reports the two apart, and that gap is the moment worth alerting on.
@@ -377,6 +386,16 @@ digitalocean_kubernetes_node_pool_nodes_running < digitalocean_kubernetes_node_p
 
 That comparison ships as `DigitalOceanNodePoolUnderProvisioned` on the
 [alerting page](alerting.md#resources).
+
+A pool carries its cluster twice, as `cluster_id` and as `cluster`. The name is what a
+dashboard variable and an alert summary read; the id is what joins a pool to the cluster
+metrics, which are labelled by `id`, and it is the half that survives a rename:
+
+```promql
+digitalocean_kubernetes_node_pool_nodes_running
+  * on (cluster_id) group_left (region, version)
+    label_replace(digitalocean_kubernetes_cluster_up, "cluster_id", "$1", "id", "(.*)")
+```
 
 `digitalocean_kubernetes_cluster_up` keeps the name and labels of the older, unmaintained
 exporter. The node pool metrics do not: that exporter labels a pool by its own id and name

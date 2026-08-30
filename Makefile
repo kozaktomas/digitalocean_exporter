@@ -77,6 +77,11 @@ chart-lint:
 		--set grafana.dashboards.enabled=true --set grafana.dashboards.folder=DigitalOcean >/dev/null
 	helm template charts/digitalocean-exporter --set digitalocean.token=dummy \
 		--set prometheusRule.enabled=true >/dev/null
+# The escape hatches render nothing when unset, which is the whole point of them
+# and also why a default render never reaches their branches.
+	helm template charts/digitalocean-exporter --set digitalocean.token=dummy \
+		--set 'imagePullSecrets[0].name=registry' --set podAnnotations.example=1 \
+		--set priorityClassName=low --set 'extraArgs[0]=--do.timeout=20s' >/dev/null
 # Name collisions and an unstable pod-template checksum both render without error.
 	./scripts/chart-invariants.sh
 

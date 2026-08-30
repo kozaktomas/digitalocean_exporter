@@ -14,7 +14,9 @@ RestartSec=5s
 TimeoutStopSec=30s
 
 # The exporter is stateless: it writes nothing and needs no filesystem access
-# beyond reading its own configuration.
+# beyond reading its own configuration. It is an HTTP client that listens on one
+# port, so almost everything a service can be given is something it can be
+# denied.
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
@@ -22,12 +24,36 @@ PrivateTmp=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
 MemoryDenyWriteExecute=true
 RestrictAddressFamilies=AF_INET AF_INET6
 RestrictNamespaces=true
+RestrictRealtime=true
+# Nothing here creates a file, so nothing here has a reason to create one that
+# is setuid.
+RestrictSUIDSGID=true
 LockPersonality=true
+# No capability is needed at all: the exporter binds 9212, which is above the
+# privileged range, and never changes user. An empty bounding set makes them
+# unavailable rather than merely unused, so nothing the process execs can pick
+# one up either.
+CapabilityBoundingSet=
+AmbientCapabilities=
+# The only devices it wants are the ones a minimal /dev already provides, which
+# includes the /dev/urandom the Go runtime seeds itself from.
+PrivateDevices=true
+# Only the process's own entries in /proc, and only the process directories:
+# the exporter reads none of it, and hiding the rest hides every other service
+# on the machine from it.
+ProtectProc=invisible
+ProcSubset=pid
 SystemCallFilter=@system-service
 SystemCallErrorNumber=EPERM
+# A syscall filter written for the native ABI is bypassed by the same call made
+# through another one. There is no second architecture to allow: the package
+# ships one binary per architecture.
+SystemCallArchitectures=native
 
 [Install]
 WantedBy=multi-user.target

@@ -100,6 +100,10 @@ Two modes, and the difference is which kind of key you need.
 limited-access key, and it is what you want in production: you measure the buckets you care
 about and nothing else.
 
+A bucket is identified by its name *and* its region, here and in the metrics, because a
+Spaces name is only unique within a region. Naming `backups@fra1` and `backups@ams3`
+measures two buckets and reports two series, one per region label.
+
 **Discovery** — pass no buckets and the collector lists them itself, then locates each one.
 Listing all buckets is a full-access capability, so this needs a **full-access** key; a
 limited key is told to name its buckets instead. Convenient for a first look, more

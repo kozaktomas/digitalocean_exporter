@@ -69,7 +69,6 @@ type Config struct {
 
 // stats is what one refresh learned about one bucket.
 type stats struct {
-	region  string
 	size    float64
 	objects float64
 	up      bool
@@ -87,8 +86,11 @@ type Collector struct {
 	concurrency int
 	logger      *slog.Logger
 
-	mu   sync.RWMutex
-	snap map[string]stats
+	mu sync.RWMutex
+	// snap is keyed by the whole Bucket, not by its name: a name is only
+	// unique within a region, and two buckets of the same name in different
+	// regions are two buckets, reported under two label sets.
+	snap map[Bucket]stats
 }
 
 // New returns a Spaces collector built from cfg.
@@ -238,18 +240,15 @@ func (c *Collector) merge(results []result) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	next := make(map[string]stats, len(results))
+	next := make(map[Bucket]stats, len(results))
 	for _, r := range results {
 		if r.err == nil {
-			next[r.bucket.Name] = stats{
-				region: r.bucket.Region, size: r.size, objects: r.objects, up: true, known: true,
-			}
+			next[r.bucket] = stats{size: r.size, objects: r.objects, up: true, known: true}
 			continue
 		}
-		previous := c.snap[r.bucket.Name]
-		previous.region = r.bucket.Region
+		previous := c.snap[r.bucket]
 		previous.up = false
-		next[r.bucket.Name] = previous
+		next[r.bucket] = previous
 	}
 	c.snap = next
 }
@@ -260,13 +259,13 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 	snap := c.snap
 	c.mu.RUnlock()
 
-	for name, s := range snap {
-		ch <- prometheus.MustNewConstMetric(upDesc, prometheus.GaugeValue, boolToFloat(s.up), name, s.region)
+	for b, s := range snap {
+		ch <- prometheus.MustNewConstMetric(upDesc, prometheus.GaugeValue, boolToFloat(s.up), b.Name, b.Region)
 		if !s.known {
 			continue
 		}
-		ch <- prometheus.MustNewConstMetric(sizeDesc, prometheus.GaugeValue, s.size, name, s.region)
-		ch <- prometheus.MustNewConstMetric(objectsDesc, prometheus.GaugeValue, s.objects, name, s.region)
+		ch <- prometheus.MustNewConstMetric(sizeDesc, prometheus.GaugeValue, s.size, b.Name, b.Region)
+		ch <- prometheus.MustNewConstMetric(objectsDesc, prometheus.GaugeValue, s.objects, b.Name, b.Region)
 	}
 }
 

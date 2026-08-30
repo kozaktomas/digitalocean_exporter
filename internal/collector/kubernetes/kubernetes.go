@@ -25,6 +25,11 @@ const runningState = "running"
 // labels of the older, unmaintained exporter. The pool metrics do not: that
 // exporter labels a pool by its own id and name and drops the cluster, which
 // leaves no way to tell whose pool it is.
+//
+// A pool carries both the cluster's id and its name. The name is what a
+// dashboard variable and a summary line read; the id is what joins a pool to
+// the cluster metrics, which are labelled by id, and it survives a cluster
+// being renamed.
 var (
 	upDesc = prometheus.NewDesc("digitalocean_kubernetes_cluster_up",
 		"Whether the cluster state is running.",
@@ -40,19 +45,19 @@ var (
 		[]string{"id", "name", "region"}, nil)
 	poolNodesDesc = prometheus.NewDesc("digitalocean_kubernetes_node_pool_nodes",
 		"Number of nodes the pool is configured to run.",
-		[]string{"cluster", "pool", "size"}, nil)
+		[]string{"cluster_id", "cluster", "pool", "size"}, nil)
 	poolRunningDesc = prometheus.NewDesc("digitalocean_kubernetes_node_pool_nodes_running",
 		"Number of nodes in the pool reporting the running state.",
-		[]string{"cluster", "pool", "size"}, nil)
+		[]string{"cluster_id", "cluster", "pool", "size"}, nil)
 	poolAutoScaleDesc = prometheus.NewDesc("digitalocean_kubernetes_node_pool_auto_scale",
 		"Whether the pool scales itself between its bounds.",
-		[]string{"cluster", "pool", "size"}, nil)
+		[]string{"cluster_id", "cluster", "pool", "size"}, nil)
 	poolMinDesc = prometheus.NewDesc("digitalocean_kubernetes_node_pool_min_nodes",
 		"Smallest number of nodes the pool may scale to.",
-		[]string{"cluster", "pool", "size"}, nil)
+		[]string{"cluster_id", "cluster", "pool", "size"}, nil)
 	poolMaxDesc = prometheus.NewDesc("digitalocean_kubernetes_node_pool_max_nodes",
 		"Largest number of nodes the pool may scale to.",
-		[]string{"cluster", "pool", "size"}, nil)
+		[]string{"cluster_id", "cluster", "pool", "size"}, nil)
 )
 
 // descriptors lists every metric the collector can emit.
@@ -209,7 +214,7 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 // collectPools emits the per-pool metrics of one cluster.
 func collectPools(ch chan<- prometheus.Metric, cl cluster) {
 	for _, p := range cl.pools {
-		labels := []string{cl.name, p.name, p.size}
+		labels := []string{cl.id, cl.name, p.name, p.size}
 		gauge(ch, poolNodesDesc, p.nodes, labels...)
 		gauge(ch, poolRunningDesc, p.running, labels...)
 		gauge(ch, poolAutoScaleDesc, p.autoScale, labels...)

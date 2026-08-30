@@ -41,8 +41,9 @@ groups:
           summary: Collector {{ $labels.collector }} has not refreshed for an hour
           description: >-
             This catches a refresh that hangs rather than fails, which leaves
-            collector_success at 1 while the data ages. Raise the threshold if this
-            collector is deliberately run at an interval longer than 30 minutes.
+            collector_success at 1 while the data ages. The threshold is an hour, so
+            raise it if this collector is deliberately run at an interval longer than
+            that.
 
       - alert: DigitalOceanExporterRateLimitLow
         expr: digitalocean_exporter_api_rate_limit_remaining < 500
@@ -92,7 +93,9 @@ groups:
   - name: digitalocean-resources
     rules:
       - alert: DigitalOceanDropletDown
-        expr: digitalocean_droplet_up == 0
+        expr: >-
+          digitalocean_droplet_up == 0
+            unless on (id) digitalocean_droplet_info{status=~"off|archive"}
         for: 15m
         labels:
           severity: critical
@@ -101,7 +104,12 @@ groups:
           description: >-
             DigitalOcean reports the droplet in a status other than active. A droplet
             being rebuilt or resized passes through this state briefly; fifteen minutes
-            of it is not routine.
+            of it is not routine. The two statuses somebody chooses on purpose, off and
+            archive, are excluded: a droplet an operator powered off is not an incident
+            and paging on it teaches people to ignore this alert. What is left is a
+            droplet DigitalOcean itself stopped, or one stuck in new — both worth waking
+            somebody for. A droplet left off is still billed, which
+            DigitalOceanDropletOff reports at info.
 
       - alert: DigitalOceanKubernetesClusterDown
         expr: digitalocean_kubernetes_cluster_up == 0
@@ -244,6 +252,19 @@ groups:
             DigitalOcean bills a volume by its allocated size for as long as it exists,
             attached or not. A day of this is usually a leftover from a deleted droplet
             or a released PersistentVolumeClaim.
+
+      - alert: DigitalOceanDropletOff
+        expr: digitalocean_droplet_info{status="off"} == 1
+        for: 24h
+        labels:
+          severity: info
+        annotations:
+          summary: Droplet {{ $labels.name }} has been powered off for a day
+          description: >-
+            DigitalOcean bills a droplet by its size whether it runs or not, because the
+            disk and the address stay reserved. A day of this is either a droplet
+            somebody forgot to destroy or one waiting on a decision. It is the half
+            DigitalOceanDropletDown leaves out, reported as a cost rather than a page.
 
       - alert: DigitalOceanSpacesBucketUnreachable
         expr: digitalocean_spaces_bucket_up == 0

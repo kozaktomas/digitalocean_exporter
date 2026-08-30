@@ -16,6 +16,11 @@ image:
   # -- Image pull policy.
   pullPolicy: IfNotPresent
 
+# -- Secrets granting the node access to the image registry, as
+# `[{name: my-pull-secret}]`. Only needed when `image.repository` has been
+# repointed at a private mirror; the public GHCR image needs none.
+imagePullSecrets: []
+
 digitalocean:
   # -- DigitalOcean API token. The chart puts it in a Secret it owns and mounts it
   # into the pod as a file, never as an environment variable, so it cannot leak
@@ -245,6 +250,18 @@ resources:
   limits:
     memory: 128Mi
 
+# -- Extra annotations for the pod. The chart already sets a checksum of the
+# Secret here, and merges these on top of it.
+podAnnotations: {}
+# -- PriorityClass for the pod. An exporter is worth less than what it watches,
+# so a cluster with priority classes usually wants a low one here rather than
+# the default.
+priorityClassName: ""
+# -- Extra command-line flags for the exporter, appended after the ones the
+# chart renders. This is for a flag that has no value of its own here yet, such
+# as `--do.timeout=20s`. It cannot override one the chart already renders: the
+# flag parser rejects a repeated flag and the container then crash-loops.
+extraArgs: []
 # -- Node selector for the pod.
 nodeSelector: {}
 # -- Tolerations for the pod.

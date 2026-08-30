@@ -65,7 +65,7 @@ an account limit.
 
 | Alert | Severity | For | Fires when |
 |---|---|---|---|
-| `DigitalOceanDropletDown` | critical | 15m | A droplet is in a status other than `active` |
+| `DigitalOceanDropletDown` | critical | 15m | A droplet is in a status other than `active`, `off` or `archive` |
 | `DigitalOceanKubernetesClusterDown` | critical | 15m | A managed control plane is not `running` |
 | `DigitalOceanNodePoolUnderProvisioned` | warning | 30m | A node pool runs fewer nodes than it is sized for |
 | `DigitalOceanLoadBalancerDown` | critical | 15m | A load balancer is not `active` |
@@ -77,6 +77,13 @@ an account limit.
 active load balancer with nothing behind it answers every request with an error while looking
 healthy from the outside. A load balancer that selects backends by tag reports zero until
 something carries the tag, which is why it waits 30 minutes.
+
+`DigitalOceanDropletDown` deliberately ignores the two statuses somebody chooses: `off` and
+`archive`. Paging on a droplet an operator powered off is how an alert gets a reputation for
+crying wolf, and once it has one nobody reads it when a droplet stops on its own. What is
+left is worth waking up for — a droplet DigitalOcean stopped, or one stuck in `new` a quarter
+of an hour after it was created. The powered-off half is still billed, and is reported by
+`DigitalOceanDropletOff` at info under [Cost](#cost).
 
 `DigitalOceanDropletMetricsUnavailable` usually means the droplet agent is not running, which
 blanks the graphs in the DigitalOcean console too.
@@ -109,11 +116,17 @@ the change, as something to read rather than to act on.
 |---|---|---|---|
 | `DigitalOceanRegistryStorageNearQuota` | warning | 1h | Registry storage is over 90% of what the tier includes |
 | `DigitalOceanVolumeUnattached` | info | 24h | A volume has been attached to nothing for a day |
+| `DigitalOceanDropletOff` | info | 24h | A droplet has been powered off for a day |
 | `DigitalOceanSpacesBucketUnreachable` | warning | 1h | A bucket could not be measured |
 
 `DigitalOceanVolumeUnattached` waits a day because a volume is legitimately detached while
 being moved between droplets. Past that it is usually a leftover from a deleted droplet or a
 released PersistentVolumeClaim, billed by allocated size for as long as it exists.
+
+`DigitalOceanDropletOff` is the other side of `DigitalOceanDropletDown`. A powered-off
+droplet is billed by its size exactly as a running one is, because the disk and the address
+stay reserved; stopping the charge means destroying it. A day of it is either something
+forgotten or something waiting on a decision, which is a mail rather than a page.
 
 `DigitalOceanSpacesBucketUnreachable` is per bucket: one bucket failing keeps its previous
 size and object count and leaves the others alone. The usual cause is a Spaces key without

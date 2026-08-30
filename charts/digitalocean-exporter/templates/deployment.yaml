@@ -18,9 +18,19 @@ spec:
         would update the Secret and leave the pod running with the old one.
         */}}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
         {{- include "digitalocean-exporter.labels" . | nindent 8 }}
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
       serviceAccountName: {{ include "digitalocean-exporter.fullname" . }}
       {{- /*
       The exporter talks only to the DigitalOcean API. A token for the Kubernetes
@@ -151,6 +161,14 @@ spec:
             - --collector.loadbalancermetrics.concurrency={{ .Values.collectors.loadbalancermetrics.concurrency }}
             {{- else }}
             - --no-collector.loadbalancermetrics
+            {{- end }}
+            {{- /*
+            Last, so it reads as an addition to what the chart renders. It
+            cannot override any of it: the flag parser rejects a flag given
+            twice rather than taking the later one.
+            */}}
+            {{- range .Values.extraArgs }}
+            - {{ . | quote }}
             {{- end }}
           ports:
             - name: metrics

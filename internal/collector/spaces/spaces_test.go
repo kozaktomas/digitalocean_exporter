@@ -289,3 +289,77 @@ digitalocean_spaces_bucket_up{bucket="logs",region="ams3"} 0
 		t.Errorf("log = %q, want it to name the header that was missing", out)
 	}
 }
+
+// A bucket name is unique within a region, not across the account, and the
+// metrics say so with a region label. Keyed by name alone the two collapsed
+// into one snapshot entry and only whichever measured last was reported.
+func TestSameNameInTwoRegionsStaysTwoBuckets(t *testing.T) {
+	_, factory := newStubAPI(t, map[string]*stubBucket{
+		"backups@fra1": {region: "fra1", objects: 5, bytes: 1500},
+		"backups@ams3": {region: "ams3", objects: 1, bytes: 1024},
+	})
+	c := newCollector(t, factory, []spaces.Bucket{
+		{Name: "backups", Region: "fra1"},
+		{Name: "backups", Region: "ams3"},
+	}, "fra1")
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	expected := `
+# HELP digitalocean_spaces_bucket_objects Number of objects in the bucket.
+# TYPE digitalocean_spaces_bucket_objects gauge
+digitalocean_spaces_bucket_objects{bucket="backups",region="ams3"} 1
+digitalocean_spaces_bucket_objects{bucket="backups",region="fra1"} 5
+# HELP digitalocean_spaces_bucket_size_bytes Bytes stored in the bucket, as Spaces accounts for them.
+# TYPE digitalocean_spaces_bucket_size_bytes gauge
+digitalocean_spaces_bucket_size_bytes{bucket="backups",region="ams3"} 1024
+digitalocean_spaces_bucket_size_bytes{bucket="backups",region="fra1"} 1500
+# HELP digitalocean_spaces_bucket_up Whether the bucket's last measurement succeeded.
+# TYPE digitalocean_spaces_bucket_up gauge
+digitalocean_spaces_bucket_up{bucket="backups",region="ams3"} 1
+digitalocean_spaces_bucket_up{bucket="backups",region="fra1"} 1
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(expected)); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+}
+
+// One of the two failing keeps its own previous figures and marks only itself
+// down, which needs the previous snapshot to be found under the same key.
+func TestSameNameInTwoRegionsFailsIndependently(t *testing.T) {
+	buckets := map[string]*stubBucket{
+		"backups@fra1": {region: "fra1", objects: 5, bytes: 1500},
+		"backups@ams3": {region: "ams3", objects: 1, bytes: 1024},
+	}
+	_, factory := newStubAPI(t, buckets)
+	c := newCollector(t, factory, []spaces.Bucket{
+		{Name: "backups", Region: "fra1"},
+		{Name: "backups", Region: "ams3"},
+	}, "fra1")
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("first refresh: %v", err)
+	}
+
+	buckets["backups@ams3"].forbidden = true
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("second refresh: %v", err)
+	}
+
+	expected := `
+# HELP digitalocean_spaces_bucket_size_bytes Bytes stored in the bucket, as Spaces accounts for them.
+# TYPE digitalocean_spaces_bucket_size_bytes gauge
+digitalocean_spaces_bucket_size_bytes{bucket="backups",region="ams3"} 1024
+digitalocean_spaces_bucket_size_bytes{bucket="backups",region="fra1"} 1500
+# HELP digitalocean_spaces_bucket_up Whether the bucket's last measurement succeeded.
+# TYPE digitalocean_spaces_bucket_up gauge
+digitalocean_spaces_bucket_up{bucket="backups",region="ams3"} 0
+digitalocean_spaces_bucket_up{bucket="backups",region="fra1"} 1
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(expected),
+		"digitalocean_spaces_bucket_size_bytes", "digitalocean_spaces_bucket_up"); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+}

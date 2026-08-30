@@ -66,6 +66,7 @@ helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
 | digitalocean.existingSecretKey | string | `"token"` | Key inside `digitalocean.existingSecret` that holds the token. |
 | digitalocean.rateLimit | int | `4` | Client-side limit on API requests per second, shared by every collector. DigitalOcean allows 250 requests a minute, and the collectors would otherwise spend their refreshes in bursts; 4 a second is 240 a minute, just inside it. Set it to `0` to turn the limiter off. |
 | digitalocean.token | string | `""` | DigitalOcean API token. The chart puts it in a Secret it owns and mounts it into the pod as a file, never as an environment variable, so it cannot leak through `kubectl describe pod`. Mutually exclusive with `existingSecret`. |
+| extraArgs | list | `[]` | Extra command-line flags for the exporter, appended after the ones the chart renders. This is for a flag that has no value of its own here yet, such as `--do.timeout=20s`. It cannot override one the chart already renders: the flag parser rejects a repeated flag and the container then crash-loops. |
 | fullnameOverride | string | `""` | Replaces the generated resource name outright. The generated name is `<release>-<chart>`, collapsed to just the release name when the release name already contains the chart name, so the common `helm install digitalocean-exporter` needs nothing here. |
 | grafana.dashboards.enabled | bool | `false` | Render the bundled Grafana dashboards as ConfigMaps, one per dashboard, labelled for the Grafana sidecar to load. Off by default: without the sidecar running, these are ConfigMaps nothing ever reads. |
 | grafana.dashboards.folder | string | `""` | Grafana folder to file the dashboards into, through a `grafana_folder` annotation. It only takes effect if the Grafana sidecar itself runs with `folderAnnotation: grafana_folder` and `provider.foldersFromFilesStructure: true`; without that the annotation is inert and the dashboards land in the sidecar's default folder. |
@@ -74,10 +75,13 @@ helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy. |
 | image.repository | string | `"ghcr.io/kozaktomas/digitalocean_exporter"` | Container image repository. |
 | image.tag | string | `""` | Image tag. Empty means the chart's appVersion, which is the exporter release this chart version was published with. Set it only to pin something else. |
+| imagePullSecrets | list | `[]` | Secrets granting the node access to the image registry, as `[{name: my-pull-secret}]`. Only needed when `image.repository` has been repointed at a private mirror; the public GHCR image needs none. |
 | log.format | string | `"logfmt"` | Log format: `logfmt` or `json`. |
 | log.level | string | `"info"` | Log level: `debug`, `info`, `warn` or `error`. |
 | nameOverride | string | `""` | Overrides the chart name used in resource names and in the `app.kubernetes.io/name` label. |
 | nodeSelector | object | `{}` | Node selector for the pod. |
+| podAnnotations | object | `{}` | Extra annotations for the pod. The chart already sets a checksum of the Secret here, and merges these on top of it. |
+| priorityClassName | string | `""` | PriorityClass for the pod. An exporter is worth less than what it watches, so a cluster with priority classes usually wants a low one here rather than the default. |
 | prometheusRule.enabled | bool | `false` | Create a Prometheus Operator PrometheusRule holding the bundled alerting rules. Requires the CRD to exist in the cluster. Off by default, like the ServiceMonitor: a chart that installs alerts nobody asked for is a chart that pages somebody at 3am. |
 | prometheusRule.labels | object | `{}` | Extra labels for the PrometheusRule, for whatever your Prometheus selects rules on. For kube-prometheus-stack that is usually `release: <release name>`. |
 | resources | object | `{"limits":{"memory":"128Mi"},"requests":{"cpu":"10m","memory":"32Mi"}}` | Container resources. The exporter holds one snapshot per collector in memory and does nothing between refreshes. |

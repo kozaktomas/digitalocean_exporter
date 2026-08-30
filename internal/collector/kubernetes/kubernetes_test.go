@@ -42,24 +42,24 @@ digitalocean_kubernetes_cluster_surge_upgrade{id="c1",name="prod",region="fra1"}
 digitalocean_kubernetes_cluster_up{id="c1",name="prod",region="fra1",version="1.35.5-do.1"} 1
 # HELP digitalocean_kubernetes_node_pool_auto_scale Whether the pool scales itself between its bounds.
 # TYPE digitalocean_kubernetes_node_pool_auto_scale gauge
-digitalocean_kubernetes_node_pool_auto_scale{cluster="prod",pool="idle",size="s-2vcpu-4gb"} 0
-digitalocean_kubernetes_node_pool_auto_scale{cluster="prod",pool="workers",size="s-4vcpu-8gb"} 1
+digitalocean_kubernetes_node_pool_auto_scale{cluster="prod",cluster_id="c1",pool="idle",size="s-2vcpu-4gb"} 0
+digitalocean_kubernetes_node_pool_auto_scale{cluster="prod",cluster_id="c1",pool="workers",size="s-4vcpu-8gb"} 1
 # HELP digitalocean_kubernetes_node_pool_max_nodes Largest number of nodes the pool may scale to.
 # TYPE digitalocean_kubernetes_node_pool_max_nodes gauge
-digitalocean_kubernetes_node_pool_max_nodes{cluster="prod",pool="idle",size="s-2vcpu-4gb"} 0
-digitalocean_kubernetes_node_pool_max_nodes{cluster="prod",pool="workers",size="s-4vcpu-8gb"} 5
+digitalocean_kubernetes_node_pool_max_nodes{cluster="prod",cluster_id="c1",pool="idle",size="s-2vcpu-4gb"} 0
+digitalocean_kubernetes_node_pool_max_nodes{cluster="prod",cluster_id="c1",pool="workers",size="s-4vcpu-8gb"} 5
 # HELP digitalocean_kubernetes_node_pool_min_nodes Smallest number of nodes the pool may scale to.
 # TYPE digitalocean_kubernetes_node_pool_min_nodes gauge
-digitalocean_kubernetes_node_pool_min_nodes{cluster="prod",pool="idle",size="s-2vcpu-4gb"} 0
-digitalocean_kubernetes_node_pool_min_nodes{cluster="prod",pool="workers",size="s-4vcpu-8gb"} 1
+digitalocean_kubernetes_node_pool_min_nodes{cluster="prod",cluster_id="c1",pool="idle",size="s-2vcpu-4gb"} 0
+digitalocean_kubernetes_node_pool_min_nodes{cluster="prod",cluster_id="c1",pool="workers",size="s-4vcpu-8gb"} 1
 # HELP digitalocean_kubernetes_node_pool_nodes Number of nodes the pool is configured to run.
 # TYPE digitalocean_kubernetes_node_pool_nodes gauge
-digitalocean_kubernetes_node_pool_nodes{cluster="prod",pool="idle",size="s-2vcpu-4gb"} 0
-digitalocean_kubernetes_node_pool_nodes{cluster="prod",pool="workers",size="s-4vcpu-8gb"} 2
+digitalocean_kubernetes_node_pool_nodes{cluster="prod",cluster_id="c1",pool="idle",size="s-2vcpu-4gb"} 0
+digitalocean_kubernetes_node_pool_nodes{cluster="prod",cluster_id="c1",pool="workers",size="s-4vcpu-8gb"} 2
 # HELP digitalocean_kubernetes_node_pool_nodes_running Number of nodes in the pool reporting the running state.
 # TYPE digitalocean_kubernetes_node_pool_nodes_running gauge
-digitalocean_kubernetes_node_pool_nodes_running{cluster="prod",pool="idle",size="s-2vcpu-4gb"} 0
-digitalocean_kubernetes_node_pool_nodes_running{cluster="prod",pool="workers",size="s-4vcpu-8gb"} 1
+digitalocean_kubernetes_node_pool_nodes_running{cluster="prod",cluster_id="c1",pool="idle",size="s-2vcpu-4gb"} 0
+digitalocean_kubernetes_node_pool_nodes_running{cluster="prod",cluster_id="c1",pool="workers",size="s-4vcpu-8gb"} 1
 `
 
 // newTestCollector wires a collector to a fake DigitalOcean API.

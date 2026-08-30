@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -27,8 +28,16 @@ type stubBucket struct {
 	noUsage bool
 }
 
+// authRegionPattern pulls the region out of the SigV4 credential scope, which
+// is the only place the region of a request survives: every regional client of
+// a test points at the one stub endpoint.
+var authRegionPattern = regexp.MustCompile(`Credential=[^/]+/[^/]+/([^/]+)/`)
+
 // stubAPI is a fake S3-compatible API: enough of HeadBucket, ListBuckets and
 // GetBucketLocation to drive the collector.
+//
+// A bucket is keyed by its name, or by "name@region" to give two buckets that
+// share a name different contents in different regions.
 type stubAPI struct {
 	buckets     map[string]*stubBucket
 	denyListAll bool
@@ -50,7 +59,7 @@ func (a *stubAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	name := strings.Trim(r.URL.Path, "/")
 	switch {
 	case r.Method == http.MethodHead:
-		a.headBucket(w, name)
+		a.headBucket(w, name, authRegion(r))
 	case name == "":
 		a.listBuckets(w)
 	case r.URL.Query().Has("location"):
@@ -60,9 +69,27 @@ func (a *stubAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// authRegion returns the region a request was signed for.
+func authRegion(r *http.Request) string {
+	match := authRegionPattern.FindStringSubmatch(r.Header.Get("Authorization"))
+	if match == nil {
+		return ""
+	}
+	return match[1]
+}
+
+// bucketName drops the optional region suffix from a key.
+func bucketName(key string) string {
+	name, _, _ := strings.Cut(key, "@")
+	return name
+}
+
 // headBucket answers with the Ceph usage headers the collector reads.
-func (a *stubAPI) headBucket(w http.ResponseWriter, name string) {
-	bucket, ok := a.buckets[name]
+func (a *stubAPI) headBucket(w http.ResponseWriter, name, region string) {
+	bucket, ok := a.buckets[name+"@"+region]
+	if !ok {
+		bucket, ok = a.buckets[name]
+	}
 	if !ok {
 		writeS3Error(w, http.StatusNotFound, "NoSuchBucket", "No such bucket.")
 		return
@@ -86,9 +113,9 @@ func (a *stubAPI) listBuckets(w http.ResponseWriter) {
 		return
 	}
 	var entries strings.Builder
-	for name := range a.buckets {
+	for key := range a.buckets {
 		fmt.Fprintf(&entries, "<Bucket><Name>%s</Name>"+
-			"<CreationDate>2026-01-01T00:00:00.000Z</CreationDate></Bucket>", name)
+			"<CreationDate>2026-01-01T00:00:00.000Z</CreationDate></Bucket>", bucketName(key))
 	}
 	writeXML(w, http.StatusOK, `<ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">`+
 		`<Owner><ID>owner</ID></Owner><Buckets>`+entries.String()+`</Buckets></ListAllMyBucketsResult>`)

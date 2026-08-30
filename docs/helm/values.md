@@ -49,3 +49,14 @@ grows is the number of series, which is bounded by how many resources you own.
 **`digitalocean.token` versus `digitalocean.existingSecret`** — the two are mutually
 exclusive, and the second is the one you want outside a test cluster.
 [Secrets](secrets.md) covers both.
+
+**`extraArgs`** is appended after every flag the chart renders, for a flag the chart has no
+value of its own for. It cannot override one it does render: the exporter's flag parser
+rejects a flag given twice rather than taking the later one, so the container would
+crash-loop. A collector is switched off with `collectors.<name>.enabled: false`, which
+renders `--no-collector.<name>`, and never through this list.
+
+**`imagePullSecrets`, `podAnnotations` and `priorityClassName`** are the escape hatches for
+what a cluster imposes rather than what the exporter needs: a private mirror of the image, a
+pod annotation something else in the cluster reads, and a priority low enough that the
+exporter is evicted before what it watches. All three render nothing when unset.
