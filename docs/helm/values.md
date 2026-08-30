@@ -30,10 +30,13 @@ gives a Deployment called `digitalocean-exporter`, not
 already exists renames every object in it, which for Helm means creating the new ones and
 deleting the old.
 
-**`collectors.*.interval`** spends from a budget of 5000 API requests an hour. For the ten
-collectors that are on by default the total is a few per cent at `5m`; for `spaces`,
-`dropletmetrics` and `loadbalancermetrics` it is not, which is why they are off. See
-[the monitoring API](../configuration/monitoring-api.md).
+**`collectors.*.interval`** spends from a budget of 5000 API requests an hour. For the eleven
+collectors that are on by default the total is a few per cent at `5m`; for `dropletmetrics`
+and `loadbalancermetrics` it is not, which is why those two are off. See
+[the monitoring API](../configuration/monitoring-api.md). `spaces` is off for a different
+reason — it needs a Spaces key pair rather than the API token — and `firewalls` and
+`certificates` because most accounts have no reason to watch them, not because of what they
+cost.
 
 **`serviceMonitor.labels`** must match your Prometheus' `serviceMonitorSelector`, or the
 ServiceMonitor is created and quietly ignored. For `kube-prometheus-stack` that is usually

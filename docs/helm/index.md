@@ -23,10 +23,15 @@ This section documents the chart itself.
 | `Secret` | unless `digitalocean.existingSecret` is set |
 | `Secret` (Spaces) | when the spaces collector is on and `spaces.existingSecret` is not set |
 | `ServiceMonitor` | when `serviceMonitor.enabled` is true |
+| `PrometheusRule` | when `prometheusRule.enabled` is true |
+| `ConfigMap` (dashboards) | when `grafana.dashboards.enabled` is true, one per bundled dashboard |
 
-No PVC, no ConfigMap, no RBAC beyond the ServiceAccount. The exporter is stateless and
-talks only to the DigitalOcean API — it does not read the Kubernetes API, so it needs no
-cluster permissions at all.
+No PVC, no RBAC beyond the ServiceAccount, and no ConfigMap unless you ask for the
+dashboards. The exporter is stateless and talks only to the DigitalOcean API — it does not
+read the Kubernetes API, so it needs no cluster permissions at all.
+
+The two Prometheus Operator objects need their CRDs to exist in the cluster; both are off by
+default, so a cluster without the Operator renders the chart unchanged.
 
 ## How values become flags
 
@@ -81,6 +86,14 @@ independently, so a second one doubles the API requests and reports the same acc
 The chart can render the bundled Grafana dashboards as ConfigMaps for the Grafana sidecar to
 pick up, with `grafana.dashboards.enabled=true`. It is off by default. See
 [dashboards](../dashboards.md) for what ships and for the folder annotation.
+
+## Alerting rules
+
+The chart can also wrap the bundled Prometheus rule file in a `PrometheusRule`, with
+`prometheusRule.enabled=true`. It is off by default too — a chart that installs alerts
+nobody asked for is a chart that pages somebody at 3am — and `prometheusRule.labels` has to
+match whatever your Prometheus selects rules on. See [alerting](../alerting.md) for the
+twenty-one rules and for using the file without the Operator.
 
 ## Values
 

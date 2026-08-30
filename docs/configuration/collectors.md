@@ -3,13 +3,14 @@
 One page per question you might have about a collector: what it reports, what it costs, and
 when to turn it off. The metric names themselves are in the [metrics reference](../metrics.md).
 
-Eleven collectors are on by default. They are on because each costs one or two API requests
-per refresh, which is negligible against the limit of 5000 an hour.
+Eleven collectors are on by default. They are on because each costs one to three API
+requests per refresh, which is negligible against the limit of 5000 an hour.
 
 Five are off. Three of them — [`spaces`](spaces.md),
 [`dropletmetrics`](monitoring-api.md#dropletmetrics) and
 [`loadbalancermetrics`](monitoring-api.md#loadbalancermetrics) — have pages of their own,
-because deciding to enable them means doing arithmetic first. The other two,
+because enabling them takes more than flipping a switch: arithmetic for the two
+monitoring-API collectors, a second credential for `spaces`. The other two,
 [`firewalls`](#firewalls) and [`certificates`](#certificates), cost no more than the
 collectors that default on; they are off because what they report changes when somebody
 deploys or renews something, not continuously, so most accounts have no use for them.
@@ -106,7 +107,9 @@ Droplets, reserved IPs and volumes currently in use, counted against the account
 The alert this exists for is "you are at 90% of your droplet limit", which you want to know
 before an autoscaler discovers it.
 
-**Cost:** shares the droplet listing where it can; one to three requests per refresh.
+**Cost:** three requests per refresh, one for each of the three resources. Every one asks
+for a single item and takes its figure from `meta.total`, so nothing more than a count
+travels.
 
 ---
 
@@ -121,7 +124,8 @@ accounts that will never have one.
 Storage usage is the number to alert on: registry tiers have hard storage ceilings, and
 pushing past one fails a deploy at the worst moment.
 
-**Cost:** one request for the registry, plus one for its repositories.
+**Cost:** three requests per refresh — the registry, its subscription tier and its
+repositories.
 
 ---
 

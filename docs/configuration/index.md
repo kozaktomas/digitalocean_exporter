@@ -7,10 +7,11 @@ holding:
 
 ```console
 $ digitalocean_exporter --version
-digitalocean_exporter, version 0.1.0 (commit e67249b, go1.26.1)
+digitalocean_exporter, version 0.3.0 (commit 57f5e48, go1.26.1)
 ```
 
-Both print and exit 0 without needing a token.
+The version, commit and Go version are whatever your build was stamped with; the line above
+is one release's, not a fixed string. Both flags print and exit 0 without needing a token.
 
 ## Credentials
 
@@ -98,8 +99,9 @@ much you own rather than with how often Prometheus scrapes.
 
 Enabling [`firewalls`](collectors.md#firewalls) and
 [`certificates`](collectors.md#certificates) adds one request each, so the same account costs
-17. The other three that are off by default are off because they are not like that; see
-[Spaces](spaces.md) and [the monitoring API](monitoring-api.md).
+17. The other three are off for reasons of their own: [`spaces`](spaces.md) needs a second
+credential, and the two [monitoring API](monitoring-api.md) collectors cost a multiple of
+everything above.
 
 !!! note "One endpoint has a stricter limit of its own"
 

@@ -46,17 +46,18 @@ make build
 ```
 
 ```
-digitalocean_exporter, version 0.1.0 (commit e67249b, go1.26.1)
+digitalocean_exporter, version 0.3.0 (commit 57f5e48, go1.26.1)
 ```
 
-`make build` stamps the version and commit into the binary. A plain `go build` produces a
-working exporter that reports `dev` as its version and `none` as its commit.
+`make build` stamps the version and commit into the binary, so the three values above are
+illustrative — yours are whatever you built. A plain `go build` produces a working exporter
+that reports `dev` as its version and `none` as its commit.
 
 The same build metadata is in the first log line at startup and in a metric, which is how
 you check what a running exporter is:
 
 ```
-digitalocean_exporter_build_info{commit="e67249b",goversion="go1.26.1",version="0.1.0"} 1
+digitalocean_exporter_build_info{commit="57f5e48",goversion="go1.26.1",version="0.3.0"} 1
 ```
 
 ## Supervising it yourself

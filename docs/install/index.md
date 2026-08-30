@@ -1,6 +1,6 @@
 # Install
 
-Four ways to run the exporter. They differ only in packaging — it is the same static
+Five ways to run the exporter. They differ only in packaging — it is the same static
 binary, the same flags and the same `:9212` in every case.
 
 | Method | Use it when |

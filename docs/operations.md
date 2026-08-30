@@ -37,8 +37,8 @@ panel from:
 | `digitalocean_exporter_api_rate_limit_remaining` | Requests left in the current window, from DigitalOcean's own headers |
 | `digitalocean_exporter_build_info` | Version and commit of the running binary |
 
-The full list, with labels and suggested alerting rules, is in the
-[metrics reference](metrics.md).
+The full list, with labels, is in the [metrics reference](metrics.md); the rules written
+against them are in [alerting](alerting.md).
 
 ## Reading a failure correctly
 
@@ -122,15 +122,19 @@ that hits `--collector.spaces.timeout` is the other. See [Spaces](configuration/
 
 ### Metrics are stale but everything reports success
 
-Check the interval. A collector doing its job every 6 hours — which is the `spaces`
-default — is not stale at hour five. `time() - digitalocean_exporter_collector_last_success_timestamp_seconds`
-against that collector's configured interval is the honest comparison.
+Check the interval. Every collector defaults to `5m`, but one you deliberately slowed down
+— `dropletmetrics` at an hour on a large account, say — is not stale at minute fifty.
+`time() - digitalocean_exporter_collector_last_success_timestamp_seconds` against that
+collector's **configured** interval is the honest comparison; against a fixed number it is
+not.
 
 ## Alerting
 
-Suggested rules, including thresholds, are kept next to the metrics they use in the
-[metrics reference](metrics.md). The three worth having on day one:
+Twenty-one rules ship with the exporter as a plain Prometheus rule file, which the chart can
+install as a `PrometheusRule`. [Alerting](alerting.md) lists every one of them, what it fires
+on and what is deliberately left out. The three worth having on day one:
 
-- `digitalocean_exporter_collector_success == 0` for longer than a few refresh intervals.
-- `digitalocean_exporter_api_rate_limit_remaining < 500`.
-- `digitalocean_volume_droplets == 0` — a volume billed while attached to nothing.
+- `DigitalOceanExporterCollectorFailing` — `digitalocean_exporter_collector_success == 0`.
+- `DigitalOceanExporterRateLimitLow` — `digitalocean_exporter_api_rate_limit_remaining < 500`.
+- `DigitalOceanVolumeUnattached` — `digitalocean_volume_droplets == 0`, a volume billed while
+  attached to nothing.

@@ -20,6 +20,7 @@ exporter against a stub API, so you do not need a DigitalOcean token to work on 
 | `make test` | Tests with coverage |
 | `make test-race` | Tests under the race detector |
 | `make smoke` | End-to-end run against a stub API, no token needed |
+| `make alerts-lint` | Check the bundled alerting rules with promtool |
 | `make chart-lint` | `helm lint` and `helm template` the chart |
 | `make chart-docs` | Regenerate the chart README from `values.yaml` |
 | `make docs` | Build the documentation site into `site/` |
@@ -67,8 +68,8 @@ failure never reaches the scheduler. It must not cost the ones that succeeded.
 2. Implement the four methods, following the rules above.
 3. Add `--collector.<name>` and `--collector.<name>.interval` in `internal/config`.
 4. Register it in `cmd/digitalocean_exporter/main.go`. `Register` takes a per-collector
-   timeout; pass 0 unless the refresh is far slower than an API call, as listing a Spaces
-   bucket is.
+   timeout; pass 0 — meaning `--do.timeout` — unless the refresh fans out over many
+   resources, as `spaces` and the two monitoring-API collectors do.
 5. Tests: drive `Refresh` against an `httptest` server and compare `Collect` against golden
    exposition text with `testutil.CollectAndCompare`. Cover the failure path.
 6. Add it to the chart: `values.yaml` — with a `# --` comment, which is what generates the
@@ -76,7 +77,14 @@ failure never reaches the scheduler. It must not cost the ones that succeeded.
    remembering the `--no-collector.<name>` branch.
 7. Document it: `docs/metrics.md` for the metrics, and
    [`docs/configuration/collectors.md`](configuration/collectors.md) for what it costs and
-   when to turn it off.
+   when to turn it off. Every page has to be in the `nav` of `mkdocs.yml`.
+8. If a metric is worth watching, put it on a dashboard in
+   `charts/digitalocean-exporter/dashboards/` and add a row to
+   [`docs/dashboards.md`](dashboards.md) — a dashboard no page mentions ships invisibly, and
+   the test says so.
+9. If it is worth waking somebody, add a rule to
+   `charts/digitalocean-exporter/alerts/digitalocean.rules.yaml` and a row to
+   [`docs/alerting.md`](alerting.md). `make alerts-lint` runs promtool over the file.
 
 ## Naming traps
 
@@ -115,13 +123,22 @@ CI fails if the generated file is out of date.
 Tag it. Everything else follows.
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.3.0
+git push origin v0.3.0     # the tag first
+git push origin main       # then the branch
 ```
 
 That runs goreleaser (binaries, tarballs, deb packages, GitHub Release), packages the chart
 at the same version and attaches it to the release, then publishes the documentation for
-`0.2` and repoints `latest` at it and regenerates the chart repository index.
+`0.3` and repoints `latest` at it and regenerates the chart repository index.
+
+**Push the tag before the branch.** Pages identifies a deployment by commit SHA and keeps the
+first one it saw, and a release tags the commit that bumps the chart version — so a branch
+push that goes first would publish `dev` from that SHA and leave the release's own deployment
+reporting success over an unchanged site. The workflow enforces the order rather than
+trusting it: a push to a branch whose commit already carries a `vX.Y.Z` tag stands down and
+leaves the publishing to the release. The tag must be plain `vMAJOR.MINOR.PATCH`; anything
+else is rejected.
 
 Semantic versioning, with one number for everything: exporter, chart, `appVersion` and the
 documentation directory. While the project is `0.x`, a minor bump is allowed to break

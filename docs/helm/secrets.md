@@ -4,9 +4,10 @@ The chart handles two independent credentials: the **DigitalOcean API token**, w
 collector needs, and the **Spaces access key pair**, which only the
 [spaces collector](../configuration/spaces.md) needs. Each has the same two modes.
 
-Whichever mode you pick, the credential reaches the container **as a mounted file** and is
-passed with `--do.token-file`. It is never an environment variable, so it does not show up
-in `kubectl describe pod` or in the container's environment.
+Whichever mode you pick, the credential reaches the container **as a mounted file** — the
+token with `--do.token-file`, the Spaces pair with `--spaces.access-key-file` and
+`--spaces.secret-key-file`. Neither is ever an environment variable, so neither shows up in
+`kubectl describe pod` or in the container's environment.
 
 ## The API token
 

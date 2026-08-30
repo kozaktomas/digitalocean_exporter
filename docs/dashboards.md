@@ -23,8 +23,9 @@ Nothing about them is Helm-specific: the JSON imports into any Grafana.
 | `security.json` | Certificates about to expire, firewall rules open to the internet, changes that have not landed | `certificates`, `firewalls` |
 
 A dashboard whose collector is switched off shows empty panels rather than breaking, which is
-why all nine ship together. `billing`, `security` and parts of `droplets` and `loadbalancers`
-depend on collectors that are [off by default](configuration/collectors.md).
+why all nine ship together. `security`, `spaces` and parts of `droplets` and `loadbalancers`
+depend on collectors that are [off by default](configuration/collectors.md); every other
+dashboard fills itself from the collectors an untouched install already runs.
 
 ## Importing them by hand
 
@@ -85,7 +86,8 @@ Every dashboard declares two:
   with `All`. Every query filters on it, so two exporters scraped by one Prometheus — a
   personal account and a company one, say — stay apart.
 
-`droplets`, `loadbalancers` and `spaces` add a third for the resource they break down by.
+`droplets`, `kubernetes`, `loadbalancers` and `spaces` add a third for the resource they
+break down by.
 
 The dashboards are tagged `digitalocean` and each carries a links dropdown filtered to that
 tag, so they navigate between each other. A dashboard added to the folder with the same tag

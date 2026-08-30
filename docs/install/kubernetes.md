@@ -101,9 +101,13 @@ refreshes; one replica is enough for any account size.
 
 ```bash
 helm repo update
+helm search repo digitalocean-exporter/digitalocean-exporter --versions
 helm upgrade digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
-  --version 0.2.0 --namespace monitoring -f values.yaml
+  --version 0.4.0 --namespace monitoring -f values.yaml
 ```
+
+`helm search` after `helm repo update` is what tells you which versions exist; `0.4.0` here
+is only standing in for a version newer than the one installed above.
 
 `image.tag` defaults to the chart's `appVersion`, so moving the chart version moves the
 exporter with it. Check the documentation for the version you are moving to — while the

@@ -66,11 +66,12 @@ Three things follow from that, and they are worth knowing before you tune anythi
 | [`dropletmetrics`](configuration/monitoring-api.md#dropletmetrics) | CPU, memory, disk and load per droplet | **off** |
 | [`loadbalancermetrics`](configuration/monitoring-api.md#loadbalancermetrics) | Traffic and backend health per load balancer | **off** |
 
-Three of the five that are off cost far more API requests than the others, or take far
-longer; the pages linked above do the arithmetic. `firewalls` and `certificates` are the
-exception — they cost one request each, the same as the collectors that default on, and are
-off only because a ruleset or a certificate changes on human timescales rather than
-continuously.
+The five that are off are off for three different reasons. `dropletmetrics` and
+`loadbalancermetrics` cost far more API requests than the rest — the page linked above does
+the arithmetic. `spaces` costs one request per bucket, but it needs a Spaces key pair, which
+is a separate credential from the API token. `firewalls` and `certificates` cost one request
+each, the same as the collectors that default on, and are off only because a ruleset or a
+certificate changes on human timescales rather than continuously.
 
 A token scoped `api:read` runs all of them and can change nothing;
 [token permissions](configuration/permissions.md) covers scoping it more tightly.
