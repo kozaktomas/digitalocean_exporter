@@ -1438,13 +1438,14 @@
 
 
 <h1 id="alerting">Alerting<a class="headerlink" href="#alerting" title="Permanent link">&para;</a></h1>
-<p>Twenty-one alerting rules ship with the exporter, in
+<p>Twenty-three alerting rules ship with the exporter, in
 <a href="https://github.com/kozaktomas/digitalocean_exporter/blob/main/charts/digitalocean-exporter/alerts/digitalocean.rules.yaml"><code>charts/digitalocean-exporter/alerts/digitalocean.rules.yaml</code></a>.</p>
 <p>It is a plain Prometheus rule file. Point <code>rule_files</code> at it directly, or let the chart wrap
 it in a <code>PrometheusRule</code>. Every rule carries a <code>severity</code> label of <code>critical</code>, <code>warning</code> or
 <code>info</code>, a <code>summary</code> and a <code>description</code>.</p>
-<p>Thresholds assume collectors refresh on their 5m default. A collector deliberately run
-slower needs the matching <code>for</code> raised, or it will alert on data that is simply not due yet.</p>
+<p>Thresholds assume collectors refresh on their default interval — 5m for every collector but
+<code>images</code>, which refreshes every 10m. A collector deliberately run slower needs the matching
+<code>for</code> raised, or it will alert on data that is simply not due yet.</p>
 <h2 id="installing-them">Installing them<a class="headerlink" href="#installing-them" title="Permanent link">&para;</a></h2>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Prometheus</label><label for="__tabbed_1_2">Helm</label></div>
 <div class="tabbed-content">
@@ -1687,6 +1688,12 @@ the change, as something to read rather than to act on.</p>
 <td>A volume has been attached to nothing for a day</td>
 </tr>
 <tr>
+<td><code>DigitalOceanSnapshotOld</code></td>
+<td>info</td>
+<td>1h</td>
+<td>A snapshot has been stored for over ninety days</td>
+</tr>
+<tr>
 <td><code>DigitalOceanDropletOff</code></td>
 <td>info</td>
 <td>24h</td>
@@ -1703,6 +1710,12 @@ the change, as something to read rather than to act on.</p>
 <p><code>DigitalOceanVolumeUnattached</code> waits a day because a volume is legitimately detached while
 being moved between droplets. Past that it is usually a leftover from a deleted droplet or a
 released PersistentVolumeClaim, billed by allocated size for as long as it exists.</p>
+<p><code>DigitalOceanSnapshotOld</code> is the storage equivalent of the same idea. DigitalOcean bills a
+stored image by its size every month for as long as it exists, and a snapshot taken before a
+change nobody rolled back is billed forever. Ninety days is a threshold to argue with: raise
+it if you keep quarterly restore points, lower it if snapshots are only ever taken before a
+deploy. It deliberately matches <code>type="snapshot"</code> alone — automatic droplet backups expire
+on their own schedule, and a custom image is usually a base somebody uploaded on purpose.</p>
 <p><code>DigitalOceanDropletOff</code> is the other side of <code>DigitalOceanDropletDown</code>. A powered-off
 droplet is billed by its size exactly as a running one is, because the disk and the address
 stay reserved; stopping the charge means destroying it. A day of it is either something

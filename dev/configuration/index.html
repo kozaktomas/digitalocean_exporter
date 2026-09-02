@@ -1679,8 +1679,8 @@ travel between them:</p>
 stale. A response without the headers leaves all three as they were rather than zeroing
 them. The bundled <a href="../alerting/"><code>DigitalOceanExporterRateLimitLow</code></a> fires below ten
 percent.</p>
-<p><strong>Staggered refreshes.</strong> Collectors all default to a <code>5m</code> interval and all start together, so
-without help they would fire as one burst every five minutes. Each one's first refresh is
+<p><strong>Staggered refreshes.</strong> Collectors default to a <code>5m</code> interval — <code>images</code> to <code>10m</code> — and all
+start together, so without help they would fire as one burst. Each one's first refresh is
 therefore held back by an even share of a window — the <strong>shortest interval</strong> any enabled
 collector is configured with, or <strong>three seconds</strong>, whichever is smaller — and every later
 refresh keeps that phase. One window for the whole set is what makes the offsets distinct
@@ -1867,6 +1867,18 @@ web configuration, which is how you get TLS and basic auth:</p>
 <td><code>--collector.volumes.interval</code></td>
 <td><code>COLLECTOR_VOLUMES_INTERVAL</code></td>
 <td><code>5m</code></td>
+<td>Its refresh interval</td>
+</tr>
+<tr>
+<td><code>--collector.images</code></td>
+<td><code>COLLECTOR_IMAGES</code></td>
+<td><code>true</code></td>
+<td><a href="collectors/#images">Snapshots, backups and custom images</a></td>
+</tr>
+<tr>
+<td><code>--collector.images.interval</code></td>
+<td><code>COLLECTOR_IMAGES_INTERVAL</code></td>
+<td><code>10m</code></td>
 <td>Its refresh interval</td>
 </tr>
 <tr>
