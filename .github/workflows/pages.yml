@@ -241,6 +241,15 @@ jobs:
       - name: Drop the git metadata
         run: rm -rf site/.git
 
+      # What the verification step below polls for. It names the commit this run is
+      # deploying — the SHA Pages itself keys the deployment by, which for a
+      # `workflow_dispatch` with `ref` is the dispatched ref rather than the commit the
+      # documentation was built from. That is deliberate: the file exists to tell "the
+      # site is serving what this run uploaded" from "the site is serving an older
+      # upload", and it is the deployment SHA that decides which of the two happened.
+      - name: Stamp the site with the commit being deployed
+        run: printf '%s\n' "${GITHUB_SHA}" > site/deployed-commit.txt
+
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site
@@ -254,25 +263,28 @@ jobs:
       # the push and the tag publish from one SHA. It is silent, which is the problem — the
       # workflow goes green and the site stays on the previous version. This step is what
       # makes it loud.
+      #
+      # It polls for the stamped commit, not for the version name: `dev`, and `0.3` for any
+      # `0.3.x`, are already on the site from the first deployment that published them, so
+      # an ignored deployment would satisfy a check for the name every time — on every
+      # branch push and every patch release, which is exactly the set of runs this exists
+      # to watch. The SHA changes with every commit, so a site left on an earlier upload
+      # fails the check.
       - name: Verify the site serves what was just deployed
-        env:
-          VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          expected="${VERSION:-dev}"
           # The Pages CDN caches for ten minutes and a deployment does not always purge it,
           # so this polls rather than checking once.
           for attempt in $(seq 1 24); do
-            if curl -fsS "${PAGES_URL}/versions.json" \
-              | python3 -c 'import json,sys; sys.exit(0 if sys.argv[1] in [v["version"] for v in json.load(sys.stdin)] else 1)' \
-                "${expected}"; then
-              echo "the site serves ${expected}"
+            served=$(curl -fsS "${PAGES_URL}/deployed-commit.txt" | tr -d '[:space:]' || true)
+            if [ "${served}" = "${GITHUB_SHA}" ]; then
+              echo "the site serves ${GITHUB_SHA}"
               exit 0
             fi
-            echo "attempt ${attempt}: ${expected} is not served yet"
+            echo "attempt ${attempt}: the site serves ${served:-nothing yet}, not ${GITHUB_SHA}"
             sleep 15
           done
-          echo "::error::deployment reported success but ${PAGES_URL} does not serve ${expected}."
+          echo "::error::deployment reported success but ${PAGES_URL} does not serve ${GITHUB_SHA}."
           echo "::error::GitHub Pages keeps the first deployment for a commit SHA. If this commit"
           echo "::error::was already deployed by another run, publish from a new commit."
           exit 1

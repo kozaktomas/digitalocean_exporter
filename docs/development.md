@@ -144,6 +144,22 @@ trusting it: a push to a branch whose commit already carries a `vX.Y.Z` tag stan
 leaves the publishing to the release. The tag must be plain `vMAJOR.MINOR.PATCH`; anything
 else is rejected.
 
+**A deployment is verified by commit.** The published site carries a `deployed-commit.txt`
+at its root naming the commit that deployment came from, and the workflow polls the live
+site for that SHA — the Pages CDN caches for ten minutes, so it polls rather than checking
+once — before it reports success. Polling for the version name would verify nothing:
+`dev`, and `0.3` for every `0.3.x`, are on the site already from the deployment that first
+published them, so a deployment Pages ignored would pass the check on every branch push and
+every patch release.
+
+**`latest` follows the highest version, not the newest tag.** Before it publishes, the
+release reads the versions mike stores on `docs-versions` and passes the `latest` alias only
+when the minor being published is greater than or equal to the highest one already there. A
+fix backported to an older minor — `v0.2.1` tagged after `v0.3.0` is out — therefore
+publishes its own `0.2/` and leaves `latest`, and the site root that redirects to it, on
+`0.3`. A patch of the highest minor still moves the alias: `v0.3.1` republishes `0.3`, which
+is where `latest` already points, and it has to move with it onto the newer content.
+
 **Nothing ships from an unchecked commit.** The release workflow starts with a `check` job —
 `make check`, `make alerts-lint`, `make chart-lint` and `make smoke` — and every job that
 builds or publishes anything waits on it. This is not belt and braces: the order above pushes

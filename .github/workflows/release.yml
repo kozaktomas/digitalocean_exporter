@@ -101,14 +101,77 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Publishes documentation for this minor, moves `latest` onto it, and regenerates the
-  # chart repository index so the new package appears in index.yaml.
+  # `latest` and the site root follow the highest version, not the newest tag. Releasing
+  # v0.2.1 after v0.3.0 is an ordinary thing to do — a fix backported to the old minor —
+  # and moving the alias onto it would send everyone reading the documentation, and every
+  # `helm install` that follows it, back to 0.2. So the alias is passed only when the
+  # minor being published is greater than or equal to the highest one mike already stores
+  # on the docs branch; a backport publishes its own `0.2/` and leaves `latest` alone.
+  #
+  # `>=` rather than `>` because the documentation is versioned per minor: v0.3.1
+  # republishes `0.3`, which is the version `latest` already points at, and the alias has
+  # to move with it onto the newer content.
+  alias:
+    needs: release
+    runs-on: ubuntu-latest
+    outputs:
+      latest: ${{ steps.decide.outputs.alias }}
+    steps:
+      - id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MINOR: ${{ needs.release.outputs.minor }}
+          REPO: ${{ github.repository }}
+          DOCS_BRANCH: docs-versions # mike's storage, as pages.yml declares it
+        run: |
+          set -euo pipefail
+          # versions.json is mike's own record of what is published. It is absent on the
+          # first release, when the branch does not exist yet — that release is the
+          # highest version by definition and takes the alias. Any other failure is fatal:
+          # reading no versions looks exactly like publishing the highest one, and a
+          # request that failed for some other reason must not be what moves `latest`.
+          err=$(mktemp)
+          if versions=$(gh api "repos/${REPO}/contents/versions.json?ref=${DOCS_BRANCH}" \
+            -H "Accept: application/vnd.github.raw" 2>"${err}"); then
+            :
+          elif grep -q "Not Found" "${err}"; then
+            echo "no versions published yet: ${DOCS_BRANCH} has no versions.json"
+            versions=""
+          else
+            cat "${err}" >&2
+            echo "::error::could not read the published versions from ${DOCS_BRANCH}"
+            exit 1
+          fi
+          alias=$(printf '%s' "${versions}" | python3 -c '
+          import json, sys
+
+          def semver(v):
+              try:
+                  return tuple(int(part) for part in v.split("."))
+              except ValueError:
+                  return None  # a named version such as dev, never the highest
+
+          raw = sys.stdin.read().strip()
+          published = [semver(e["version"]) for e in (json.loads(raw) if raw else [])]
+          highest = max((v for v in published if v), default=())
+          print("latest" if semver(sys.argv[1]) >= highest else "")
+          ' "${MINOR}")
+          if [ -n "${alias}" ]; then
+            echo "${MINOR} is the highest published version: moving latest onto it"
+          else
+            echo "a higher version than ${MINOR} is already published: leaving latest where it is"
+          fi
+          echo "alias=${alias}" >> "$GITHUB_OUTPUT"
+
+  # Publishes documentation for this minor, moves `latest` onto it when this is the
+  # highest version, and regenerates the chart repository index so the new package
+  # appears in index.yaml.
   #
   # Called directly rather than triggered by `on: release`, because GitHub does not fire
   # workflow events for actions taken with GITHUB_TOKEN — and goreleaser creates the
   # release with exactly that token.
   pages:
-    needs: release
+    needs: [release, alias]
     uses: ./.github/workflows/pages.yml
     permissions:
       contents: write
@@ -116,4 +179,4 @@ jobs:
       id-token: write
     with:
       version: ${{ needs.release.outputs.minor }}
-      alias: latest
+      alias: ${{ needs.alias.outputs.latest }}
