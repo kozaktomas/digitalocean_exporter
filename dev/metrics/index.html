@@ -1179,6 +1179,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#attributing-the-api-cost" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributing the API cost
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#rate-limiting" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1767,6 +1778,17 @@
     <span class="md-ellipsis">
       
         Behaviour on failure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#attributing-the-api-cost" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributing the API cost
       
     </span>
   </a>
@@ -2766,13 +2788,28 @@ capability, so a limited key must be given an explicit bucket list.</p>
 </tr>
 <tr>
 <td><code>digitalocean_exporter_api_requests_total</code> (counter)</td>
-<td><code>resource</code>, <code>status</code></td>
-<td>API requests by resource and HTTP status</td>
+<td><code>collector</code>, <code>resource</code>, <code>status</code></td>
+<td>API requests by collector, resource and HTTP status</td>
+</tr>
+<tr>
+<td><code>digitalocean_exporter_api_request_duration_seconds</code> (histogram)</td>
+<td><code>collector</code>, <code>resource</code></td>
+<td>Duration of one API request</td>
 </tr>
 <tr>
 <td><code>digitalocean_exporter_api_rate_limit_remaining</code></td>
 <td>—</td>
 <td>Requests left in the current API rate-limit window</td>
+</tr>
+<tr>
+<td><code>digitalocean_exporter_api_rate_limit</code></td>
+<td>—</td>
+<td>Requests that window allows in total</td>
+</tr>
+<tr>
+<td><code>digitalocean_exporter_api_rate_limit_reset_timestamp_seconds</code></td>
+<td>—</td>
+<td>Unix timestamp at which that window refills</td>
 </tr>
 </tbody>
 </table>
@@ -2783,10 +2820,33 @@ failing collector shows up as a flat line plus a failing health metric — not a
 looks like DigitalOcean itself went away.</p>
 <p>Before a collector's first successful refresh it emits nothing at all, rather than zeros.
 A starting exporter must not be readable as an account with no droplets and no money.</p>
+<h3 id="attributing-the-api-cost">Attributing the API cost<a class="headerlink" href="#attributing-the-api-cost" title="Permanent link">&para;</a></h3>
+<p><code>collector</code> on <code>digitalocean_exporter_api_requests_total</code> is the collector whose refresh
+made the request, which is what the <code>resource</code> label cannot say: <code>limits</code> and <code>droplets</code>
+both read <code>/v2/droplets</code>, and both monitoring collectors read <code>/v2/monitoring</code>. So the cost
+each collector is quoted at in the <a href="../configuration/collectors/">collector reference</a> can be
+checked against the exporter itself:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">collector</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3600</span>
+</code></pre></div>
+<p>A request made outside any refresh carries <code>collector="none"</code>.</p>
+<p><code>digitalocean_exporter_api_request_duration_seconds</code> times the same requests, per collector
+and resource. It measures the request alone: the wait behind the exporter's own rate limiter
+is not in it, which is what separates "the API is slow" from "this collector is queued
+behind its own fan-out". Neither metric carries a per-resource identifier, so their
+cardinality is bounded by the number of collectors.</p>
 <h3 id="rate-limiting">Rate limiting<a class="headerlink" href="#rate-limiting" title="Permanent link">&para;</a></h3>
-<p>DigitalOcean allows 5000 API requests per hour per token.
-<code>digitalocean_exporter_api_rate_limit_remaining</code> is read from the response headers, so the
-budget is visible before it runs out and the exporter starts serving stale data.</p>
+<p>DigitalOcean allows 5000 API requests per hour per token, though the ceiling varies by
+account. All three rate-limit gauges are read from the response headers, so they are
+DigitalOcean's own count rather than an estimate: what is left, what the window allows, and
+when it refills.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nv">digitalocean_exporter_api_rate_limit_remaining</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_exporter_api_rate_limit</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="nv">digitalocean_exporter_api_rate_limit_reset_timestamp_seconds</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="kr">time</span><span class="o">()</span>
+</code></pre></div>
+<p>The first is the share of the budget still available — the shape the bundled alert fires on,
+because a fixed threshold means nothing against a ceiling that varies. The second is how
+long a starved exporter stays starved. A response that carries no rate-limit headers leaves
+the gauges as they were rather than zeroing them: a zero reads as a budget that has just run
+out.</p>
 <h2 id="alerting">Alerting<a class="headerlink" href="#alerting" title="Permanent link">&para;</a></h2>
 <p>Twenty-one rules ship with the exporter as a plain Prometheus rule file, covering the
 exporter's own health, account limits, resources that are down, certificates about to expire

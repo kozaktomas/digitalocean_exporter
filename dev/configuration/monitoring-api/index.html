@@ -1422,10 +1422,14 @@ refresh fail and keep its previous snapshot. Every attempt is counted by
 <a href="../#staying-under-the-burst-limit">staying under the burst limit</a>.</p>
 </div>
 <p>Watch the result rather than trusting the arithmetic:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">digitalocean_exporter_api_rate_limit_remaining</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">digitalocean_exporter_api_rate_limit_remaining</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_exporter_api_rate_limit</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">collector</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3600</span>
 </code></pre></div>
-<p>It is read from the API response headers, so it is DigitalOcean's own count, not an
-estimate. Alert on it going below a few hundred.</p>
+<p>Both come from the exporter's own instrumentation: the first is DigitalOcean's count of what
+is left over the ceiling it reports for this account, not an estimate, and the second is what
+each collector is spending an hour — this collector's share of it included, which the
+<code>resource</code> label cannot show, since every monitoring query reads <code>/v2/monitoring</code>. Alert on
+the ratio rather than on a fixed number of requests; the bundled rules already do.</p>
 <hr />
 <h2 id="dropletmetrics">dropletmetrics<a class="headerlink" href="#dropletmetrics" title="Permanent link">&para;</a></h2>
 <p>CPU, memory, disk, filesystem and load per droplet — <code>digitalocean_droplet_cpu_seconds_total</code>,

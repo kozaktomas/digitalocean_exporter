@@ -1072,10 +1072,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#rate_limit_remaining-is-falling-towards-zero" class="md-nav__link">
+  <a href="#the-api-budget-is-falling-towards-zero" class="md-nav__link">
     <span class="md-ellipsis">
       
-        rate_limit_remaining is falling towards zero
+        The API budget is falling towards zero
       
     </span>
   </a>
@@ -1431,10 +1431,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#rate_limit_remaining-is-falling-towards-zero" class="md-nav__link">
+  <a href="#the-api-budget-is-falling-towards-zero" class="md-nav__link">
     <span class="md-ellipsis">
       
-        rate_limit_remaining is falling towards zero
+        The API budget is falling towards zero
       
     </span>
   </a>
@@ -1556,11 +1556,23 @@ panel from:</p>
 </tr>
 <tr>
 <td><code>digitalocean_exporter_api_requests_total</code></td>
-<td>API requests by resource and HTTP status</td>
+<td>API requests by collector, resource and HTTP status</td>
+</tr>
+<tr>
+<td><code>digitalocean_exporter_api_request_duration_seconds</code></td>
+<td>How long one API request takes, by collector</td>
 </tr>
 <tr>
 <td><code>digitalocean_exporter_api_rate_limit_remaining</code></td>
 <td>Requests left in the current window, from DigitalOcean's own headers</td>
+</tr>
+<tr>
+<td><code>digitalocean_exporter_api_rate_limit</code></td>
+<td>What that window allows in total — the account's own ceiling</td>
+</tr>
+<tr>
+<td><code>digitalocean_exporter_api_rate_limit_reset_timestamp_seconds</code></td>
+<td>When the window refills</td>
 </tr>
 <tr>
 <td><code>digitalocean_exporter_build_info</code></td>
@@ -1611,11 +1623,22 @@ causes:</p>
   user with <code>ProtectSystem=strict</code>; the file must be readable by that user and live
   somewhere the unit can reach.</li>
 </ul>
-<h3 id="rate_limit_remaining-is-falling-towards-zero"><code>rate_limit_remaining</code> is falling towards zero<a class="headerlink" href="#rate_limit_remaining-is-falling-towards-zero" title="Permanent link">&para;</a></h3>
-<p>Something is spending the 5000-per-hour budget faster than it can be replenished. Almost
-always <code>dropletmetrics</code> on an account with more droplets than the arithmetic allows — see
-<a href="../configuration/monitoring-api/#the-budget">the monitoring API</a>. Lengthen that collector's
-interval, or turn it off.</p>
+<h3 id="the-api-budget-is-falling-towards-zero">The API budget is falling towards zero<a class="headerlink" href="#the-api-budget-is-falling-towards-zero" title="Permanent link">&para;</a></h3>
+<p>Read it as a share of the account's own ceiling rather than as a count, because the hourly
+allowance varies by account:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nv">digitalocean_exporter_api_rate_limit_remaining</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_exporter_api_rate_limit</span>
+</code></pre></div>
+<p>Something is spending that budget faster than it can be replenished, and the request counter
+names it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">collector</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3600</span>
+</code></pre></div>
+<p>Almost always <code>dropletmetrics</code> on an account with more droplets than the arithmetic allows —
+see <a href="../configuration/monitoring-api/#the-budget">the monitoring API</a>. Lengthen that
+collector's interval, or turn it off.</p>
+<p>If the budget is already spent, <code>digitalocean_exporter_api_rate_limit_reset_timestamp_seconds
+- time()</code> is how many seconds the refreshes keep failing for. Nothing frees the hourly limit
+before then, and the exporter does not retry into it; the metrics stay at their last values
+until the window turns.</p>
 <p>Note that a second replica of the exporter doubles the spend. Run one.</p>
 <p>The per-minute limit is a separate matter, and the exporter defends it itself: it paces its
 requests at <code>--do.rate-limit</code> a second and retries the burst rejections it does get, waiting
@@ -1623,14 +1646,18 @@ as long as their <code>Retry-After</code> asks — unless that wait is longer th
 in which case the refresh fails at once rather than burning attempts. A rejection of <em>this</em>
 limit, the hourly one, carries no <code>Retry-After</code> and is never retried. A <code>429</code> rate
 that is not zero means the limit is set higher than the collectors can afford —
-<code>sum by (status) (rate(digitalocean_exporter_api_requests_total[5m]))</code> shows it. See
+<code>sum by (status) (rate(digitalocean_exporter_api_requests_total[5m]))</code> shows it, and adding
+<code>collector</code> to the grouping shows whose refresh is behind it. See
 <a href="../configuration/#staying-under-the-burst-limit">staying under the burst limit</a>.</p>
 <h3 id="a-refresh-takes-much-longer-than-the-api-does">A refresh takes much longer than the API does<a class="headerlink" href="#a-refresh-takes-much-longer-than-the-api-does" title="Permanent link">&para;</a></h3>
 <p>The rate limiter is between the collector and the API, and a collector that fans out over
 every droplet or bucket spends most of its refresh waiting in it: at the default 4 requests
 a second, 200 requests take 50 seconds however fast the API answers.
 <code>digitalocean_exporter_collector_duration_seconds</code> is measuring the queue as much as the
-API. That is the intended trade — a slow refresh beats a rejected one — but if a collector
+API. <code>digitalocean_exporter_api_request_duration_seconds</code> is the other half of that
+comparison: it times the requests alone, without the wait in front of them, so a refresh
+that is slow because the API is slow looks different from one that is slow because it makes
+hundreds of calls. That is the intended trade — a slow refresh beats a rejected one — but if a collector
 is timing out on it, raise that collector's timeout or lengthen its interval rather than
 raising the rate limit into DigitalOcean's own.</p>
 <h3 id="a-spaces-bucket-stopped-updating">A Spaces bucket stopped updating<a class="headerlink" href="#a-spaces-bucket-stopped-updating" title="Permanent link">&para;</a></h3>
@@ -1650,7 +1677,8 @@ install as a <code>PrometheusRule</code>. <a href="../alerting/">Alerting</a> li
 on and what is deliberately left out. The three worth having on day one:</p>
 <ul>
 <li><code>DigitalOceanExporterCollectorFailing</code> — <code>digitalocean_exporter_collector_success == 0</code>.</li>
-<li><code>DigitalOceanExporterRateLimitLow</code> — <code>digitalocean_exporter_api_rate_limit_remaining &lt; 500</code>.</li>
+<li><code>DigitalOceanExporterRateLimitLow</code> — <code>digitalocean_exporter_api_rate_limit_remaining /
+  digitalocean_exporter_api_rate_limit &lt; 0.1</code>.</li>
 <li><code>DigitalOceanVolumeUnattached</code> — <code>digitalocean_volume_droplets == 0</code>, a volume billed while
   attached to nothing.</li>
 </ul>

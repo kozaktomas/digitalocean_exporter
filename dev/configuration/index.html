@@ -1568,7 +1568,12 @@ one on the command line.</p>
 <p><strong>A scrape costs nothing.</strong> Serving <code>/metrics</code> reads an in-memory snapshot and issues no API
 requests at all — measured: twenty consecutive scrapes moved
 <code>digitalocean_exporter_api_requests_total</code> by zero. The API budget is spent by collector
-refreshes alone, on their own intervals.</p>
+refreshes alone, on their own intervals — and by which collector, since every request is
+counted under the name of the refresh that made it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">collector</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3600</span>
+</code></pre></div>
+<p>That is the figures below, measured rather than assumed. A request made outside a refresh
+carries <code>collector="none"</code>.</p>
 <p>DigitalOcean applies <a href="https://docs.digitalocean.com/reference/api/reference/public-apis/">two limits at once</a>:</p>
 <table>
 <thead>
@@ -1595,8 +1600,8 @@ by default.</p>
 <p>The eleven collectors that are on by default cost one to three requests each per refresh. On
 a real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database, a
 registry and a DNS zone, one full refresh measured <strong>15 requests</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>account 1 · balance 1 · cdn 1 · databases 1 · domains 1 · droplets 2
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>kubernetes 1 · load_balancers 1 · registry 3 · reserved_ips 1 · volumes 2
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>account 1 · balance 1 · cdn 1 · databases 1 · domains 1 · droplets 2
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>kubernetes 1 · load_balancers 1 · registry 3 · reserved_ips 1 · volumes 2
 </code></pre></div>
 <p>At the default <code>5m</code> that is 12 refreshes an hour — <strong>180 requests, 3.6% of the hourly
 budget</strong>, and 15 in a burst, 6% of the per-minute one. Comfortable, and it scales with how
@@ -1658,10 +1663,22 @@ second attempt.</p>
 <p>So a rejected burst costs a slower refresh rather than a failed one. Every attempt is
 counted by <code>digitalocean_exporter_api_requests_total</code>, because every attempt spends from
 the budget:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">status</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">status</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
 </code></pre></div>
 <p>A rising <code>429</code> rate means the rate limit is set too high for what the collectors are asking
-of it.</p>
+of it; grouping by <code>collector</code> instead names the refresh that is asking.</p>
+<p><strong>What is left of the budget.</strong> Three gauges come straight from DigitalOcean's own response
+headers — <code>digitalocean_exporter_api_rate_limit_remaining</code>,
+<code>digitalocean_exporter_api_rate_limit</code> and
+<code>digitalocean_exporter_api_rate_limit_reset_timestamp_seconds</code>. Watch the first against the
+second, because the hourly ceiling varies by account and a threshold in requests would not
+travel between them:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nv">digitalocean_exporter_api_rate_limit_remaining</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_exporter_api_rate_limit</span>
+</code></pre></div>
+<p>The third says when the window refills, which is how long a spent budget keeps the metrics
+stale. A response without the headers leaves all three as they were rather than zeroing
+them. The bundled <a href="../alerting/"><code>DigitalOceanExporterRateLimitLow</code></a> fires below ten
+percent.</p>
 <p><strong>Staggered refreshes.</strong> Collectors all default to a <code>5m</code> interval and all start together, so
 without help they would fire as one burst every five minutes. Each one's first refresh is
 therefore held back by an even share of a window — the <strong>shortest interval</strong> any enabled
@@ -1675,13 +1692,13 @@ same on every run.</p>
 <a href="https://github.com/prometheus/prometheus/wiki/Default-port-allocations">allocated to this exporter</a>.</p>
 <p><code>--web.config.file</code> takes an <a href="https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md">exporter-toolkit</a>
 web configuration, which is how you get TLS and basic auth:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># web-config.yml</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nt">tls_server_config</span><span class="p">:</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="nt">cert_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/digitalocean-exporter/tls.crt</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span><span class="nt">key_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/digitalocean-exporter/tls.key</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="nt">basic_auth_users</span><span class="p">:</span>
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">  </span><span class="nt">prometheus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$2y$10$...</span><span class="w">   </span><span class="c1"># bcrypt, e.g. from `htpasswd -nBC 10 "" | tr -d ':\n'`</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># web-config.yml</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nt">tls_server_config</span><span class="p">:</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span><span class="nt">cert_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/digitalocean-exporter/tls.crt</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">  </span><span class="nt">key_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/digitalocean-exporter/tls.key</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="nt">basic_auth_users</span><span class="p">:</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">  </span><span class="nt">prometheus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$2y$10$...</span><span class="w">   </span><span class="c1"># bcrypt, e.g. from `htpasswd -nBC 10 "" | tr -d ':\n'`</span>
 </code></pre></div>
 <h2 id="full-reference">Full reference<a class="headerlink" href="#full-reference" title="Permanent link">&para;</a></h2>
 <h3 id="server-and-credentials">Server and credentials<a class="headerlink" href="#server-and-credentials" title="Permanent link">&para;</a></h3>

@@ -1500,7 +1500,7 @@ slower needs the matching <code>for</code> raised, or it will alert on data that
 <td><code>DigitalOceanExporterRateLimitLow</code></td>
 <td>warning</td>
 <td>5m</td>
-<td>Under 500 of the account's 5000 hourly API requests left</td>
+<td>Under 10% of the account's hourly API budget left, measured against the ceiling the account itself reports</td>
 </tr>
 </tbody>
 </table>
@@ -1508,6 +1508,13 @@ slower needs the matching <code>for</code> raised, or it will alert on data that
 billing scope; see <a href="../configuration/permissions/">token permissions</a>. The two collector
 alerts are complements: a failing refresh sets <code>collector_success</code> to 0, a hung one leaves it
 at 1 while the timestamp ages.</p>
+<p><code>DigitalOceanExporterRateLimitLow</code> compares what is left against
+<code>digitalocean_exporter_api_rate_limit</code>, the ceiling the account itself reports, rather than
+against a number written into the rule — the hourly allowance is not the same everywhere. Its
+description points at <code>digitalocean_exporter_api_rate_limit_reset_timestamp_seconds</code>, which
+is how long the starvation still has to run, and at
+<code>sum by (collector) (rate(digitalocean_exporter_api_requests_total[5m]))</code>, which is what is
+spending it.</p>
 <h2 id="account-limits">Account limits<a class="headerlink" href="#account-limits" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
