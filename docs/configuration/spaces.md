@@ -100,22 +100,41 @@ Two modes, and the difference is which kind of key you need.
 limited-access key, and it is what you want in production: you measure the buckets you care
 about and nothing else.
 
+Several buckets may also be given at once, **separated by commas**:
+`--collector.spaces.bucket=assets,backups@ams3`. That matters most for the environment
+variable, which is the only form a repeatable flag has in a container: `COLLECTOR_SPACES_BUCKET`
+is one string, and a list has to be written into it somehow.
+
+```bash
+COLLECTOR_SPACES_BUCKET=assets,backups@ams3
+```
+
 A bucket is identified by its name *and* its region, here and in the metrics, because a
 Spaces name is only unique within a region. Naming `backups@fra1` and `backups@ams3`
 measures two buckets and reports two series, one per region label.
 
 **Discovery** — pass no buckets and the collector lists them itself, then locates each one.
 Listing all buckets is a full-access capability, so this needs a **full-access** key; a
-limited key is told to name its buckets instead. Convenient for a first look, more
-privilege than the job needs, and one extra request per bucket on every refresh.
+limited key is told to name its buckets instead. Convenient for a first look, and more
+privilege than the job needs.
+
+Locating costs one extra request per bucket, but only until it has an answer: a bucket does
+not change region, so the region is remembered and the request is not repeated. A bucket is
+located again only after a measurement of it fails, which is the one event that can mean the
+remembered region is no longer right.
+
+A bucket that cannot be located — the key lost its grant on it, or it was created or
+destroyed between the listing and the location request — is assumed to be in
+`--spaces.region` and the failure is logged. If that assumption is wrong, the measurement
+that follows marks that one bucket `_up 0`. It costs nothing to the rest of the account.
 
 ## Failure is isolated per bucket
 
 A collector that measures many things at once isolates them. If one bucket fails — wrong
 region, key lost its grant, network — that bucket keeps its previous values and reports its
 own `_up 0`, and the reason is logged. The buckets that succeeded are unaffected, and the
-collector as a whole still reports success. Only a failure of discovery, or of every
-bucket, fails the refresh.
+collector as a whole still reports success. Only a failure to *list* the buckets, or a
+failure of every bucket, fails the refresh.
 
 One wrinkle worth knowing when you read those logs: **a HEAD carries no response body**, so
 the S3 error code that a `GET` would have spelled out never arrives. A key that has lost

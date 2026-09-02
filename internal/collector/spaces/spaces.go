@@ -91,6 +91,16 @@ type Collector struct {
 	// unique within a region, and two buckets of the same name in different
 	// regions are two buckets, reported under two label sets.
 	snap map[Bucket]stats
+
+	// locMu guards located.
+	locMu sync.Mutex
+	// located remembers where discovery found each bucket, keyed by name. A
+	// bucket never changes region, so locating one is worth doing once rather
+	// than once per bucket on every refresh. An entry survives only as long as
+	// the bucket measures successfully: a region that turns out to be wrong,
+	// or was assumed because locating the bucket failed, is looked up again on
+	// the next refresh.
+	located map[string]string
 }
 
 // New returns a Spaces collector built from cfg.
@@ -134,6 +144,9 @@ func (c *Collector) Refresh(ctx context.Context) error {
 
 	results := c.measureAll(ctx, buckets)
 	c.merge(results)
+	if c.discovering() {
+		c.rememberRegions(results)
+	}
 
 	failed := 0
 	for _, r := range results {
@@ -152,7 +165,7 @@ func (c *Collector) Refresh(ctx context.Context) error {
 
 // resolveBuckets returns the configured buckets, or discovers them.
 func (c *Collector) resolveBuckets(ctx context.Context) ([]Bucket, error) {
-	if len(c.buckets) > 0 {
+	if !c.discovering() {
 		out := make([]Bucket, 0, len(c.buckets))
 		for _, b := range c.buckets {
 			if b.Region == "" {
@@ -180,13 +193,33 @@ func (c *Collector) discover(ctx context.Context) ([]Bucket, error) {
 	buckets := make([]Bucket, 0, len(listed.Buckets))
 	for _, b := range listed.Buckets {
 		name := aws.ToString(b.Name)
-		region, locErr := c.locate(ctx, client, name)
-		if locErr != nil {
-			return nil, locErr
-		}
-		buckets = append(buckets, Bucket{Name: name, Region: region})
+		buckets = append(buckets, Bucket{Name: name, Region: c.regionOf(ctx, client, name)})
 	}
 	return buckets, nil
+}
+
+// discovering reports whether the collector finds its buckets itself.
+func (c *Collector) discovering() bool { return len(c.buckets) == 0 }
+
+// regionOf resolves which region a discovered bucket is served from: from the
+// cache when a previous refresh measured the bucket there, otherwise by asking.
+//
+// A bucket that cannot be located costs only itself. Failing the whole refresh
+// meant one bucket in an unexpected state — moved, deleted between the listing
+// and the location request, or dropped from a key's grants — blanked every
+// other bucket in the account. The default region is assumed instead, and if
+// that is wrong the measurement marks that one bucket down.
+func (c *Collector) regionOf(ctx context.Context, client *s3.Client, name string) string {
+	if region, ok := c.cachedRegion(name); ok {
+		return region
+	}
+	region, err := c.locate(ctx, client, name)
+	if err != nil {
+		c.logger.Warn("locating a Spaces bucket failed, assuming the default region",
+			"bucket", name, "region", c.region, "error", err)
+		return c.region
+	}
+	return region
 }
 
 // locate resolves which region a discovered bucket is served from.
@@ -199,6 +232,32 @@ func (c *Collector) locate(ctx context.Context, client *s3.Client, name string) 
 		return region, nil
 	}
 	return c.region, nil
+}
+
+// cachedRegion returns where a bucket was last measured, if it was.
+func (c *Collector) cachedRegion(name string) (string, bool) {
+	c.locMu.Lock()
+	defer c.locMu.Unlock()
+
+	region, ok := c.located[name]
+	return region, ok
+}
+
+// rememberRegions replaces the location cache with the regions this refresh
+// proved right. A bucket that failed is left out, so it is located again next
+// time rather than measured forever against a region it may not be in; a
+// bucket that has disappeared from the listing leaves with it.
+func (c *Collector) rememberRegions(results []result) {
+	located := make(map[string]string, len(results))
+	for _, r := range results {
+		if r.err == nil {
+			located[r.bucket.Name] = r.bucket.Region
+		}
+	}
+
+	c.locMu.Lock()
+	defer c.locMu.Unlock()
+	c.located = located
 }
 
 // result is the outcome of measuring one bucket.

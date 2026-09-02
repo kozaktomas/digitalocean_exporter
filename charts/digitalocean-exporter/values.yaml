@@ -135,9 +135,10 @@ collectors:
     concurrency: 4
     # -- Region used for bucket discovery and for buckets named without one.
     region: ""
-    # -- Buckets to measure, each as `name` or `name@region`. Leave empty to
-    # discover them, which needs a full-access Spaces key; with a limited key the
-    # buckets have to be named here.
+    # -- Buckets to measure, each as `name` or `name@region`. An entry may also
+    # name several buckets separated by commas. Leave empty to discover them,
+    # which needs a full-access Spaces key; with a limited key the buckets have
+    # to be named here.
     buckets: []
   volumes:
     # -- Report the size of every block storage volume and how many droplets it is

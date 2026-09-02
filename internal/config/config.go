@@ -327,7 +327,8 @@ func bindSpaces(app *kingpin.Application, f *flags) {
 	f.spacesTimeout = app.Flag("collector.spaces.timeout", "Timeout of one full Spaces refresh.").
 		Envar("COLLECTOR_SPACES_TIMEOUT").Default("2m").Duration()
 	f.spacesBuckets = app.Flag("collector.spaces.bucket",
-		"Bucket to measure, as name or name@region. Repeatable. Empty means discovery.").
+		"Bucket to measure, as name or name@region. Repeatable, or comma-separated. "+
+			"Empty means discovery.").
 		Envar("COLLECTOR_SPACES_BUCKET").Strings()
 	f.spacesConcurrent = app.Flag("collector.spaces.concurrency", "How many buckets to measure at once.").
 		Envar("COLLECTOR_SPACES_CONCURRENCY").Default("4").Int()
@@ -475,22 +476,43 @@ func (f *flags) spacesConfig() (SpacesConfig, error) {
 }
 
 // parseBuckets turns the repeatable bucket flag into names and regions.
+//
+// A comma separates buckets as well as repeating the flag does, because the
+// environment form of a repeatable flag is one string and kingpin splits it on
+// newlines alone. Without this, COLLECTOR_SPACES_BUCKET=a@fra1,b@ams3 asked for
+// a single bucket literally named "a@fra1,b@ams3", which nothing rejects until
+// the first refresh reports it down hours later.
 func parseBuckets(raw []string, defaultRegion string) ([]SpacesBucket, error) {
 	buckets := make([]SpacesBucket, 0, len(raw))
 	for _, entry := range raw {
-		name, region, found := strings.Cut(strings.TrimSpace(entry), "@")
-		if !found || region == "" {
-			region = defaultRegion
+		for _, spec := range strings.Split(entry, ",") {
+			spec = strings.TrimSpace(spec)
+			if spec == "" {
+				continue
+			}
+			bucket, err := parseBucket(spec, defaultRegion)
+			if err != nil {
+				return nil, err
+			}
+			buckets = append(buckets, bucket)
 		}
-		if name == "" {
-			return nil, fmt.Errorf("empty bucket name in %q", entry)
-		}
-		if region == "" {
-			return nil, fmt.Errorf("bucket %q has no region: %w", name, ErrNoSpacesRegion)
-		}
-		buckets = append(buckets, SpacesBucket{Name: name, Region: region})
 	}
 	return buckets, nil
+}
+
+// parseBucket reads one bucket specification, as name or name@region.
+func parseBucket(spec, defaultRegion string) (SpacesBucket, error) {
+	name, region, found := strings.Cut(spec, "@")
+	if !found || region == "" {
+		region = defaultRegion
+	}
+	if name == "" {
+		return SpacesBucket{}, fmt.Errorf("empty bucket name in %q", spec)
+	}
+	if region == "" {
+		return SpacesBucket{}, fmt.Errorf("bucket %q has no region: %w", name, ErrNoSpacesRegion)
+	}
+	return SpacesBucket{Name: name, Region: region}, nil
 }
 
 // resolveSecret picks a secret from whichever source was configured. Exactly

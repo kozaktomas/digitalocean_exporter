@@ -710,3 +710,33 @@ func TestParseAPIBaseURL(t *testing.T) {
 		t.Errorf("API base URL from the flag = %q", cfg.APIBaseURL)
 	}
 }
+
+// COLLECTOR_SPACES_BUCKET is the environment form of a repeatable flag, and
+// kingpin splits such a value on newlines alone. A comma-separated list is the
+// obvious thing to write there, and it used to parse as one bucket with a
+// comma in its name that reported itself down hours later.
+func TestParseSpacesBucketsSeparatedByCommas(t *testing.T) {
+	cfg, err := config.Parse([]string{
+		"--do.token", "t", "--collector.spaces",
+		"--spaces.access-key", "k", "--spaces.secret-key", "s",
+		"--spaces.region", "fra1",
+		"--collector.spaces.bucket", "images@ams3, logs",
+		"--collector.spaces.bucket", "backups",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []config.SpacesBucket{
+		{Name: "images", Region: "ams3"},
+		{Name: "logs", Region: "fra1"},
+		{Name: "backups", Region: "fra1"},
+	}
+	if len(cfg.Spaces.Buckets) != len(want) {
+		t.Fatalf("buckets = %+v, want %+v", cfg.Spaces.Buckets, want)
+	}
+	for i, b := range cfg.Spaces.Buckets {
+		if b != want[i] {
+			t.Errorf("bucket %d = %+v, want %+v", i, b, want[i])
+		}
+	}
+}

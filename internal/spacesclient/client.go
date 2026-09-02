@@ -16,8 +16,10 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go/middleware"
@@ -25,28 +27,59 @@ import (
 )
 
 // Factory hands out an S3 client per Spaces region.
+//
+// A client is built once per region and kept, and every one of them shares a
+// single HTTP client. The collector asks for a client per bucket per refresh;
+// building one each time meant a new transport, so a new connection pool and a
+// fresh TLS handshake for every measurement, on a schedule that repeats
+// forever.
 type Factory struct {
 	accessKey string
 	secretKey string
 	endpoint  string
+	// httpClient is shared by every regional client, which is what keeps
+	// connections alive between refreshes.
+	httpClient *awshttp.BuildableClient
+
+	// mu guards clients: the collector measures buckets in parallel and asks
+	// for their clients from several goroutines at once.
+	mu      sync.Mutex
+	clients map[string]*s3.Client
 }
 
 // NewFactory returns a factory authenticating with the given Spaces key pair.
 // A non-empty endpoint overrides the public regional endpoints, which the
 // tests and the smoke test rely on.
 func NewFactory(accessKey, secretKey, endpoint string) *Factory {
-	return &Factory{accessKey: accessKey, secretKey: secretKey, endpoint: endpoint}
+	return &Factory{
+		accessKey:  accessKey,
+		secretKey:  secretKey,
+		endpoint:   endpoint,
+		httpClient: awshttp.NewBuildableClient(),
+		clients:    make(map[string]*s3.Client),
+	}
 }
 
-// Client returns a client for region.
+// Client returns the client for region, building it on first use. The same
+// client is returned to every later caller, and an *s3.Client is safe for
+// concurrent use.
 func (f *Factory) Client(region string) *s3.Client {
-	return s3.New(s3.Options{
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if client, ok := f.clients[region]; ok {
+		return client
+	}
+	client := s3.New(s3.Options{
 		Region:       region,
 		BaseEndpoint: aws.String(f.endpointFor(region)),
 		Credentials: credentials.NewStaticCredentialsProvider(
 			f.accessKey, f.secretKey, ""),
 		UsePathStyle: true,
+		HTTPClient:   f.httpClient,
 	})
+	f.clients[region] = client
+	return client
 }
 
 // endpointFor resolves the endpoint a region's buckets are served from.

@@ -26,6 +26,9 @@ type stubBucket struct {
 	// noUsage answers the HEAD without the usage headers, as an S3 endpoint
 	// that is not Ceph-backed would.
 	noUsage bool
+	// unlocatable makes GetBucketLocation answer 403, as it does for a bucket
+	// the key has no grant on.
+	unlocatable bool
 }
 
 // authRegionPattern pulls the region out of the SigV4 credential scope, which
@@ -44,6 +47,8 @@ type stubAPI struct {
 	// headCnt is written from several handler goroutines at once: the
 	// collector measures buckets in parallel.
 	headCnt atomic.Int64
+	// locationCnt counts the GetBucketLocation requests discovery made.
+	locationCnt atomic.Int64
 }
 
 // newStubAPI starts the fake API and returns it with a factory pointed at it.
@@ -122,13 +127,34 @@ func (a *stubAPI) listBuckets(w http.ResponseWriter) {
 }
 
 func (a *stubAPI) bucketLocation(w http.ResponseWriter, name string) {
-	bucket, ok := a.buckets[name]
+	a.locationCnt.Add(1)
+
+	bucket, ok := a.byName(name)
 	if !ok {
 		writeS3Error(w, http.StatusNotFound, "NoSuchBucket", "No such bucket.")
 		return
 	}
+	if bucket.unlocatable {
+		writeS3Error(w, http.StatusForbidden, "AccessDenied", "Access Denied.")
+		return
+	}
 	writeXML(w, http.StatusOK, `<LocationConstraint xmlns="http://s3.amazonaws.com/doc/2006-03-01/">`+
 		bucket.region+`</LocationConstraint>`)
+}
+
+// byName finds a bucket by its plain name, whichever key it is held under.
+// Locating a bucket names it without a region, since finding the region is the
+// whole point of the request.
+func (a *stubAPI) byName(name string) (*stubBucket, bool) {
+	if bucket, ok := a.buckets[name]; ok {
+		return bucket, true
+	}
+	for key, bucket := range a.buckets {
+		if bucketName(key) == name {
+			return bucket, true
+		}
+	}
+	return nil, false
 }
 
 func writeXML(w http.ResponseWriter, status int, body string) {

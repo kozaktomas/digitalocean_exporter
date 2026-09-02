@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 
 	"github.com/kozaktomas/digitalocean_exporter/internal/spacesclient"
 )
@@ -109,5 +111,47 @@ func TestBucketUsageExplainsAForbiddenBucket(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "no read grant") {
 		t.Errorf("error = %q, want it to explain what a 403 means", err)
+	}
+}
+
+// The collector asks for a client per bucket on every refresh. A new one each
+// time meant a new transport, so a new connection pool and a fresh TLS
+// handshake per bucket per refresh.
+func TestFactoryReusesTheClientOfARegion(t *testing.T) {
+	factory := spacesclient.NewFactory("key", "secret", "")
+
+	first := factory.Client("fra1")
+	if second := factory.Client("fra1"); second != first {
+		t.Error("Client(\"fra1\") returned a different client the second time, want the memoised one")
+	}
+	if other := factory.Client("ams3"); other == first {
+		t.Error("Client(\"ams3\") returned the fra1 client, want one addressing its own region")
+	}
+	if got := aws.ToString(factory.Client("ams3").Options().BaseEndpoint); got !=
+		"https://ams3.digitaloceanspaces.com" {
+		t.Errorf("ams3 endpoint = %q, want the ams3 Spaces endpoint", got)
+	}
+}
+
+// Buckets are measured in parallel, so the memoised clients are asked for from
+// several goroutines at once. Run under -race, which the build gate does.
+func TestFactoryIsSafeForConcurrentUse(t *testing.T) {
+	factory := spacesclient.NewFactory("key", "secret", "")
+
+	var wg sync.WaitGroup
+	clients := make([]*s3.Client, 16)
+	for i := range clients {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			clients[i] = factory.Client("fra1")
+		}()
+	}
+	wg.Wait()
+
+	for i, client := range clients {
+		if client != clients[0] {
+			t.Fatalf("client %d differs from the first, want one client for the region", i)
+		}
 	}
 }

@@ -363,3 +363,94 @@ digitalocean_spaces_bucket_up{bucket="backups",region="fra1"} 1
 		t.Errorf("unexpected metrics: %v", err)
 	}
 }
+
+// Discovery locates one bucket at a time, and a bucket can refuse to be
+// located: the key may have lost its grant on it, or it may have been created
+// or destroyed between the listing and the location request. That must cost
+// only that bucket. Failing the refresh blanked every other bucket of the
+// account over one of them.
+func TestDiscoveryToleratesAnUnlocatableBucket(t *testing.T) {
+	buckets := map[string]*stubBucket{
+		"images@fra1": {region: "fra1", objects: 5, bytes: 1500},
+		"logs@ams3":   {region: "ams3", objects: 1, bytes: 1024, unlocatable: true},
+	}
+	_, factory := newStubAPI(t, buckets)
+
+	var logged bytes.Buffer
+	c := spaces.New(spaces.Config{
+		Factory:     factory,
+		Region:      "fra1",
+		Concurrency: 2,
+		Logger:      slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelWarn})),
+	})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh with one unlocatable bucket: %v", err)
+	}
+
+	// The bucket that could not be located is assumed to be in the default
+	// region, measured there, and marked down because it is not.
+	expected := `
+# HELP digitalocean_spaces_bucket_size_bytes Bytes stored in the bucket, as Spaces accounts for them.
+# TYPE digitalocean_spaces_bucket_size_bytes gauge
+digitalocean_spaces_bucket_size_bytes{bucket="images",region="fra1"} 1500
+# HELP digitalocean_spaces_bucket_up Whether the bucket's last measurement succeeded.
+# TYPE digitalocean_spaces_bucket_up gauge
+digitalocean_spaces_bucket_up{bucket="images",region="fra1"} 1
+digitalocean_spaces_bucket_up{bucket="logs",region="fra1"} 0
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(expected),
+		"digitalocean_spaces_bucket_size_bytes", "digitalocean_spaces_bucket_up"); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+
+	if out := logged.String(); !strings.Contains(out, "logs") ||
+		!strings.Contains(out, "assuming the default region") {
+		t.Errorf("log = %q, want the bucket that could not be located and what was assumed", out)
+	}
+}
+
+// A bucket never changes region, so locating one is worth doing once. Doing it
+// on every refresh cost a request per bucket, forever, to learn what the
+// previous refresh already knew.
+func TestDiscoveryCachesTheRegionItLocated(t *testing.T) {
+	buckets := map[string]*stubBucket{
+		"images@fra1": {region: "fra1", objects: 5, bytes: 1500},
+		"logs@ams3":   {region: "ams3", objects: 1, bytes: 1024},
+	}
+	api, factory := newStubAPI(t, buckets)
+	c := newCollector(t, factory, nil, "fra1")
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("first refresh: %v", err)
+	}
+	if got := api.locationCnt.Load(); got != 2 {
+		t.Fatalf("GetBucketLocation calls on the first refresh = %d, want one per bucket", got)
+	}
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("second refresh: %v", err)
+	}
+	if got := api.locationCnt.Load(); got != 2 {
+		t.Errorf("GetBucketLocation calls after the second refresh = %d, want the cache used", got)
+	}
+
+	// A measurement that fails is the one thing that can mean the remembered
+	// region is wrong, so that bucket — and only that bucket — is located
+	// again on the refresh after it.
+	buckets["logs@ams3"].forbidden = true
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("third refresh: %v", err)
+	}
+	if got := api.locationCnt.Load(); got != 2 {
+		t.Errorf("GetBucketLocation calls after the third refresh = %d, want the cache used", got)
+	}
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("fourth refresh: %v", err)
+	}
+	if got := api.locationCnt.Load(); got != 3 {
+		t.Errorf("GetBucketLocation calls after the fourth refresh = %d, "+
+			"want the failed bucket located again and the measured one not", got)
+	}
+}
