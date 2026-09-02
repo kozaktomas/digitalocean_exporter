@@ -69,7 +69,14 @@ journalctl -u digitalocean-exporter -n 50        # or: kubectl logs deploy/digit
 ```
 
 The refresh failure is logged with its reason each time it happens, because that failure
-never reaches Prometheus as anything but a `0`.
+never reaches Prometheus as anything but a `0`. A collector that hit a bug rather than an
+API error logs `collector refresh panicked` with the panic value and a stack trace; the
+exporter keeps running and keeps refreshing that collector, so the `0` is the symptom and
+the stack trace is the report worth filing.
+
+Shutdown is not a failure: a refresh still in flight when the exporter is stopped is
+abandoned quietly, at debug level, without touching `collector_success`. The last lines
+before a restart are therefore not the ones to read as an outage.
 
 The most common answer by far is `balance`: `403 Forbidden` from
 `/v2/customers/my/balance` because the token has no billing scope. Turn that collector off —

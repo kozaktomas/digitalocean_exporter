@@ -57,6 +57,10 @@ Two rules follow:
   Never drop metrics on error.
 - **Build the whole new snapshot before swapping it in**, behind a mutex, so a partial
   failure changes nothing.
+- **A panic is just a failed refresh.** The scheduler recovers panics raised by `Refresh`,
+  logs the value and the stack, and records `collector_success 0`; the collector keeps its
+  previous snapshot and is refreshed again on schedule. One unexpected API response must
+  not take the other collectors down with it.
 
 A collector that measures many things at once — buckets, droplets — isolates them: one that
 fails keeps its own previous values, reports its own `_up 0`, and logs why, since that

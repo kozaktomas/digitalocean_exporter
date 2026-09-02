@@ -152,10 +152,12 @@ of it. Retries do not cover `4xx` responses other than `429`: a `401` is a bad t
 
 **Staggered refreshes.** Collectors all default to a `5m` interval and all start together, so
 without help they would fire as one burst every five minutes. Each one's first refresh is
-therefore held back by an even share of a window — its own interval, or **three seconds**,
-whichever is shorter — and every later refresh keeps that phase. The ceiling is what keeps
-`/metrics` worth scraping moments after startup; the order is the order the collectors are
-registered in, so it is the same on every run.
+therefore held back by an even share of a window — the **shortest interval** any enabled
+collector is configured with, or **three seconds**, whichever is smaller — and every later
+refresh keeps that phase. One window for the whole set is what makes the offsets distinct
+even when the intervals differ; the ceiling is what keeps `/metrics` worth scraping moments
+after startup; and the order is the order the collectors are registered in, so it is the
+same on every run.
 
 ## Serving metrics
 

@@ -41,8 +41,10 @@ request goes through the one instrumented transport in `internal/doclient`, whic
 requests at `--do.rate-limit` across all collectors at once and retries a 429 or a 5xx up to
 three attempts, honouring `Retry-After`; each attempt is counted separately, because each
 one spends from the budget. The scheduler then offsets each collector's first refresh by an
-even share of the smaller of its interval and three seconds, so the set never fires as one
-burst and every later refresh keeps that phase. Neither needs anything from a collector, and
+even share of one window shared by the whole set — the shortest interval among the
+registered collectors, capped at three seconds — so the offsets stay distinct however the
+intervals differ, the set never fires as one burst, and every later refresh keeps that
+phase. Neither needs anything from a collector, and
 neither belongs inside one.
 
 A collector that measures many things at once — buckets, say — isolates them: one that
@@ -54,6 +56,13 @@ drop metrics on error: a gap in a graph reads as DigitalOcean itself going away,
 different incident from "the exporter cannot reach the API".
 
 Before its first successful refresh a collector emits nothing, rather than zeros.
+
+**A panic in a `Refresh` is a failed refresh, not a dead process.** The scheduler recovers
+it, logs the value and the stack, and records it exactly like any other failure — sixteen
+collectors share one process, and one unexpected API response must not stop the other
+fifteen, restart after restart. A refresh cut short by shutdown is the opposite case: once
+the run context is cancelled the error is not recorded and not logged as one, so the last
+lines before a restart do not read as an API outage.
 
 ## Adding a collector
 

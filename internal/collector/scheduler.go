@@ -2,7 +2,10 @@ package collector
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -106,9 +109,11 @@ func (s *Scheduler) Names() []string {
 // rest staggered — and then on its own ticker. It returns once ctx is cancelled
 // and all loops have stopped.
 func (s *Scheduler) Run(ctx context.Context) {
+	window := staggerWindow(s.entries)
+
 	var wg sync.WaitGroup
 	for index, e := range s.entries {
-		offset := stagger(index, len(s.entries), e.interval)
+		offset := stagger(index, len(s.entries), window)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -118,17 +123,36 @@ func (s *Scheduler) Run(ctx context.Context) {
 	wg.Wait()
 }
 
+// staggerWindow returns the span the first refreshes are spread across: the
+// shortest interval among the registered collectors, capped at maxStagger.
+//
+// It has to be the shortest of all of them rather than each collector's own,
+// because a per-collector window makes the offsets share a scale only when the
+// intervals do: a collector on a one-second interval and one on an hour would
+// both be offered a share of their own window and could land on the same
+// moment. One window for the whole set keeps every share distinct, and taking
+// the smallest interval keeps the spread inside the interval of the collector
+// that refreshes most often, so no collector's first tick arrives before its
+// first refresh.
+func staggerWindow(entries []entry) time.Duration {
+	window := maxStagger
+	for _, e := range entries {
+		window = min(window, e.interval)
+	}
+	return window
+}
+
 // stagger returns how long the collector at index waits before its first
-// refresh: an even share of the window, which is the collector's own interval
-// or maxStagger, whichever is shorter. Deriving it from the registration order
-// rather than from the clock or a hash of the name makes it the same on every
-// run, and gives two collectors the same offset only if there is one of them.
-func stagger(index, count int, interval time.Duration) time.Duration {
+// refresh: an even share of the window shared by the whole set. Deriving it
+// from the registration order rather than from the clock or a hash of the name
+// makes it the same on every run, and gives every collector a different offset
+// as long as the window is wide enough to divide — a share of a nanosecond
+// rounds to nothing, and then nothing is staggered.
+func stagger(index, count int, window time.Duration) time.Duration {
 	if index <= 0 || count <= 1 {
 		return 0
 	}
-	window := min(interval, maxStagger)
-	return time.Duration(int64(window) / int64(count) * int64(index))
+	return window / time.Duration(count) * time.Duration(index)
 }
 
 // loop drives a single collector until ctx is cancelled, holding its first
@@ -163,24 +187,71 @@ func (s *Scheduler) loop(ctx context.Context, e entry, offset time.Duration) {
 // refresh runs one bounded refresh and records how it went. A failure leaves
 // the collector's snapshot untouched, so the metrics go stale rather than
 // disappearing — a gap in a graph reads as an outage of DigitalOcean itself.
-func (s *Scheduler) refresh(ctx context.Context, c Collector, timeout time.Duration) {
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+//
+// runCtx is the scheduler's own context, not the one the refresh runs under:
+// telling "the API is unreachable" from "we are shutting down" needs both.
+func (s *Scheduler) refresh(runCtx context.Context, c Collector, timeout time.Duration) {
+	ctx, cancel := context.WithTimeout(runCtx, timeout)
 	defer cancel()
 
 	name := c.Name()
 	start := time.Now()
-	err := c.Refresh(ctx)
+	err := guardedRefresh(ctx, c)
 	s.duration.WithLabelValues(name).Set(time.Since(start).Seconds())
 
 	if err != nil {
+		var panicked *panicError
+		switch {
+		case errors.As(err, &panicked):
+			// A bug, and one to record whatever else is going on: the
+			// collector is down until someone fixes it.
+			s.logger.Error("collector refresh panicked", "collector", name,
+				"panic", fmt.Sprint(panicked.value), "stack", string(panicked.stack))
+		case runCtx.Err() != nil:
+			// The refresh was cut short by shutdown, not by DigitalOcean.
+			// Recording it as a failure would leave the last lines an
+			// operator reads after a restart looking like an API outage.
+			s.logger.Debug("collector refresh interrupted by shutdown",
+				"collector", name, "error", err)
+			return
+		default:
+			s.logger.Error("collector refresh failed", "collector", name, "error", err)
+		}
 		s.success.WithLabelValues(name).Set(0)
-		s.logger.Error("collector refresh failed", "collector", name, "error", err)
 		return
 	}
 
 	s.success.WithLabelValues(name).Set(1)
 	s.lastOK.WithLabelValues(name).Set(float64(time.Now().Unix()))
 }
+
+// guardedRefresh calls the collector's Refresh and turns a panic into an error.
+//
+// Sixteen collectors share one process, and any of them can meet an API
+// response shaped in a way it did not expect. Without this, one nil field in
+// one response takes the exporter down — and takes it down again after every
+// restart, since the response has not changed. Recovered, the collector is
+// simply a failed one: its previous snapshot survives, its next refresh still
+// happens, and the other fifteen never notice.
+func guardedRefresh(ctx context.Context, c Collector) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = &panicError{value: r, stack: debug.Stack()}
+		}
+	}()
+	return c.Refresh(ctx)
+}
+
+// panicError carries what a collector's Refresh panicked with, and the stack it
+// panicked on. It is a distinct type so that a panic is still recorded when it
+// happens during shutdown, where an ordinary error is not.
+type panicError struct {
+	value any
+	stack []byte
+}
+
+// Error implements error.
+func (e *panicError) Error() string { return fmt.Sprintf("panic: %v", e.value) }
 
 // Describe implements prometheus.Collector.
 func (s *Scheduler) Describe(ch chan<- *prometheus.Desc) {
