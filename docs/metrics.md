@@ -491,24 +491,43 @@ by the page size costs one extra empty request per refresh.
 
 ## Container registry
 
-Collected by `registry` from `/v2/registry`, `/v2/registry/subscription` and
-`/v2/registry/{name}/repositoriesV2`: three GETs per refresh, plus one for every further
-page of repositories.
+Collected by `registry` from `/v2/registries`, `/v2/registries/subscription` and
+`/v2/registries/{name}/repositoriesV2`: two GETs per refresh plus one per registry, and one
+more for every further page of a registry's repositories.
 
 | Metric | Labels | Description |
 |---|---|---|
 | `digitalocean_registry_storage_usage_bytes` | `registry`, `region` | Storage the registry uses, as last measured by DigitalOcean |
+| `digitalocean_registry_storage_usage_updated_timestamp_seconds` | `registry`, `region` | Unix timestamp of that measurement |
 | `digitalocean_registry_storage_included_bytes` | `registry`, `region` | Storage included in the subscription tier |
 | `digitalocean_registry_bandwidth_included_bytes` | `registry`, `region` | Outbound transfer included in the subscription tier each month |
 | `digitalocean_registry_subscription_monthly_price_usd` | `registry`, `tier` | Monthly price of the subscription tier in US dollars |
 | `digitalocean_registry_info` | `registry`, `region`, `tier`, `tier_name` | Always 1; the labels carry the tier slug and its display name |
+| `digitalocean_registry_up` | `registry`, `region` | Whether the last refresh could list that registry's repositories |
 | `digitalocean_registry_repositories` | `registry` | Number of repositories in the registry |
 | `digitalocean_registry_repository_tags` | `registry`, `repository` | Number of tags in the repository |
 | `digitalocean_registry_repository_manifests` | `registry`, `repository` | Number of manifests in the repository |
 | `digitalocean_registry_repository_latest_manifest_size_bytes` | `registry`, `repository` | Compressed size of the repository's newest manifest |
 | `digitalocean_registry_repository_last_push_timestamp_seconds` | `registry`, `repository` | Unix timestamp of the last push to the repository |
 
-**An account without a registry is not a failure.** `/v2/registry` answers `404` there, which
+**The `registry` label is the registry's name, and an account can hold several.** A
+Professional subscription may create more than one, and once it has, part of the
+single-registry `/v2/registry` surface stops answering. The collector therefore enumerates
+registries through `/v2/registries` and measures each one the same way. Where that endpoint
+is unavailable — an account whose API does not offer it yet — it reads `/v2/registry`
+instead and reports the one registry, which is what every account did before. The
+subscription is account-wide however many registries it covers, so it stays a single
+request and its allowance is reported against each of them.
+
+**One registry that cannot be read does not cost the others.** Its
+`digitalocean_registry_up` goes to 0, it keeps the repository figures it last reported, and
+the refresh still succeeds with `collector_success` 1 — the failure is logged at warning
+level, because nothing else would report it. Only every registry failing fails the refresh.
+A registry seen for the first time whose repositories could not be listed reports no
+repository metrics at all, rather than a count of zero that would read as a registry
+holding nothing.
+
+**An account without a registry is not a failure.** Both endpoints answer `404` there, which
 the collector treats as a legitimate state: the refresh succeeds, `collector_success` stays
 1 and no registry metric is emitted at all. It logs that once, at info level. The same
 applies while the exporter runs — a deleted registry stops being reported rather than
@@ -518,9 +537,16 @@ registry scope: that is a real failure and drops `collector_success` to 0.
 `digitalocean_registry_storage_usage_bytes` is DigitalOcean's own measurement, recomputed on
 its schedule of several hours, not the exporter's. Refreshing more often does not make the
 figure fresher, which is why the default interval of 5m is about the collector staying in
-step with the rest of the exporter rather than about resolution. The API does report when it
-last measured, but under a field name the DigitalOcean Go client does not parse, so there is
-no staleness metric for it.
+step with the rest of the exporter rather than about resolution.
+`digitalocean_registry_storage_usage_updated_timestamp_seconds` is when that measurement was
+taken, so the age of the size is visible rather than assumed:
+
+```promql
+time() - digitalocean_registry_storage_usage_updated_timestamp_seconds
+```
+
+The API leaves that field unset until it has measured the registry at least once, and a
+registry in that state reports no timestamp rather than the epoch.
 
 A repository that has never been pushed to reports its tag and manifest counts and nothing
 else: it has no manifest, and a zero size would read as an image of no size.

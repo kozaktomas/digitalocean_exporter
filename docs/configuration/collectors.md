@@ -117,6 +117,10 @@ travels.
 
 Container Registry storage usage, subscription tier and the repositories in it.
 
+An account may hold **more than one** registry, and every one of them is measured and
+labelled by name. One registry that cannot be read keeps its last figures and reports
+`digitalocean_registry_up 0` without costing the others.
+
 An account **without** a registry is not an error. The collector reports no metrics and
 keeps `collector_success 1`, so it is safe to leave enabled everywhere, including on
 accounts that will never have one.
@@ -124,8 +128,9 @@ accounts that will never have one.
 Storage usage is the number to alert on: registry tiers have hard storage ceilings, and
 pushing past one fails a deploy at the worst moment.
 
-**Cost:** three requests per refresh — the registry, its subscription tier and its
-repositories.
+**Cost:** two requests per refresh — listing the registries and the account-wide
+subscription tier — plus one per registry for its repositories, and one more for every
+further page of them. An account with a single registry therefore still costs three.
 
 ---
 

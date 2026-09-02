@@ -244,10 +244,10 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: The container registry uses over 90% of its included storage
+          summary: Container registry {{ $labels.registry }} uses over 90% of its included storage
           description: >-
             Storage past the tier's allowance is billed on top of the subscription.
-            Garbage-collect untagged manifests or move up a tier.
+            Garbage-collect untagged manifests in {{ $labels.registry }} or move up a tier.
 
       - alert: DigitalOceanVolumeUnattached
         expr: digitalocean_volume_droplets == 0

@@ -17,8 +17,17 @@ ACCOUNT = {"account": {"droplet_limit": 25, "floating_ip_limit": 3, "reserved_ip
                        "volume_limit": 100, "email_verified": True, "status": "active"}}
 BALANCE = {"month_to_date_balance": "23.44", "account_balance": "12.23",
            "month_to_date_usage": "11.21", "generated_at": "2026-08-24T12:00:00Z"}
-REGISTRY = {"registry": {"name": "smoke", "region": "fra1", "storage_usage_bytes": 1073741824,
-                         "created_at": "2026-01-01T00:00:00Z"}}
+# Two registries, which is what a Professional subscription may hold: the
+# exporter enumerates them through /v2/registries and measures each one.
+REGISTRIES = {"registries": [{"name": "smoke", "region": "fra1",
+                              "storage_usage_bytes": 1073741824,
+                              "storage_usage_bytes_updated_at": "2026-08-24T06:00:00Z",
+                              "created_at": "2026-01-01T00:00:00Z"},
+                             {"name": "smoke-nyc", "region": "nyc3",
+                              "storage_usage_bytes": 2147483648,
+                              "storage_usage_bytes_updated_at": "2026-08-24T06:00:00Z",
+                              "created_at": "2026-01-01T00:00:00Z"}],
+              "total_storage_usage_bytes": 3221225472}
 SUBSCRIPTION = {"subscription": {"tier": {"name": "Basic", "slug": "basic",
                                           "included_storage_bytes": 5368709120,
                                           "included_bandwidth_bytes": 5368709120,
@@ -76,11 +85,12 @@ CLUSTERS = {"kubernetes_clusters": [{"id": "c1", "name": "prod", "region": "fra1
                                                      "nodes": [{"id": "n1",
                                                                 "status": {"state": "running"}}]}]}],
             "meta": {"total": 1}}
-REPOSITORIES = {"repositories": [{"registry_name": "smoke", "name": "app", "tag_count": 3,
-                                  "manifest_count": 2,
-                                  "latest_manifest": {"compressed_size_bytes": 12345678,
-                                                      "updated_at": "2026-08-24T12:00:00Z"}}],
-                "meta": {"total": 1}}
+def repositories(registry):
+    return {"repositories": [{"registry_name": registry, "name": "app", "tag_count": 3,
+                              "manifest_count": 2,
+                              "latest_manifest": {"compressed_size_bytes": 12345678,
+                                                  "updated_at": "2026-08-24T12:00:00Z"}}],
+            "meta": {"total": 1}}
 
 # The monitoring API is a Prometheus range-query API: one matrix of series per
 # request, one request per metric per resource. The same body answers every one
@@ -107,9 +117,10 @@ ROUTES = {"/v2/customers/my/balance": BALANCE,
           "/v2/domains": DOMAINS,
           "/v2/firewalls": FIREWALLS,
           "/v2/certificates": CERTIFICATES,
-          "/v2/registry": REGISTRY,
-          "/v2/registry/subscription": SUBSCRIPTION,
-          "/v2/registry/smoke/repositoriesV2": REPOSITORIES}
+          "/v2/registries": REGISTRIES,
+          "/v2/registries/subscription": SUBSCRIPTION,
+          "/v2/registries/smoke/repositoriesV2": repositories("smoke"),
+          "/v2/registries/smoke-nyc/repositoriesV2": repositories("smoke-nyc")}
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -242,6 +253,7 @@ for metric in \
   digitalocean_spaces_bucket_size_bytes \
   digitalocean_spaces_bucket_objects \
   digitalocean_registry_storage_usage_bytes \
+  digitalocean_registry_storage_usage_updated_timestamp_seconds \
   digitalocean_registry_repository_tags \
   digitalocean_account_droplets \
   digitalocean_account_volumes \

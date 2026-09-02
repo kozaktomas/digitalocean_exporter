@@ -2,6 +2,7 @@ package registry_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,7 +17,8 @@ import (
 )
 
 const registryJSON = `{"registry":{"name":"acme","created_at":"2025-07-08T10:51:46Z",` +
-	`"region":"fra1","storage_usage_bytes":16228798464,"read_only":false}}`
+	`"region":"fra1","storage_usage_bytes":16228798464,` +
+	`"storage_usage_bytes_updated_at":"2026-08-31T04:00:00Z","read_only":false}}`
 
 const subscriptionJSON = `{"subscription":{"tier":{"name":"Professional","slug":"professional",` +
 	`"included_repositories":0,"included_storage_bytes":107374182400,"allow_storage_overage":true,` +
@@ -69,9 +71,15 @@ digitalocean_registry_storage_included_bytes{region="fra1",registry="acme"} 1073
 # HELP digitalocean_registry_storage_usage_bytes Storage the registry uses, as last measured by DigitalOcean.
 # TYPE digitalocean_registry_storage_usage_bytes gauge
 digitalocean_registry_storage_usage_bytes{region="fra1",registry="acme"} 16228798464
+# HELP digitalocean_registry_storage_usage_updated_timestamp_seconds When DigitalOcean last measured that storage.
+# TYPE digitalocean_registry_storage_usage_updated_timestamp_seconds gauge
+digitalocean_registry_storage_usage_updated_timestamp_seconds{region="fra1",registry="acme"} 1788148800
 # HELP digitalocean_registry_subscription_monthly_price_usd Monthly price of the subscription tier in US dollars.
 # TYPE digitalocean_registry_subscription_monthly_price_usd gauge
 digitalocean_registry_subscription_monthly_price_usd{registry="acme",tier="professional"} 20
+# HELP digitalocean_registry_up Whether the last refresh could list the registry's repositories.
+# TYPE digitalocean_registry_up gauge
+digitalocean_registry_up{region="fra1",registry="acme"} 1
 `
 
 // newTestCollector wires a collector to a fake DigitalOcean API.
@@ -92,7 +100,8 @@ func newTestCollector(t *testing.T, handler http.HandlerFunc) *registry.Collecto
 	return registry.New(client, nil)
 }
 
-// okHandler serves the three endpoints one refresh reads.
+// okHandler serves the single-registry endpoints. It answers 404 to anything
+// else, including the multi-registry list a refresh tries first.
 func okHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	switch r.URL.Path {
@@ -271,7 +280,233 @@ func TestDescribeCoversEveryMetric(t *testing.T) {
 	for range ch {
 		count++
 	}
-	if want := 10; count != want {
+	if want := 12; count != want {
 		t.Errorf("Describe sent %d descriptors, want %d", count, want)
+	}
+}
+
+// registriesJSON is what the multi-registry endpoint answers for an account
+// holding two of them.
+const registriesJSON = `{"registries":[` +
+	`{"name":"acme","region":"fra1","storage_usage_bytes":16228798464,` +
+	`"storage_usage_bytes_updated_at":"2026-08-31T04:00:00Z","created_at":"2025-07-08T10:51:46Z"},` +
+	`{"name":"backup","region":"nyc3","storage_usage_bytes":4096,` +
+	`"storage_usage_bytes_updated_at":"2026-08-31T05:00:00Z","created_at":"2026-01-02T09:00:00Z"}` +
+	`],"total_storage_usage_bytes":16228802560}`
+
+const backupRepositoriesJSON = `{"repositories":[` +
+	`{"registry_name":"backup","name":"db","tag_count":2,"manifest_count":2}` +
+	`],"meta":{"total":1}}`
+
+// An account on a Professional plan can hold several registries, and once it
+// does the single-registry endpoints stop answering. Every one of them is
+// measured, and a registry that cannot be read keeps what it last reported
+// instead of costing the ones that could.
+func TestRefreshCollectsEveryRegistry(t *testing.T) {
+	var failBackup bool
+	c := newTestCollector(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v2/registries":
+			_, _ = w.Write([]byte(registriesJSON))
+		case "/v2/registries/subscription":
+			_, _ = w.Write([]byte(subscriptionJSON))
+		case "/v2/registries/acme/repositoriesV2":
+			_, _ = w.Write([]byte(repositoriesJSON))
+		case "/v2/registries/backup/repositoriesV2":
+			if failBackup {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			_, _ = w.Write([]byte(backupRepositoriesJSON))
+		default:
+			t.Errorf("unexpected request for %s: the single-registry endpoints must not be used here", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const both = `
+# HELP digitalocean_registry_repositories Number of repositories in the registry.
+# TYPE digitalocean_registry_repositories gauge
+digitalocean_registry_repositories{registry="acme"} 3
+digitalocean_registry_repositories{registry="backup"} 1
+# HELP digitalocean_registry_repository_tags Number of tags in the repository.
+# TYPE digitalocean_registry_repository_tags gauge
+digitalocean_registry_repository_tags{registry="acme",repository="api"} 6
+digitalocean_registry_repository_tags{registry="acme",repository="empty"} 0
+digitalocean_registry_repository_tags{registry="acme",repository="web/nginx"} 3
+digitalocean_registry_repository_tags{registry="backup",repository="db"} 2
+# HELP digitalocean_registry_storage_usage_bytes Storage the registry uses, as last measured by DigitalOcean.
+# TYPE digitalocean_registry_storage_usage_bytes gauge
+digitalocean_registry_storage_usage_bytes{region="fra1",registry="acme"} 16228798464
+digitalocean_registry_storage_usage_bytes{region="nyc3",registry="backup"} 4096
+# HELP digitalocean_registry_storage_usage_updated_timestamp_seconds When DigitalOcean last measured that storage.
+# TYPE digitalocean_registry_storage_usage_updated_timestamp_seconds gauge
+digitalocean_registry_storage_usage_updated_timestamp_seconds{region="fra1",registry="acme"} 1788148800
+digitalocean_registry_storage_usage_updated_timestamp_seconds{region="nyc3",registry="backup"} 1788152400
+# HELP digitalocean_registry_subscription_monthly_price_usd Monthly price of the subscription tier in US dollars.
+# TYPE digitalocean_registry_subscription_monthly_price_usd gauge
+digitalocean_registry_subscription_monthly_price_usd{registry="acme",tier="professional"} 20
+digitalocean_registry_subscription_monthly_price_usd{registry="backup",tier="professional"} 20
+# HELP digitalocean_registry_up Whether the last refresh could list the registry's repositories.
+# TYPE digitalocean_registry_up gauge
+digitalocean_registry_up{region="fra1",registry="acme"} 1
+digitalocean_registry_up{region="nyc3",registry="backup"} 1
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(both), multiRegistryMetricNames...); err != nil {
+		t.Errorf("unexpected metrics for two registries: %v", err)
+	}
+
+	// One registry now fails to list its repositories. The refresh still
+	// succeeds, the other registry stays current, and the failing one keeps
+	// the repositories it last reported while saying it is down.
+	failBackup = true
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh with one failing registry: %v", err)
+	}
+
+	const afterFailure = `
+# HELP digitalocean_registry_repositories Number of repositories in the registry.
+# TYPE digitalocean_registry_repositories gauge
+digitalocean_registry_repositories{registry="acme"} 3
+digitalocean_registry_repositories{registry="backup"} 1
+# HELP digitalocean_registry_repository_tags Number of tags in the repository.
+# TYPE digitalocean_registry_repository_tags gauge
+digitalocean_registry_repository_tags{registry="acme",repository="api"} 6
+digitalocean_registry_repository_tags{registry="acme",repository="empty"} 0
+digitalocean_registry_repository_tags{registry="acme",repository="web/nginx"} 3
+digitalocean_registry_repository_tags{registry="backup",repository="db"} 2
+# HELP digitalocean_registry_storage_usage_bytes Storage the registry uses, as last measured by DigitalOcean.
+# TYPE digitalocean_registry_storage_usage_bytes gauge
+digitalocean_registry_storage_usage_bytes{region="fra1",registry="acme"} 16228798464
+digitalocean_registry_storage_usage_bytes{region="nyc3",registry="backup"} 4096
+# HELP digitalocean_registry_storage_usage_updated_timestamp_seconds When DigitalOcean last measured that storage.
+# TYPE digitalocean_registry_storage_usage_updated_timestamp_seconds gauge
+digitalocean_registry_storage_usage_updated_timestamp_seconds{region="fra1",registry="acme"} 1788148800
+digitalocean_registry_storage_usage_updated_timestamp_seconds{region="nyc3",registry="backup"} 1788152400
+# HELP digitalocean_registry_subscription_monthly_price_usd Monthly price of the subscription tier in US dollars.
+# TYPE digitalocean_registry_subscription_monthly_price_usd gauge
+digitalocean_registry_subscription_monthly_price_usd{registry="acme",tier="professional"} 20
+digitalocean_registry_subscription_monthly_price_usd{registry="backup",tier="professional"} 20
+# HELP digitalocean_registry_up Whether the last refresh could list the registry's repositories.
+# TYPE digitalocean_registry_up gauge
+digitalocean_registry_up{region="fra1",registry="acme"} 1
+digitalocean_registry_up{region="nyc3",registry="backup"} 0
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(afterFailure), multiRegistryMetricNames...); err != nil {
+		t.Errorf("unexpected metrics after one registry failed: %v", err)
+	}
+}
+
+// multiRegistryMetricNames are the metrics the multi-registry test compares.
+var multiRegistryMetricNames = []string{
+	"digitalocean_registry_repositories",
+	"digitalocean_registry_repository_tags",
+	"digitalocean_registry_storage_usage_bytes",
+	"digitalocean_registry_storage_usage_updated_timestamp_seconds",
+	"digitalocean_registry_subscription_monthly_price_usd",
+	"digitalocean_registry_up",
+}
+
+// A registry seen for the first time whose repositories cannot be listed has
+// no count to carry forward, and reporting zero would read as a registry
+// holding nothing. It reports its size and that it is down, and nothing else.
+func TestRefreshOmitsRepositoriesOfARegistryNeverListed(t *testing.T) {
+	c := newTestCollector(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v2/registries":
+			_, _ = w.Write([]byte(registriesJSON))
+		case "/v2/registries/subscription":
+			_, _ = w.Write([]byte(subscriptionJSON))
+		case "/v2/registries/acme/repositoriesV2":
+			_, _ = w.Write([]byte(repositoriesJSON))
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_registry_repositories Number of repositories in the registry.
+# TYPE digitalocean_registry_repositories gauge
+digitalocean_registry_repositories{registry="acme"} 3
+# HELP digitalocean_registry_up Whether the last refresh could list the registry's repositories.
+# TYPE digitalocean_registry_up gauge
+digitalocean_registry_up{region="fra1",registry="acme"} 1
+digitalocean_registry_up{region="nyc3",registry="backup"} 0
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want),
+		"digitalocean_registry_repositories", "digitalocean_registry_up"); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+}
+
+// Every registry failing leaves nothing current to report, and that is a
+// failed refresh rather than an isolated one.
+func TestRefreshFailsWhenNoRegistryCanBeListed(t *testing.T) {
+	c := newTestCollector(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v2/registries":
+			_, _ = w.Write([]byte(registriesJSON))
+		case "/v2/registries/subscription":
+			_, _ = w.Write([]byte(subscriptionJSON))
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	})
+
+	err := c.Refresh(context.Background())
+	if !errors.Is(err, registry.ErrNoRepositoriesListed) {
+		t.Fatalf("refresh error = %v, want %v", err, registry.ErrNoRepositoriesListed)
+	}
+}
+
+// An account whose API does not offer the multi-registry endpoint, or offers
+// it and names nothing, is read through the single-registry endpoints, so it
+// keeps working exactly as before.
+func TestRefreshFallsBackToTheSingleRegistry(t *testing.T) {
+	for name, registries := range map[string]http.HandlerFunc{
+		"not found": func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"id":"not_found","message":"The resource you requested could not be found."}`))
+		},
+		"unavailable": func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		},
+		"empty": func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(`{"registries":[]}`))
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var asked bool
+			c := newTestCollector(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.URL.Path == "/v2/registries" {
+					asked = true
+					registries(w, r)
+					return
+				}
+				okHandler(w, r)
+			})
+
+			if err := c.Refresh(context.Background()); err != nil {
+				t.Fatalf("refresh: %v", err)
+			}
+			if !asked {
+				t.Error("the multi-registry endpoint was never asked")
+			}
+			if err := testutil.CollectAndCompare(c, strings.NewReader(registryMetrics)); err != nil {
+				t.Errorf("unexpected metrics from the single-registry path: %v", err)
+			}
+		})
 	}
 }

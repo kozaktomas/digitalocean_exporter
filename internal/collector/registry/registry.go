@@ -1,9 +1,15 @@
 // Package registry collects DigitalOcean Container Registry metrics: how much
-// storage the registry uses, what its subscription tier includes, and how many
+// storage each registry uses, what the subscription tier includes, and how many
 // tags and manifests each repository holds.
 //
-// An account without a registry is a normal state, not a failure: the API
-// answers 404 and the collector then reports nothing at all.
+// An account can hold more than one registry. A Professional subscription may
+// create several, and once it has, part of the single-registry `/v2/registry`
+// surface stops answering, so the collector enumerates registries through
+// `/v2/registries` and reads the single-registry endpoints only when that one
+// is unavailable — which is what an older account still offers.
+//
+// An account without a registry is a normal state, not a failure: both
+// endpoints answer 404 and the collector then reports nothing at all.
 package registry
 
 import (
@@ -26,10 +32,19 @@ const repositoriesPerPage = 200
 // promises.
 const centsPerDollar = 100
 
-// Metric descriptors.
+// ErrNoRepositoriesListed reports that not one registry could be read past its
+// name. It fails the refresh, because at that point nothing about the
+// repositories is current.
+var ErrNoRepositoriesListed = errors.New("no registry's repositories could be listed")
+
+// Metric descriptors. Every one of them carries a `registry` label, which is
+// what makes several registries on one account fit the same data model.
 var (
 	storageUsageDesc = prometheus.NewDesc("digitalocean_registry_storage_usage_bytes",
 		"Storage the registry uses, as last measured by DigitalOcean.",
+		[]string{"registry", "region"}, nil)
+	storageUpdatedDesc = prometheus.NewDesc("digitalocean_registry_storage_usage_updated_timestamp_seconds",
+		"When DigitalOcean last measured that storage.",
 		[]string{"registry", "region"}, nil)
 	storageIncludedDesc = prometheus.NewDesc("digitalocean_registry_storage_included_bytes",
 		"Storage included in the subscription tier.",
@@ -43,6 +58,9 @@ var (
 	infoDesc = prometheus.NewDesc("digitalocean_registry_info",
 		"Always 1. Its labels name the registry, its region and its subscription tier.",
 		[]string{"registry", "region", "tier", "tier_name"}, nil)
+	upDesc = prometheus.NewDesc("digitalocean_registry_up",
+		"Whether the last refresh could list the registry's repositories.",
+		[]string{"registry", "region"}, nil)
 	repositoriesDesc = prometheus.NewDesc("digitalocean_registry_repositories",
 		"Number of repositories in the registry.",
 		[]string{"registry"}, nil)
@@ -62,7 +80,8 @@ var (
 
 // descriptors lists every metric the collector can emit.
 var descriptors = []*prometheus.Desc{
-	storageUsageDesc, storageIncludedDesc, bandwidthIncludedDesc, priceDesc, infoDesc,
+	storageUsageDesc, storageUpdatedDesc, storageIncludedDesc, bandwidthIncludedDesc,
+	priceDesc, infoDesc, upDesc,
 	repositoriesDesc, tagsDesc, manifestsDesc, manifestSizeDesc, lastPushDesc,
 }
 
@@ -81,28 +100,46 @@ type repository struct {
 	pushedAt float64
 }
 
-// snapshot is an immutable view of the registry from one successful refresh.
+// registryStats is what one refresh learned about a single registry.
+type registryStats struct {
+	name         string
+	region       string
+	storageUsage float64
+	// measured reports whether the API said when it last measured the storage
+	// figure. Without it the age of that figure is left unstated rather than
+	// reported as the epoch.
+	measured   bool
+	measuredAt float64
+	// repositories are the registry's repositories, carried over from the
+	// previous refresh when this one could not list them.
+	repositories []repository
+	// known reports whether the repositories were ever listed successfully. A
+	// registry seen for the first time whose listing failed has no count to
+	// report, and a zero would read as a registry holding nothing.
+	known bool
+	// up reports whether this refresh listed them.
+	up bool
+}
+
+// snapshot is an immutable view of the account's registries from one refresh.
 type snapshot struct {
-	// present reports whether the account has a registry. When it is false the
-	// collector emits nothing, which is how an account without a registry is
-	// told apart from one whose figures are merely stale.
-	present bool
-	name    string
-	region  string
+	// registries is keyed by name, which is unique within an account. An empty
+	// map is an account without a registry, which is how that is told apart
+	// from figures that are merely stale: the collector then emits nothing.
+	registries map[string]*registryStats
 	// tier reports whether the subscription tier could be read. Without it the
-	// quota metrics would claim an allowance of zero.
+	// quota metrics would claim an allowance of zero. The subscription covers
+	// the account, however many registries it holds.
 	tier              bool
 	tierSlug          string
 	tierName          string
-	storageUsage      float64
 	storageIncluded   float64
 	bandwidthIncluded float64
 	monthlyPrice      float64
-	repositories      []repository
 }
 
 // Collector reports the size, subscription and repositories of the account's
-// container registry.
+// container registries.
 type Collector struct {
 	client *godo.Client
 	logger *slog.Logger
@@ -111,9 +148,10 @@ type Collector struct {
 	snap *snapshot
 }
 
-// New returns a registry collector backed by client. The logger records the
-// one event the scheduler never sees, an account without a registry; a nil
-// logger discards it.
+// New returns a registry collector backed by client. The logger records what
+// the scheduler never sees: an account without a registry, and a single
+// registry that could not be read while the others could. A nil logger
+// discards both.
 func New(client *godo.Client, logger *slog.Logger) *Collector {
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
@@ -131,54 +169,116 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
-// Refresh implements collector.Collector. It reads the registry, its
-// subscription and every repository, and swaps the snapshot in only once all
-// three have been fetched, so a partial failure changes nothing. A 404 on the
-// registry itself is not an error: the account has no registry, and the
-// snapshot becomes an empty one.
+// Refresh implements collector.Collector. It enumerates the registries, reads
+// the account's subscription and every registry's repositories, and swaps the
+// snapshot in only once all of it has been fetched, so a partial failure
+// changes nothing. A registry whose repositories cannot be listed keeps the
+// ones it last reported and is marked down; only the failure of every registry
+// fails the refresh. Finding no registry at all is not an error: the account
+// has none, and the snapshot becomes an empty one.
 func (c *Collector) Refresh(ctx context.Context) error {
-	reg, _, err := c.client.Registry.Get(ctx)
+	registries, multi, err := c.list(ctx)
 	if err != nil {
-		if isNotFound(err) {
-			c.markAbsent()
-			return nil
-		}
-		return fmt.Errorf("get registry: %w", err)
+		return err
+	}
+	if len(registries) == 0 {
+		c.markAbsent()
+		return nil
 	}
 
-	sub, _, err := c.client.Registry.GetSubscription(ctx)
-	if err != nil {
-		return fmt.Errorf("get registry subscription: %w", err)
-	}
-
-	repositories, err := c.repositories(ctx, reg.Name)
+	sub, err := c.subscription(ctx, multi)
 	if err != nil {
 		return err
 	}
 
-	next := &snapshot{
-		present:      true,
-		name:         reg.Name,
-		region:       reg.Region,
-		storageUsage: float64(reg.StorageUsageBytes),
-		repositories: repositories,
-	}
-	applySubscription(next, sub)
+	results := c.readAll(ctx, registries, multi)
 
-	c.mu.Lock()
-	c.snap = next
-	c.mu.Unlock()
-	return nil
+	next := &snapshot{}
+	applySubscription(next, sub)
+	c.swap(next, results)
+
+	return c.reportFailures(results)
 }
 
-// repositories reads every page of the registry's repository list. The list is
+// list enumerates the account's registries. It asks the multi-registry
+// endpoint first, because an account that has created a second registry can no
+// longer be read through the single-registry one. An account whose API does
+// not offer `/v2/registries` — or offers it and names nothing — is read
+// through `/v2/registry` instead, so an older account keeps working. Nothing
+// from either means the account has no registry. The bool reports which path
+// answered, because every later request has to stay on it.
+func (c *Collector) list(ctx context.Context) ([]*godo.Registry, bool, error) {
+	registries, _, err := c.client.Registries.List(ctx)
+	if err == nil && len(registries) > 0 {
+		return registries, true, nil
+	}
+	if err != nil {
+		c.logger.Debug("listing registries failed, falling back to the single-registry endpoint",
+			"error", err)
+	}
+
+	reg, _, singleErr := c.client.Registry.Get(ctx)
+	switch {
+	case singleErr == nil && reg != nil:
+		return []*godo.Registry{reg}, false, nil
+	case singleErr == nil, isNotFound(singleErr):
+		return nil, false, nil
+	case err != nil:
+		return nil, false, fmt.Errorf("get registry: %w (after list registries: %w)", singleErr, err)
+	default:
+		return nil, false, fmt.Errorf("get registry: %w", singleErr)
+	}
+}
+
+// subscription reads the account's subscription tier. It is account-wide
+// however many registries it covers, so it stays a single request; it is only
+// read from the same surface the registries were listed from, because the
+// other one may not answer.
+func (c *Collector) subscription(ctx context.Context, multi bool) (*godo.RegistrySubscription, error) {
+	get := c.client.Registry.GetSubscription
+	if multi {
+		get = c.client.Registries.GetSubscription
+	}
+
+	sub, _, err := get(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get registry subscription: %w", err)
+	}
+	return sub, nil
+}
+
+// result is the outcome of reading one registry's repositories.
+type result struct {
+	registry     *godo.Registry
+	repositories []repository
+	err          error
+}
+
+// readAll lists the repositories of every registry. They are read one after
+// another rather than at once: an account holds a handful of registries at
+// most, and the shared transport paces the requests anyway.
+func (c *Collector) readAll(ctx context.Context, registries []*godo.Registry, multi bool) []result {
+	results := make([]result, 0, len(registries))
+	for _, reg := range registries {
+		repositories, err := c.repositories(ctx, reg.Name, multi)
+		results = append(results, result{registry: reg, repositories: repositories, err: err})
+	}
+	return results
+}
+
+// repositories reads every page of one registry's repository list. The list is
 // paginated with a page token rather than a page number.
-func (c *Collector) repositories(ctx context.Context, name string) ([]repository, error) {
+func (c *Collector) repositories(ctx context.Context, name string, multi bool) ([]repository, error) {
+	list := c.client.Registry.ListRepositoriesV2
+	if multi {
+		list = c.client.Registries.ListRepositoriesV2
+	}
+
 	opts := &godo.TokenListOptions{PerPage: repositoriesPerPage}
 	var out []repository
 
 	for {
-		page, resp, err := c.client.Registry.ListRepositoriesV2(ctx, name, opts)
+		page, resp, err := list(ctx, name, opts)
 		if err != nil {
 			return nil, fmt.Errorf("list repositories: %w", err)
 		}
@@ -234,11 +334,74 @@ func applySubscription(snap *snapshot, sub *godo.RegistrySubscription) {
 	snap.monthlyPrice = float64(sub.Tier.MonthlyPriceInCents) / centsPerDollar
 }
 
+// swap fills next with the results and installs it. A registry whose
+// repositories could not be listed carries the previous ones forward and is
+// marked down: its size and region were read from the listing and are current,
+// and one unreadable registry must not blank the others.
+func (c *Collector) swap(next *snapshot, results []result) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	next.registries = make(map[string]*registryStats, len(results))
+	for _, r := range results {
+		stats := &registryStats{
+			name:         r.registry.Name,
+			region:       r.registry.Region,
+			storageUsage: float64(r.registry.StorageUsageBytes),
+		}
+		if !r.registry.StorageUsageBytesUpdatedAt.IsZero() {
+			stats.measured = true
+			stats.measuredAt = float64(r.registry.StorageUsageBytesUpdatedAt.Unix())
+		}
+
+		switch previous, ok := c.previous(stats.name); {
+		case r.err == nil:
+			stats.repositories = r.repositories
+			stats.known = true
+			stats.up = true
+		case ok:
+			stats.repositories = previous.repositories
+			stats.known = previous.known
+		}
+		next.registries[stats.name] = stats
+	}
+	c.snap = next
+}
+
+// previous returns what the last snapshot held for a registry. The caller
+// holds the lock.
+func (c *Collector) previous(name string) (*registryStats, bool) {
+	if c.snap == nil {
+		return nil, false
+	}
+	stats, ok := c.snap.registries[name]
+	return stats, ok
+}
+
+// reportFailures logs every registry that could not be listed and fails the
+// refresh when none of them could. Those failures reach nobody else: a refresh
+// that read some of the registries succeeded.
+func (c *Collector) reportFailures(results []result) error {
+	failed := 0
+	for _, r := range results {
+		if r.err != nil {
+			failed++
+			c.logger.Warn("listing the repositories of a container registry failed",
+				"registry", r.registry.Name, "region", r.registry.Region, "error", r.err)
+		}
+	}
+	if failed > 0 && failed == len(results) {
+		return fmt.Errorf("%w: %d attempted, last error: %w",
+			ErrNoRepositoriesListed, failed, results[len(results)-1].err)
+	}
+	return nil
+}
+
 // markAbsent records that the account has no registry. The transition is
 // logged once, because it never reaches the scheduler: the refresh succeeded.
 func (c *Collector) markAbsent() {
 	c.mu.Lock()
-	changed := c.snap == nil || c.snap.present
+	changed := c.snap == nil || len(c.snap.registries) > 0
 	c.snap = &snapshot{}
 	c.mu.Unlock()
 
@@ -263,37 +426,45 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 	snap := c.snap
 	c.mu.RUnlock()
 
-	if snap == nil || !snap.present {
+	if snap == nil {
 		return
 	}
-	collectRegistry(ch, snap)
-	collectRepositories(ch, snap)
+	for _, reg := range snap.registries {
+		collectRegistry(ch, snap, reg)
+		collectRepositories(ch, reg)
+	}
 }
 
-// collectRegistry emits the registry-wide metrics.
-func collectRegistry(ch chan<- prometheus.Metric, snap *snapshot) {
-	gauge(ch, storageUsageDesc, snap.storageUsage, snap.name, snap.region)
-	gauge(ch, repositoriesDesc, float64(len(snap.repositories)), snap.name)
+// collectRegistry emits the metrics of one registry.
+func collectRegistry(ch chan<- prometheus.Metric, snap *snapshot, reg *registryStats) {
+	gauge(ch, storageUsageDesc, reg.storageUsage, reg.name, reg.region)
+	if reg.measured {
+		gauge(ch, storageUpdatedDesc, reg.measuredAt, reg.name, reg.region)
+	}
+	gauge(ch, upDesc, boolValue(reg.up), reg.name, reg.region)
+	if reg.known {
+		gauge(ch, repositoriesDesc, float64(len(reg.repositories)), reg.name)
+	}
 
 	if !snap.tier {
 		return
 	}
-	gauge(ch, storageIncludedDesc, snap.storageIncluded, snap.name, snap.region)
-	gauge(ch, bandwidthIncludedDesc, snap.bandwidthIncluded, snap.name, snap.region)
-	gauge(ch, priceDesc, snap.monthlyPrice, snap.name, snap.tierSlug)
-	gauge(ch, infoDesc, 1, snap.name, snap.region, snap.tierSlug, snap.tierName)
+	gauge(ch, storageIncludedDesc, snap.storageIncluded, reg.name, reg.region)
+	gauge(ch, bandwidthIncludedDesc, snap.bandwidthIncluded, reg.name, reg.region)
+	gauge(ch, priceDesc, snap.monthlyPrice, reg.name, snap.tierSlug)
+	gauge(ch, infoDesc, 1, reg.name, reg.region, snap.tierSlug, snap.tierName)
 }
 
-// collectRepositories emits the per-repository metrics.
-func collectRepositories(ch chan<- prometheus.Metric, snap *snapshot) {
-	for _, repo := range snap.repositories {
-		gauge(ch, tagsDesc, repo.tags, snap.name, repo.name)
-		gauge(ch, manifestsDesc, repo.manifests, snap.name, repo.name)
+// collectRepositories emits the per-repository metrics of one registry.
+func collectRepositories(ch chan<- prometheus.Metric, reg *registryStats) {
+	for _, repo := range reg.repositories {
+		gauge(ch, tagsDesc, repo.tags, reg.name, repo.name)
+		gauge(ch, manifestsDesc, repo.manifests, reg.name, repo.name)
 		if repo.manifest {
-			gauge(ch, manifestSizeDesc, repo.manifestSize, snap.name, repo.name)
+			gauge(ch, manifestSizeDesc, repo.manifestSize, reg.name, repo.name)
 		}
 		if repo.pushed {
-			gauge(ch, lastPushDesc, repo.pushedAt, snap.name, repo.name)
+			gauge(ch, lastPushDesc, repo.pushedAt, reg.name, repo.name)
 		}
 	}
 }
@@ -301,4 +472,12 @@ func collectRepositories(ch chan<- prometheus.Metric, snap *snapshot) {
 // gauge sends one gauge sample of desc with the given label values.
 func gauge(ch chan<- prometheus.Metric, desc *prometheus.Desc, value float64, labels ...string) {
 	ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, value, labels...)
+}
+
+// boolValue is the sample a boolean metric carries.
+func boolValue(ok bool) float64 {
+	if ok {
+		return 1
+	}
+	return 0
 }
