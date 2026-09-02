@@ -2649,8 +2649,11 @@ failure. As with droplets, one load balancer failing keeps its previous readings
 own <code>_metrics_up</code> to 0 and logs why; only failing to list them, or every one failing, sets
 <code>collector_success</code> to 0.</p>
 <h2 id="kubernetes">Kubernetes<a class="headerlink" href="#kubernetes" title="Permanent link">&para;</a></h2>
-<p>Collected by <code>kubernetes</code> from <code>/v2/kubernetes/clusters</code>, one set of metrics per cluster and
-one per node pool in it.</p>
+<p>Collected by <code>kubernetes</code> from <code>/v2/kubernetes/clusters</code>, one set of metrics per cluster, one
+per node pool in it and one per node in those pools, plus
+<code>/v2/kubernetes/clusters/&lt;id&gt;/upgrades</code> per cluster when
+<a href="../configuration/collectors/#kubernetes"><code>--collector.kubernetes.upgrades</code></a> is on, which it is
+by default.</p>
 <table>
 <thead>
 <tr>
@@ -2681,29 +2684,59 @@ one per node pool in it.</p>
 <td>1 if the control plane is highly available</td>
 </tr>
 <tr>
+<td><code>digitalocean_kubernetes_cluster_registry_enabled</code></td>
+<td><code>id</code>, <code>name</code>, <code>region</code></td>
+<td>1 if the account's container registry is integrated with the cluster</td>
+</tr>
+<tr>
+<td><code>digitalocean_kubernetes_cluster_info</code></td>
+<td><code>id</code>, <code>name</code>, <code>region</code>, <code>version</code>, <code>maintenance_day</code>, <code>maintenance_start_time</code></td>
+<td>Always 1; the maintenance window in the account's own words</td>
+</tr>
+<tr>
+<td><code>digitalocean_kubernetes_cluster_upgrade_available</code></td>
+<td><code>cluster_id</code>, <code>cluster</code></td>
+<td>1 if at least one newer version is offered</td>
+</tr>
+<tr>
+<td><code>digitalocean_kubernetes_cluster_available_version_info</code></td>
+<td><code>cluster_id</code>, <code>cluster</code>, <code>version</code></td>
+<td>Always 1, once per version on offer</td>
+</tr>
+<tr>
 <td><code>digitalocean_kubernetes_node_pool_nodes</code></td>
-<td><code>cluster_id</code>, <code>cluster</code>, <code>pool</code>, <code>size</code></td>
+<td><code>cluster_id</code>, <code>cluster</code>, <code>pool_id</code>, <code>pool</code>, <code>size</code></td>
 <td>Nodes the pool is configured to run</td>
 </tr>
 <tr>
 <td><code>digitalocean_kubernetes_node_pool_nodes_running</code></td>
-<td><code>cluster_id</code>, <code>cluster</code>, <code>pool</code>, <code>size</code></td>
+<td><code>cluster_id</code>, <code>cluster</code>, <code>pool_id</code>, <code>pool</code>, <code>size</code></td>
 <td>Nodes in the pool reporting <code>running</code></td>
 </tr>
 <tr>
 <td><code>digitalocean_kubernetes_node_pool_auto_scale</code></td>
-<td><code>cluster_id</code>, <code>cluster</code>, <code>pool</code>, <code>size</code></td>
+<td><code>cluster_id</code>, <code>cluster</code>, <code>pool_id</code>, <code>pool</code>, <code>size</code></td>
 <td>1 if the pool scales itself</td>
 </tr>
 <tr>
 <td><code>digitalocean_kubernetes_node_pool_min_nodes</code></td>
-<td><code>cluster_id</code>, <code>cluster</code>, <code>pool</code>, <code>size</code></td>
+<td><code>cluster_id</code>, <code>cluster</code>, <code>pool_id</code>, <code>pool</code>, <code>size</code></td>
 <td>Smallest size the pool may scale to</td>
 </tr>
 <tr>
 <td><code>digitalocean_kubernetes_node_pool_max_nodes</code></td>
-<td><code>cluster_id</code>, <code>cluster</code>, <code>pool</code>, <code>size</code></td>
+<td><code>cluster_id</code>, <code>cluster</code>, <code>pool_id</code>, <code>pool</code>, <code>size</code></td>
 <td>Largest size the pool may scale to</td>
+</tr>
+<tr>
+<td><code>digitalocean_kubernetes_node_state</code></td>
+<td><code>cluster_id</code>, <code>cluster</code>, <code>pool_id</code>, <code>pool</code>, <code>node_id</code>, <code>node</code>, <code>state</code></td>
+<td>1 for the node's current state and 0 for every other known one</td>
+</tr>
+<tr>
+<td><code>digitalocean_kubernetes_node_info</code></td>
+<td><code>cluster_id</code>, <code>cluster</code>, <code>pool_id</code>, <code>pool</code>, <code>node_id</code>, <code>node</code>, <code>droplet_id</code></td>
+<td>Always 1; ties the node to the droplet underneath it</td>
 </tr>
 </tbody>
 </table>
@@ -2713,19 +2746,48 @@ for a node to come up reports the two apart, and that gap is the moment worth al
 </code></pre></div>
 <p>That comparison ships as <code>DigitalOceanNodePoolUnderProvisioned</code> on the
 <a href="../alerting/#resources">alerting page</a>.</p>
-<p>A pool carries its cluster twice, as <code>cluster_id</code> and as <code>cluster</code>. The name is what a
-dashboard variable and an alert summary read; the id is what joins a pool to the cluster
-metrics, which are labelled by <code>id</code>, and it is the half that survives a rename:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nv">digitalocean_kubernetes_node_pool_nodes_running</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span><span class="o">*</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="o">(</span><span class="nv">cluster_id</span><span class="o">)</span><span class="w"> </span><span class="k">group_left</span><span class="w"> </span><span class="o">(</span><span class="nv">region</span><span class="p">,</span><span class="w"> </span><span class="nv">version</span><span class="o">)</span>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">    </span><span class="kr">label_replace</span><span class="o">(</span><span class="nv">digitalocean_kubernetes_cluster_up</span><span class="p">,</span><span class="w"> </span><span class="p">"</span><span class="s">cluster_id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">$1</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">(.*)</span><span class="p">"</span><span class="o">)</span>
+<p><code>digitalocean_kubernetes_node_state</code> reports every state DigitalOcean documents —
+<code>provisioning</code>, <code>running</code>, <code>draining</code> and <code>deleting</code> — for every node on every scrape, plus
+whichever state a node is in if DigitalOcean has invented one since. A state that only appears
+once something is wrong is a query that returns no data exactly when it matters:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nv">digitalocean_kubernetes_node_state</span><span class="p">{</span><span class="nl">state</span><span class="o">=</span><span class="p">"</span><span class="s">running</span><span class="p">"}</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span>
+</code></pre></div>
+<p>That is <code>DigitalOceanKubernetesNodeNotRunning</code>, the per-node half of the pool comparison
+above. The status message DigitalOcean writes beside the state is not exported: it is free
+text that changes wording without the node changing, and every wording of it would start a new
+series. Four series per node is the cost of the state metric, so an account running hundreds
+of nodes is where to think about it — switching the collector off is the only lever, since the
+nodes arrive in the cluster list either way.</p>
+<p><code>digitalocean_kubernetes_cluster_upgrade_available</code> needs the upgrades lookup, which is on by
+default and costs one request per cluster per refresh. Both upgrade metrics are absent, rather
+than zero, until a lookup has succeeded: a zero would read as "you are on the newest version".
+The versions on offer are <code>digitalocean_kubernetes_cluster_available_version_info</code>, one series
+each, and they join to the cluster booleans by name or through <code>cluster_id</code>.</p>
+<p>A pool, a node and the upgrade metrics carry the cluster twice, as <code>cluster_id</code> and as
+<code>cluster</code>. The name is what a dashboard variable and an alert summary read; the id is what
+joins them to the cluster metrics, which are labelled by <code>id</code>, and it is the half that
+survives a rename:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nv">digitalocean_kubernetes_node_pool_nodes_running</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="o">*</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="o">(</span><span class="nv">cluster_id</span><span class="o">)</span><span class="w"> </span><span class="k">group_left</span><span class="w"> </span><span class="o">(</span><span class="nv">region</span><span class="p">,</span><span class="w"> </span><span class="nv">version</span><span class="o">)</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">    </span><span class="kr">label_replace</span><span class="o">(</span><span class="nv">digitalocean_kubernetes_cluster_up</span><span class="p">,</span><span class="w"> </span><span class="p">"</span><span class="s">cluster_id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">$1</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">(.*)</span><span class="p">"</span><span class="o">)</span>
 </code></pre></div>
 <p><code>digitalocean_kubernetes_cluster_up</code> keeps the name and labels of the older, unmaintained
-exporter. The node pool metrics do not: that exporter labels a pool by its own id and name
-and leaves the cluster out, so there is no telling whose pool it is.</p>
+exporter, and the cluster booleans beside it follow its <code>id</code>/<code>name</code> convention. The pool and
+node metrics do not: that exporter labels a pool by its own id and name and leaves the cluster
+out, so there is no telling whose pool it is.</p>
+<p>A pool and a node carry their own id as well as their own name, for the same reason the
+cluster does. A pool name is only unique within its cluster — two clusters commonly both have
+a <code>workers</code> — so a query that groups by <code>pool</code> alone silently folds them together, and a
+rename ends every series the pool had. Group by <code>pool_id</code> and <code>node_id</code>, or by the cluster and
+the pool together, and neither happens.</p>
 <p><strong>This is the view from outside the cluster.</strong> Pods, deployments and the rest are
 kube-state-metrics' job. The worker nodes themselves are ordinary droplets and are also
-reported by the <code>droplets</code> collector, from <code>/v2/droplets</code>.</p>
+reported by the <code>droplets</code> collector, from <code>/v2/droplets</code>, which is what the <code>droplet_id</code> on
+<code>digitalocean_kubernetes_node_info</code> joins to:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nv">digitalocean_kubernetes_node_info</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">  </span><span class="o">*</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="o">(</span><span class="nv">droplet_id</span><span class="o">)</span><span class="w"> </span><span class="k">group_left</span><span class="w"> </span><span class="o">(</span><span class="nv">size</span><span class="p">,</span><span class="w"> </span><span class="nv">status</span><span class="o">)</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">    </span><span class="kr">label_replace</span><span class="o">(</span><span class="nv">digitalocean_droplet_info</span><span class="p">,</span><span class="w"> </span><span class="p">"</span><span class="s">droplet_id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">$1</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">(.*)</span><span class="p">"</span><span class="o">)</span>
+</code></pre></div>
 <h2 id="limits-in-use">Limits in use<a class="headerlink" href="#limits-in-use" title="Permanent link">&para;</a></h2>
 <p>Collected by <code>limits</code> from <code>/v2/droplets</code>, <code>/v2/reserved_ips</code> and <code>/v2/volumes</code>. Each is
 asked for one item per page, because the figure comes from <code>meta.total</code>: the inventory
@@ -2754,9 +2816,9 @@ itself never travels.</p>
 </table>
 <p>A limit only raises the question of how much of it is left. Paired with the account
 collector's limits, these answer it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nv">digitalocean_account_droplets</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_droplet_limit</span>
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="nv">digitalocean_account_reserved_ips</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_reserved_ip_limit</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="nv">digitalocean_account_volumes</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_volume_limit</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nv">digitalocean_account_droplets</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_droplet_limit</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="nv">digitalocean_account_reserved_ips</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_reserved_ip_limit</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="nv">digitalocean_account_volumes</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_volume_limit</span>
 </code></pre></div>
 <p>A response without <code>meta.total</code> fails the refresh instead of falling back to the length of
 the page — a page holds one item by design, so that fallback would report one droplet for an
@@ -2951,7 +3013,7 @@ figure fresher, which is why the default interval of 5m is about the collector s
 step with the rest of the exporter rather than about resolution.
 <code>digitalocean_registry_storage_usage_updated_timestamp_seconds</code> is when that measurement was
 taken, so the age of the size is visible rather than assumed:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kr">time</span><span class="o">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">digitalocean_registry_storage_usage_updated_timestamp_seconds</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="kr">time</span><span class="o">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">digitalocean_registry_storage_usage_updated_timestamp_seconds</span>
 </code></pre></div>
 <p>The API leaves that field unset until it has measured the registry at least once, and a
 registry in that state reports no timestamp rather than the epoch.</p>
@@ -3078,7 +3140,7 @@ made the request, which is what the <code>resource</code> label cannot say: <cod
 both read <code>/v2/droplets</code>, and both monitoring collectors read <code>/v2/monitoring</code>. So the cost
 each collector is quoted at in the <a href="../configuration/collectors/">collector reference</a> can be
 checked against the exporter itself:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">collector</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3600</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">collector</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3600</span>
 </code></pre></div>
 <p>A request made outside any refresh carries <code>collector="none"</code>.</p>
 <p><code>digitalocean_exporter_api_request_duration_seconds</code> times the same requests, per collector
@@ -3091,8 +3153,8 @@ cardinality is bounded by the number of collectors.</p>
 account. All three rate-limit gauges are read from the response headers, so they are
 DigitalOcean's own count rather than an estimate: what is left, what the window allows, and
 when it refills.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nv">digitalocean_exporter_api_rate_limit_remaining</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_exporter_api_rate_limit</span>
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="nv">digitalocean_exporter_api_rate_limit_reset_timestamp_seconds</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="kr">time</span><span class="o">()</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="nv">digitalocean_exporter_api_rate_limit_remaining</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_exporter_api_rate_limit</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="nv">digitalocean_exporter_api_rate_limit_reset_timestamp_seconds</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="kr">time</span><span class="o">()</span>
 </code></pre></div>
 <p>The first is the share of the budget still available — the shape the bundled alert fires on,
 because a fixed threshold means nothing against a ceiling that varies. The second is how
@@ -3100,7 +3162,7 @@ long a starved exporter stays starved. A response that carries no rate-limit hea
 the gauges as they were rather than zeroing them: a zero reads as a budget that has just run
 out.</p>
 <h2 id="alerting">Alerting<a class="headerlink" href="#alerting" title="Permanent link">&para;</a></h2>
-<p>Twenty-three rules ship with the exporter as a plain Prometheus rule file, covering the
+<p>Twenty-seven rules ship with the exporter as a plain Prometheus rule file, covering the
 exporter's own health, account limits, resources that are down, certificates about to expire,
 and volumes and snapshots billed for nothing. The chart can install them as a <code>PrometheusRule</code>.</p>
 <p>See <a href="../alerting/">alerting</a> for the full list, what each one fires on and what is deliberately

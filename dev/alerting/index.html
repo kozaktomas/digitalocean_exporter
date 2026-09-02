@@ -1438,7 +1438,7 @@
 
 
 <h1 id="alerting">Alerting<a class="headerlink" href="#alerting" title="Permanent link">&para;</a></h1>
-<p>Twenty-five alerting rules ship with the exporter, in
+<p>Twenty-seven alerting rules ship with the exporter, in
 <a href="https://github.com/kozaktomas/digitalocean_exporter/blob/main/charts/digitalocean-exporter/alerts/digitalocean.rules.yaml"><code>charts/digitalocean-exporter/alerts/digitalocean.rules.yaml</code></a>.</p>
 <p>It is a plain Prometheus rule file. Point <code>rule_files</code> at it directly, or let the chart wrap
 it in a <code>PrometheusRule</code>. Every rule carries a <code>severity</code> label of <code>critical</code>, <code>warning</code> or
@@ -1592,6 +1592,18 @@ very differently and neither clears itself.</p>
 <td>A node pool runs fewer nodes than it is sized for</td>
 </tr>
 <tr>
+<td><code>DigitalOceanKubernetesNodeNotRunning</code></td>
+<td>warning</td>
+<td>30m</td>
+<td>A node is in a state other than <code>running</code></td>
+</tr>
+<tr>
+<td><code>DigitalOceanKubernetesUpgradeAvailable</code></td>
+<td>info</td>
+<td>24h</td>
+<td>A newer version is offered for a cluster that does not upgrade itself</td>
+</tr>
+<tr>
 <td><code>DigitalOceanLoadBalancerDown</code></td>
 <td>critical</td>
 <td>15m</td>
@@ -1629,6 +1641,17 @@ of an hour after it was created. The powered-off half is still billed, and is re
 <code>DigitalOceanDropletOff</code> at info under <a href="#cost">Cost</a>.</p>
 <p><code>DigitalOceanDropletMetricsUnavailable</code> usually means the droplet agent is not running, which
 blanks the graphs in the DigitalOcean console too.</p>
+<p><code>DigitalOceanKubernetesNodeNotRunning</code> is the per-node half of
+<code>DigitalOceanNodePoolUnderProvisioned</code>. The pool alert says a pool is short; this one names
+the node and the state it is stuck in, and <code>digitalocean_kubernetes_node_info</code> carries the
+droplet id to look up next. Both wait half an hour, so an ordinary rolling replacement passes
+in silence.</p>
+<p><code>DigitalOceanKubernetesUpgradeAvailable</code> is <code>info</code> and deliberately not a page: an available
+version is a piece of maintenance, not an incident, and one that stays available for a day is
+still something to read rather than to be woken by.
+It stays quiet for a cluster with auto-upgrade on, which installs the version in its own
+maintenance window, and it needs <code>--collector.kubernetes.upgrades</code>, which is on by default and
+costs one request per cluster per refresh.</p>
 <h2 id="certificates-and-firewalls">Certificates and firewalls<a class="headerlink" href="#certificates-and-firewalls" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

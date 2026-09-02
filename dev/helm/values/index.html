@@ -1459,6 +1459,12 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>How often the kubernetes collector refreshes.</td>
 </tr>
 <tr>
+<td>collectors.kubernetes.upgrades</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Ask what each cluster can be upgraded to. It is the only part of this collector that costs a request per cluster rather than one per refresh, and the only source of the upgrade metrics an alert can watch. Turn it off on an account with many clusters where that per-cluster request is worth saving.</td>
+</tr>
+<tr>
 <td>collectors.limits.enabled</td>
 <td>bool</td>
 <td><code>true</code></td>
