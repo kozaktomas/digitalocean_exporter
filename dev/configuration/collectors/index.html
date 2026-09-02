@@ -769,6 +769,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#reservedips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reservedips
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#volumes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1470,6 +1481,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#reservedips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reservedips
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#volumes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1574,7 +1596,7 @@
 <h1 id="collectors">Collectors<a class="headerlink" href="#collectors" title="Permanent link">&para;</a></h1>
 <p>One page per question you might have about a collector: what it reports, what it costs, and
 when to turn it off. The metric names themselves are in the <a href="../../metrics/">metrics reference</a>.</p>
-<p>Twelve collectors are on by default. They are on because each costs one to three API
+<p>Thirteen collectors are on by default. They are on because each costs one to three API
 requests per refresh, which is negligible against the limit of 5000 an hour.</p>
 <p>Five are off. Three of them — <a href="../spaces/"><code>spaces</code></a>,
 <a href="../monitoring-api/#dropletmetrics"><code>dropletmetrics</code></a> and
@@ -1668,11 +1690,28 @@ pushing past one fails a deploy at the worst moment.</p>
 subscription tier — plus one per registry for its repositories, and one more for every
 further page of them. An account with a single registry therefore still costs three.</p>
 <hr />
+<h2 id="reservedips">reservedips<a class="headerlink" href="#reservedips" title="Permanent link">&para;</a></h2>
+<p>Every reserved IP address the account holds, IPv4 and IPv6, and the droplet each one is
+assigned to.</p>
+<p>This is on by default for the same reason <a href="#volumes"><code>volumes</code></a> is: the address assigned to
+<strong>nothing</strong>. A reserved IP is free while it serves a droplet and billed by the hour while it
+does not, which is the opposite way round from what most people assume, and an address left
+behind by a destroyed droplet is never mentioned again:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nv">digitalocean_reserved_ip_assigned</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span>
+</code></pre></div>
+<p>The IPv6 listing carries no project, so <code>project_id</code> on <code>digitalocean_reserved_ip_info</code> is
+empty for <code>version="6"</code> addresses. Everything else is reported for both.</p>
+<p>It does not replace the count <a href="#limits"><code>limits</code></a> reports. That one is a single account-wide
+total to hold against the account's reserved IP limit; this one is the addresses themselves.</p>
+<p><strong>Cost:</strong> two requests per refresh, one per address family, plus one more for every further
+200 addresses of either. An account with fewer than 200 reserved IPs — which is nearly all of
+them — therefore costs exactly two.</p>
+<hr />
 <h2 id="volumes">volumes<a class="headerlink" href="#volumes" title="Permanent link">&para;</a></h2>
 <p>Every block storage volume: size, region, and how many droplets it is attached to.</p>
 <p>The reason this is on by default is the volume attached to <strong>nothing</strong>. It is billed at the
 full rate while serving no purpose, and nothing in the control panel nags you about it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nv">digitalocean_volume_droplets</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">digitalocean_volume_droplets</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span>
 </code></pre></div>
 <p><strong>Cost:</strong> one request per refresh.</p>
 <hr />
@@ -1684,7 +1723,7 @@ outside. Size, minimum disk, creation time, distribution, status and regions for
 charge; the snapshot taken just before destroying it keeps being billed by size every month
 until somebody deletes it, and nothing in the control panel brings it up. What the account
 is paying for images that nobody has looked at in three months is:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">sum</span><span class="o">(</span><span class="nv">digitalocean_image_size_bytes</span><span class="p">{}</span><span class="o">)</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">type</span><span class="o">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">sum</span><span class="o">(</span><span class="nv">digitalocean_image_size_bytes</span><span class="p">{}</span><span class="o">)</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">type</span><span class="o">)</span>
 </code></pre></div>
 <p>and <code>DigitalOceanSnapshotOld</code> is the alert that names them one by one.</p>
 <p>Only the account's own images are read — the images endpoint with <code>private=true</code>. The public

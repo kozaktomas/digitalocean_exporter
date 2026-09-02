@@ -957,6 +957,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#reserved-ips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reserved IPs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#images" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1574,6 +1585,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#reserved-ips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reserved IPs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#images" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2076,6 +2098,48 @@ question that matters, which is whether anything is using the volume at all:</p>
 alert rather than a panel. Volumes created by a Kubernetes <code>PersistentVolumeClaim</code> are the
 usual culprits: deleting a pod does not delete its claim, and a released claim keeps its
 volume until something reaps it.</p>
+<h2 id="reserved-ips">Reserved IPs<a class="headerlink" href="#reserved-ips" title="Permanent link">&para;</a></h2>
+<p>Collected by <code>reservedips</code> from <code>/v2/reserved_ips</code> and <code>/v2/reserved_ipv6</code>, one set of
+metrics per reserved IP address. The <code>version</code> label is <code>4</code> or <code>6</code> and is what tells the two
+listings apart.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>digitalocean_reserved_ip_assigned</code></td>
+<td><code>ip</code>, <code>region</code>, <code>version</code></td>
+<td>1 when the address is assigned to a droplet, 0 when it is idle</td>
+</tr>
+<tr>
+<td><code>digitalocean_reserved_ip_info</code></td>
+<td><code>ip</code>, <code>region</code>, <code>version</code>, <code>droplet_id</code>, <code>droplet_name</code>, <code>project_id</code></td>
+<td>Always 1</td>
+</tr>
+<tr>
+<td><code>digitalocean_reserved_ips</code></td>
+<td><code>region</code>, <code>version</code></td>
+<td>Number of reserved IPs in that region of that version</td>
+</tr>
+</tbody>
+</table>
+<p>A reserved IP costs nothing while it is assigned to a droplet and is billed by the hour as
+soon as it is not — the opposite way round from what most people expect, and the reason the
+assignment is a metric rather than a label:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nv">digitalocean_reserved_ip_assigned</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span>
+</code></pre></div>
+<p><code>digitalocean_reserved_ip_info</code> names the droplet behind an address, with <code>droplet_id</code> and
+<code>droplet_name</code> empty for an idle one. <code>project_id</code> comes from the IPv4 listing only: the
+IPv6 endpoint reports no project, so it is empty for every <code>version="6"</code> address.</p>
+<p><code>digitalocean_reserved_ips</code> counts the same addresses by region, which is the panel version
+of the question. It is unrelated to <code>digitalocean_account_reserved_ips</code>, which the
+<a href="#limits-in-use"><code>limits</code></a> collector reads as a single account-wide total to compare against
+the account's limit.</p>
 <h2 id="images">Images<a class="headerlink" href="#images" title="Permanent link">&para;</a></h2>
 <p>Collected by <code>images</code> from <code>/v2/images?private=true</code>, one set of metrics per stored image.</p>
 <table>
@@ -2124,11 +2188,11 @@ does, so an image the control panel calls 2.5 GB reports 2.5 GiB.</p>
 <p>Stored images are the DigitalOcean cost that nothing nags about. A droplet that is destroyed
 disappears from the bill; the snapshot taken before destroying it does not, and it is billed
 by size every month until somebody deletes it. What that costs is:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">sum</span><span class="o">(</span><span class="nv">digitalocean_image_size_bytes</span><span class="o">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="o">^</span><span class="mi">3</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.06</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">sum</span><span class="o">(</span><span class="nv">digitalocean_image_size_bytes</span><span class="o">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="o">^</span><span class="mi">3</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.06</span>
 </code></pre></div>
 <p>DigitalOcean charges $0.06 per GiB per month for snapshot storage at the time of writing;
 check the current figure rather than trusting the constant. Broken down by what it is:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">type</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="nv">digitalocean_image_size_bytes</span><span class="o">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">type</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="nv">digitalocean_image_size_bytes</span><span class="o">)</span>
 </code></pre></div>
 <p><code>digitalocean_images</code> is reported for all three types even when the account holds none of
 one, so a backup policy that silently stopped running shows as a count falling to zero rather
@@ -2184,7 +2248,7 @@ however many regions it is available in.</p>
 would suggest, because that is what the older exporter used. Its two metrics — <code>status</code> and
 <code>droplets</code> — keep their names and label sets here exactly.</p>
 <p>A load balancer with no backends is the case worth alerting on:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nv">digitalocean_loadbalancer_status</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="nv">digitalocean_loadbalancer_droplets</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nv">digitalocean_loadbalancer_status</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="nv">digitalocean_loadbalancer_droplets</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span>
 </code></pre></div>
 <p>That reads "active but proxying to nothing", which returns 503 to every request. Note that a
 load balancer selecting its backends by tag reports zero until something carries the tag, so
@@ -2298,12 +2362,12 @@ default.</p>
 </table>
 <p><code>pending_changes</code> is normally zero within seconds of an edit. One that stays non-zero means
 the firewall is not yet protecting what its ruleset says it protects:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nv">digitalocean_firewall_pending_changes</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nv">digitalocean_firewall_pending_changes</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
 </code></pre></div>
 <p><code>inbound_rules_open</code> counts the rules reachable from the whole internet. Alerting on <code>&gt; 0</code>
 is wrong — a public web server needs one — but an unexplained change in the number is worth
 knowing about:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kr">changes</span><span class="o">(</span><span class="nv">digitalocean_firewall_inbound_rules_open</span><span class="p">[</span><span class="s">1d</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kr">changes</span><span class="o">(</span><span class="nv">digitalocean_firewall_inbound_rules_open</span><span class="p">[</span><span class="s">1d</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
 </code></pre></div>
 <p>This is configuration, not traffic: DigitalOcean reports no packet or connection counts for
 a firewall, so what a rule actually lets through cannot be exported.</p>
@@ -2339,13 +2403,13 @@ by default.</p>
 <p><code>type</code> is <code>lets_encrypt</code> or <code>custom</code>. DigitalOcean renews a <code>lets_encrypt</code> certificate
 itself, but renewal can fail quietly — the certificate keeps its old expiry and its <code>state</code>
 turns to <code>error</code> — so the alert to write is on time remaining rather than on state:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="o">(</span><span class="nv">digitalocean_certificate_expiry_timestamp_seconds</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="kr">time</span><span class="o">())</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">86400</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">14</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="o">(</span><span class="nv">digitalocean_certificate_expiry_timestamp_seconds</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="kr">time</span><span class="o">())</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">86400</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">14</span>
 </code></pre></div>
 <p>The <code>id</code> label matches the <code>certificate_id</code> on <code>digitalocean_cdn_endpoint_info</code>, so the
 endpoint serving a certificate that is about to expire can be found with a join:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kr">label_replace</span><span class="o">(</span><span class="nv">digitalocean_cdn_endpoint_info</span><span class="p">,</span><span class="w"> </span><span class="p">"</span><span class="s">id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">$1</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">certificate_id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">(.*)</span><span class="p">"</span><span class="o">)</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="o">*</span><span class="w"> </span><span class="k">on</span><span class="o">(</span><span class="nv">id</span><span class="o">)</span><span class="w"> </span><span class="k">group_left</span><span class="o">(</span><span class="nv">name</span><span class="o">)</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="o">((</span><span class="nv">digitalocean_certificate_expiry_timestamp_seconds</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="kr">time</span><span class="o">())</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">86400</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">14</span><span class="o">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kr">label_replace</span><span class="o">(</span><span class="nv">digitalocean_cdn_endpoint_info</span><span class="p">,</span><span class="w"> </span><span class="p">"</span><span class="s">id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">$1</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">certificate_id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">(.*)</span><span class="p">"</span><span class="o">)</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="o">*</span><span class="w"> </span><span class="k">on</span><span class="o">(</span><span class="nv">id</span><span class="o">)</span><span class="w"> </span><span class="k">group_left</span><span class="o">(</span><span class="nv">name</span><span class="o">)</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="o">((</span><span class="nv">digitalocean_certificate_expiry_timestamp_seconds</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="kr">time</span><span class="o">())</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">86400</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">14</span><span class="o">)</span>
 </code></pre></div>
 <p>The endpoints are the many side of that join: one certificate can serve several of them. The
 result is the days remaining, labelled with the endpoint serving it.</p>
@@ -2417,7 +2481,7 @@ per droplet. <strong>Off by default</strong> — see the request budget below.</
 </tbody>
 </table>
 <p>CPU is a counter, exactly like <code>node_cpu_seconds_total</code>, so it is read with <code>rate()</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">id</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_droplet_cpu_seconds_total</span><span class="p">{</span><span class="nl">mode</span><span class="o">!=</span><span class="p">"</span><span class="s">idle</span><span class="p">"}[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">id</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_droplet_cpu_seconds_total</span><span class="p">{</span><span class="nl">mode</span><span class="o">!=</span><span class="p">"</span><span class="s">idle</span><span class="p">"}[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
 </code></pre></div>
 <p><code>digitalocean_droplet_memory_total_bytes</code> is not the <code>digitalocean_droplet_memory_bytes</code> of
 the <code>droplets</code> collector. That one is the memory the droplet was <em>sold</em>, taken from its
@@ -2428,7 +2492,7 @@ because the hypervisor and the kernel keep some. On a droplet sold with 8 GiB th
 <p>This is the only collector whose cost grows with the size of the account. The monitoring API
 answers <strong>one metric of one droplet per request</strong>, so a refresh costs one droplet listing
 plus ten requests per droplet:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>requests per hour = 3600/interval * (1 + droplets * 10)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>requests per hour = 3600/interval * (1 + droplets * 10)
 </code></pre></div>
 <p>Against the limit of 5000 requests an hour, at the default five-minute interval:</p>
 <table>
@@ -2558,14 +2622,14 @@ metrics per load balancer. <strong>Off by default.</strong></p>
 <code>node_exporter</code>. The metric that earns the collector its keep is
 <code>digitalocean_loadbalancer_droplets_health_checks</code>, which names the <strong>individual backend</strong>
 that is failing rather than only showing that the pool has shrunk:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nv">digitalocean_loadbalancer_droplets_health_checks</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">100</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nv">digitalocean_loadbalancer_droplets_health_checks</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">100</span>
 </code></pre></div>
 <p>The <code>server</code> label is the backend droplet, as <code>node-&lt;droplet id&gt;</code>.</p>
 <p><code>frontend_http_responses</code> is a <strong>rate</strong>, not a running total — DigitalOcean's API
 specification calls it the "rate of response code" — so it is a gauge of responses per
 second and must not be wrapped in <code>rate()</code>. Error ratio:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">id</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="nv">digitalocean_loadbalancer_frontend_http_responses_per_second</span><span class="p">{</span><span class="nl">code</span><span class="o">=</span><span class="p">"</span><span class="s">5xx</span><span class="p">"}</span><span class="o">)</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span><span class="o">/</span><span class="w"> </span><span class="k">ignoring</span><span class="o">(</span><span class="nv">code</span><span class="o">)</span><span class="w"> </span><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">id</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="nv">digitalocean_loadbalancer_frontend_http_responses_per_second</span><span class="o">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">id</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="nv">digitalocean_loadbalancer_frontend_http_responses_per_second</span><span class="p">{</span><span class="nl">code</span><span class="o">=</span><span class="p">"</span><span class="s">5xx</span><span class="p">"}</span><span class="o">)</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="o">/</span><span class="w"> </span><span class="k">ignoring</span><span class="o">(</span><span class="nv">code</span><span class="o">)</span><span class="w"> </span><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">id</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="nv">digitalocean_loadbalancer_frontend_http_responses_per_second</span><span class="o">)</span>
 </code></pre></div>
 <p>Nothing this API returns for a load balancer is cumulative, so every metric here is a gauge.</p>
 <h3 id="units">Units<a class="headerlink" href="#units" title="Permanent link">&para;</a></h3>
@@ -2645,16 +2709,16 @@ one per node pool in it.</p>
 </table>
 <p>The configured count and the running count are kept apart on purpose: a pool that is waiting
 for a node to come up reports the two apart, and that gap is the moment worth alerting on.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nv">digitalocean_kubernetes_node_pool_nodes_running</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nv">digitalocean_kubernetes_node_pool_nodes</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nv">digitalocean_kubernetes_node_pool_nodes_running</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nv">digitalocean_kubernetes_node_pool_nodes</span>
 </code></pre></div>
 <p>That comparison ships as <code>DigitalOceanNodePoolUnderProvisioned</code> on the
 <a href="../alerting/#resources">alerting page</a>.</p>
 <p>A pool carries its cluster twice, as <code>cluster_id</code> and as <code>cluster</code>. The name is what a
 dashboard variable and an alert summary read; the id is what joins a pool to the cluster
 metrics, which are labelled by <code>id</code>, and it is the half that survives a rename:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nv">digitalocean_kubernetes_node_pool_nodes_running</span>
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span><span class="o">*</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="o">(</span><span class="nv">cluster_id</span><span class="o">)</span><span class="w"> </span><span class="k">group_left</span><span class="w"> </span><span class="o">(</span><span class="nv">region</span><span class="p">,</span><span class="w"> </span><span class="nv">version</span><span class="o">)</span>
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">    </span><span class="kr">label_replace</span><span class="o">(</span><span class="nv">digitalocean_kubernetes_cluster_up</span><span class="p">,</span><span class="w"> </span><span class="p">"</span><span class="s">cluster_id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">$1</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">(.*)</span><span class="p">"</span><span class="o">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nv">digitalocean_kubernetes_node_pool_nodes_running</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span><span class="o">*</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="o">(</span><span class="nv">cluster_id</span><span class="o">)</span><span class="w"> </span><span class="k">group_left</span><span class="w"> </span><span class="o">(</span><span class="nv">region</span><span class="p">,</span><span class="w"> </span><span class="nv">version</span><span class="o">)</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">    </span><span class="kr">label_replace</span><span class="o">(</span><span class="nv">digitalocean_kubernetes_cluster_up</span><span class="p">,</span><span class="w"> </span><span class="p">"</span><span class="s">cluster_id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">$1</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">id</span><span class="p">",</span><span class="w"> </span><span class="p">"</span><span class="s">(.*)</span><span class="p">"</span><span class="o">)</span>
 </code></pre></div>
 <p><code>digitalocean_kubernetes_cluster_up</code> keeps the name and labels of the older, unmaintained
 exporter. The node pool metrics do not: that exporter labels a pool by its own id and name
@@ -2690,9 +2754,9 @@ itself never travels.</p>
 </table>
 <p>A limit only raises the question of how much of it is left. Paired with the account
 collector's limits, these answer it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nv">digitalocean_account_droplets</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_droplet_limit</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="nv">digitalocean_account_reserved_ips</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_reserved_ip_limit</span>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="nv">digitalocean_account_volumes</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_volume_limit</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nv">digitalocean_account_droplets</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_droplet_limit</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="nv">digitalocean_account_reserved_ips</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_reserved_ip_limit</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="nv">digitalocean_account_volumes</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_account_volume_limit</span>
 </code></pre></div>
 <p>A response without <code>meta.total</code> fails the refresh instead of falling back to the length of
 the page — a page holds one item by design, so that fallback would report one droplet for an
@@ -2887,7 +2951,7 @@ figure fresher, which is why the default interval of 5m is about the collector s
 step with the rest of the exporter rather than about resolution.
 <code>digitalocean_registry_storage_usage_updated_timestamp_seconds</code> is when that measurement was
 taken, so the age of the size is visible rather than assumed:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kr">time</span><span class="o">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">digitalocean_registry_storage_usage_updated_timestamp_seconds</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kr">time</span><span class="o">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">digitalocean_registry_storage_usage_updated_timestamp_seconds</span>
 </code></pre></div>
 <p>The API leaves that field unset until it has measured the registry at least once, and a
 registry in that state reports no timestamp rather than the epoch.</p>
@@ -3014,7 +3078,7 @@ made the request, which is what the <code>resource</code> label cannot say: <cod
 both read <code>/v2/droplets</code>, and both monitoring collectors read <code>/v2/monitoring</code>. So the cost
 each collector is quoted at in the <a href="../configuration/collectors/">collector reference</a> can be
 checked against the exporter itself:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">collector</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3600</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">collector</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3600</span>
 </code></pre></div>
 <p>A request made outside any refresh carries <code>collector="none"</code>.</p>
 <p><code>digitalocean_exporter_api_request_duration_seconds</code> times the same requests, per collector
@@ -3027,8 +3091,8 @@ cardinality is bounded by the number of collectors.</p>
 account. All three rate-limit gauges are read from the response headers, so they are
 DigitalOcean's own count rather than an estimate: what is left, what the window allows, and
 when it refills.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nv">digitalocean_exporter_api_rate_limit_remaining</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_exporter_api_rate_limit</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="nv">digitalocean_exporter_api_rate_limit_reset_timestamp_seconds</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="kr">time</span><span class="o">()</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nv">digitalocean_exporter_api_rate_limit_remaining</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_exporter_api_rate_limit</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="nv">digitalocean_exporter_api_rate_limit_reset_timestamp_seconds</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="kr">time</span><span class="o">()</span>
 </code></pre></div>
 <p>The first is the share of the budget still available — the shape the bundled alert fires on,
 because a fixed threshold means nothing against a ceiling that varies. The second is how

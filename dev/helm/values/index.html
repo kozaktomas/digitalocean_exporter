@@ -1519,6 +1519,18 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>How often the registry collector refreshes.</td>
 </tr>
 <tr>
+<td>collectors.reservedips.enabled</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Report every reserved IP address and whether it is assigned to a droplet. DigitalOcean bills a reserved IP that is assigned to nothing, the same way it bills an unattached volume, and both IPv4 and IPv6 addresses are read.</td>
+</tr>
+<tr>
+<td>collectors.reservedips.interval</td>
+<td>string</td>
+<td><code>"5m"</code></td>
+<td>How often the reservedips collector refreshes.</td>
+</tr>
+<tr>
 <td>collectors.spaces.buckets</td>
 <td>list</td>
 <td><code>[]</code></td>

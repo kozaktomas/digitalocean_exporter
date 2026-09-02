@@ -1438,7 +1438,7 @@
 
 
 <h1 id="alerting">Alerting<a class="headerlink" href="#alerting" title="Permanent link">&para;</a></h1>
-<p>Twenty-three alerting rules ship with the exporter, in
+<p>Twenty-five alerting rules ship with the exporter, in
 <a href="https://github.com/kozaktomas/digitalocean_exporter/blob/main/charts/digitalocean-exporter/alerts/digitalocean.rules.yaml"><code>charts/digitalocean-exporter/alerts/digitalocean.rules.yaml</code></a>.</p>
 <p>It is a plain Prometheus rule file. Point <code>rule_files</code> at it directly, or let the chart wrap
 it in a <code>PrometheusRule</code>. Every rule carries a <code>severity</code> label of <code>critical</code>, <code>warning</code> or
@@ -1700,6 +1700,12 @@ the change, as something to read rather than to act on.</p>
 <td>A volume has been attached to nothing for a day</td>
 </tr>
 <tr>
+<td><code>DigitalOceanReservedIPUnassigned</code></td>
+<td>info</td>
+<td>24h</td>
+<td>A reserved IP has been assigned to nothing for a day</td>
+</tr>
+<tr>
 <td><code>DigitalOceanSnapshotOld</code></td>
 <td>info</td>
 <td>1h</td>
@@ -1722,6 +1728,10 @@ the change, as something to read rather than to act on.</p>
 <p><code>DigitalOceanVolumeUnattached</code> waits a day because a volume is legitimately detached while
 being moved between droplets. Past that it is usually a leftover from a deleted droplet or a
 released PersistentVolumeClaim, billed by allocated size for as long as it exists.</p>
+<p><code>DigitalOceanReservedIPUnassigned</code> is the same rule for addresses. A reserved IP is free
+while it serves a droplet and billed by the hour while it does not, which is the opposite way
+round from what most people assume, and an address left behind by a destroyed droplet is
+never mentioned again. A day is long enough to cover a migration between droplets.</p>
 <p><code>DigitalOceanSnapshotOld</code> is the storage equivalent of the same idea. DigitalOcean bills a
 stored image by its size every month for as long as it exists, and a snapshot taken before a
 change nobody rolled back is billed forever. Ninety days is a threshold to argue with: raise

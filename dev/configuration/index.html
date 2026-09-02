@@ -1597,18 +1597,22 @@ carries <code>collector="none"</code>.</p>
 trap worth knowing about — see <a href="monitoring-api/#the-budget">the monitoring API</a>. The
 exporter defends it by <a href="#staying-under-the-burst-limit">rate-limiting itself</a>, which is on
 by default.</p>
-<p>The eleven collectors that are on by default cost one to three requests each per refresh. On
-a real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database, a
-registry and a DNS zone, one full refresh measured <strong>15 requests</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>account 1 · balance 1 · cdn 1 · databases 1 · domains 1 · droplets 2
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>kubernetes 1 · load_balancers 1 · registry 3 · reserved_ips 1 · volumes 2
+<p>The thirteen collectors that are on by default cost one to three requests each per refresh.
+On a real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database,
+a registry, a DNS zone, a snapshot and a reserved IP, one full refresh comes to <strong>19
+requests</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>account 1 · balance 1 · cdn 1 · databases 1 · domains 1 · droplets 2 · images 1
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>kubernetes 1 · load_balancers 1 · registry 3 · reserved_ips 2 · reserved_ipv6 1 · volumes 2
 </code></pre></div>
-<p>At the default <code>5m</code> that is 12 refreshes an hour — <strong>180 requests, 3.6% of the hourly
-budget</strong>, and 15 in a burst, 6% of the per-minute one. Comfortable, and it scales with how
+<p>At the default <code>5m</code> that is 12 refreshes an hour — <strong>228 requests, 4.6% of the hourly
+budget</strong>, and 19 in a burst, 7.6% of the per-minute one. Comfortable, and it scales with how
 much you own rather than with how often Prometheus scrapes.</p>
+<p><code>reserved_ips</code> is asked for twice because two collectors read it: <a href="collectors/#limits"><code>limits</code></a>
+for the account-wide count and <a href="collectors/#reservedips"><code>reservedips</code></a> for the addresses
+themselves.</p>
 <p>Enabling <a href="collectors/#firewalls"><code>firewalls</code></a> and
 <a href="collectors/#certificates"><code>certificates</code></a> adds one request each, so the same account costs
-17. The other three are off for reasons of their own: <a href="spaces/"><code>spaces</code></a> needs a second
+21. The other three are off for reasons of their own: <a href="spaces/"><code>spaces</code></a> needs a second
 credential, and the two <a href="monitoring-api/">monitoring API</a> collectors cost a multiple of
 everything above.</p>
 <div class="admonition note">
@@ -1854,6 +1858,18 @@ web configuration, which is how you get TLS and basic auth:</p>
 <tr>
 <td><code>--collector.registry.interval</code></td>
 <td><code>COLLECTOR_REGISTRY_INTERVAL</code></td>
+<td><code>5m</code></td>
+<td>Its refresh interval</td>
+</tr>
+<tr>
+<td><code>--collector.reservedips</code></td>
+<td><code>COLLECTOR_RESERVEDIPS</code></td>
+<td><code>true</code></td>
+<td><a href="collectors/#reservedips">Reserved IPs and what they are assigned to</a></td>
+</tr>
+<tr>
+<td><code>--collector.reservedips.interval</code></td>
+<td><code>COLLECTOR_RESERVEDIPS_INTERVAL</code></td>
 <td><code>5m</code></td>
 <td>Its refresh interval</td>
 </tr>
