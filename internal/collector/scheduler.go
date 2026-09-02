@@ -275,7 +275,7 @@ func (s *Scheduler) refresh(runCtx context.Context, c Collector, timeout time.Du
 
 // guardedRefresh calls the collector's Refresh and turns a panic into an error.
 //
-// Sixteen collectors share one process, and any of them can meet an API
+// Seventeen collectors share one process, and any of them can meet an API
 // response shaped in a way it did not expect. Without this, one nil field in
 // one response takes the exporter down — and takes it down again after every
 // restart, since the response has not changed. Recovered, the collector is

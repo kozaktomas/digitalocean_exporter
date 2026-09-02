@@ -80,7 +80,7 @@ would stop the scrape that reports the failure. `/healthz` is the liveness probe
 consults a collector.
 
 **A panic in a `Refresh` is a failed refresh, not a dead process.** The scheduler recovers
-it, logs the value and the stack, and records it exactly like any other failure — sixteen
+it, logs the value and the stack, and records it exactly like any other failure — seventeen
 collectors share one process, and one unexpected API response must not stop the other
 fifteen, restart after restart. A refresh cut short by shutdown is the opposite case: once
 the run context is cancelled the error is not recorded and not logged as one, so the last
@@ -92,7 +92,9 @@ lines before a restart do not read as an API outage.
 2. Implement the four methods. Keep the snapshot behind a mutex; build the whole new
    snapshot before swapping it in, so a partial failure changes nothing. A page-numbered
    list is walked with `paging.All`, never a loop of its own.
-3. Add `--collector.<name>` and `--collector.<name>.interval` in `internal/config`.
+3. Add `--collector.<name>` and `--collector.<name>.interval` in `internal/config`. A row in
+   `simpleCollectors` is enough, and it carries the default interval: pass `defaultInterval`
+   unless the list it reads moves slower than a scrape does, as `images` does.
 4. Register it in `cmd/digitalocean_exporter/main.go`. `Register` takes a per-collector
    timeout; pass 0 unless the refresh fans out over many resources, as the monitoring-API
    collectors do.

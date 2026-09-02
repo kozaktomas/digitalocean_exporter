@@ -89,6 +89,57 @@ alert rather than a panel. Volumes created by a Kubernetes `PersistentVolumeClai
 usual culprits: deleting a pod does not delete its claim, and a released claim keeps its
 volume until something reaps it.
 
+## Images
+
+Collected by `images` from `/v2/images?private=true`, one set of metrics per stored image.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_image_size_bytes` | `id`, `name`, `type` | Size of the stored image |
+| `digitalocean_image_min_disk_size_bytes` | `id`, `name`, `type` | Smallest disk a droplet must have to boot the image |
+| `digitalocean_image_created_timestamp_seconds` | `id`, `name`, `type` | When the image was created |
+| `digitalocean_image_info` | `id`, `name`, `type`, `distribution`, `status`, `regions` | Always 1 |
+| `digitalocean_images` | `type` | Number of private images of that type |
+
+`type` is `snapshot` for a droplet or volume snapshot somebody took, `backup` for one of the
+automatic droplet backups DigitalOcean takes when the option is enabled, and `custom` for an
+image uploaded from outside. Only the account's own images are reported: the public
+distribution and application images are DigitalOcean's, cost nothing and number in the
+hundreds.
+
+Both sizes read DigitalOcean's gigabytes as binary, the way every other size in this exporter
+does, so an image the control panel calls 2.5 GB reports 2.5 GiB.
+
+Stored images are the DigitalOcean cost that nothing nags about. A droplet that is destroyed
+disappears from the bill; the snapshot taken before destroying it does not, and it is billed
+by size every month until somebody deletes it. What that costs is:
+
+```promql
+sum(digitalocean_image_size_bytes) / 1024^3 * 0.06
+```
+
+DigitalOcean charges $0.06 per GiB per month for snapshot storage at the time of writing;
+check the current figure rather than trusting the constant. Broken down by what it is:
+
+```promql
+sum by (type) (digitalocean_image_size_bytes)
+```
+
+`digitalocean_images` is reported for all three types even when the account holds none of
+one, so a backup policy that silently stopped running shows as a count falling to zero rather
+than as a series that disappears — which a graph draws identically to "the exporter went
+away".
+
+The age of an image is `time() - digitalocean_image_created_timestamp_seconds`, which is what
+`DigitalOceanSnapshotOld` fires on. An image whose creation time the API did not report has
+no sample at all rather than a zero, since an epoch timestamp would read as an image created
+in 1970 and age past every threshold there is.
+
+`regions` is every region slug the image has been distributed to, sorted and joined with
+commas. Sorting matters: the API does not document an order, and a label that reorders itself
+between two refreshes would churn the series for nothing. A custom image is billed once
+however many regions it is available in.
+
 ## Load balancers
 
 Collected by `loadbalancers` from `/v2/load_balancers`, one set of metrics per load balancer.
@@ -656,9 +707,9 @@ out.
 
 ## Alerting
 
-Twenty-one rules ship with the exporter as a plain Prometheus rule file, covering the
-exporter's own health, account limits, resources that are down, certificates about to expire
-and volumes billed for nothing. The chart can install them as a `PrometheusRule`.
+Twenty-three rules ship with the exporter as a plain Prometheus rule file, covering the
+exporter's own health, account limits, resources that are down, certificates about to expire,
+and volumes and snapshots billed for nothing. The chart can install them as a `PrometheusRule`.
 
 See [alerting](alerting.md) for the full list, what each one fires on and what is deliberately
 left out.

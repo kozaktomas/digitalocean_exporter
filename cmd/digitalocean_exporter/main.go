@@ -31,6 +31,7 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/dropletmetrics"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/droplets"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/firewalls"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/images"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/kubernetes"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/limits"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/loadbalancermetrics"
@@ -129,6 +130,7 @@ func registerCollectors(
 		{"balance", func() collector.Collector { return balance.New(client) }},
 		{"databases", func() collector.Collector { return databases.New(client, logger) }},
 		{"droplets", func() collector.Collector { return droplets.New(client, logger) }},
+		{"images", func() collector.Collector { return images.New(client, logger) }},
 		{"kubernetes", func() collector.Collector { return kubernetes.New(client, logger) }},
 		{"limits", func() collector.Collector { return limits.New(client) }},
 		{"registry", func() collector.Collector { return registry.New(client, logger) }},

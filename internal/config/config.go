@@ -166,6 +166,11 @@ type flags struct {
 	spacesRegion     *string
 }
 
+// defaultInterval is how often a collector refreshes unless it asks for
+// something else. Five minutes is the cadence a Prometheus scrape is usually
+// configured at, so a metric is never more than one scrape out of date.
+const defaultInterval = 5 * time.Minute
+
 // simpleCollectors are the collectors that need nothing but an enable switch
 // and a refresh interval. The ones that carry a timeout or a concurrency of
 // their own — the two monitoring-API collectors and spaces — are bound
@@ -183,24 +188,33 @@ var simpleCollectors = []struct {
 	name    string
 	help    string
 	enabled bool
+	// interval is the default refresh interval. Almost every collector wants
+	// the five minutes a Prometheus scrape thinks in; a collector whose data
+	// moves slower than that says so here rather than spending requests on
+	// re-reading an unchanged list.
+	interval time.Duration
 }{
-	{"account", "Enable the account collector.", true},
-	{"balance", "Enable the balance collector, which needs a billing-scoped token.", true},
-	{"registry", "Enable the container registry collector.", true},
-	{"limits", "Enable the limits collector, which counts droplets, reserved IPs and volumes.", true},
-	{"droplets", "Enable the droplets collector.", true},
-	{"databases", "Enable the managed databases collector.", true},
-	{"kubernetes", "Enable the managed Kubernetes collector.", true},
-	{"volumes", "Enable the block storage volumes collector.", true},
-	{"loadbalancers", "Enable the load balancers collector.", true},
-	{"cdn", "Enable the CDN endpoints collector.", true},
-	{"domains", "Enable the DNS domains collector.", true},
+	{"account", "Enable the account collector.", true, defaultInterval},
+	{"balance", "Enable the balance collector, which needs a billing-scoped token.", true, defaultInterval},
+	{"registry", "Enable the container registry collector.", true, defaultInterval},
+	{"limits", "Enable the limits collector, which counts droplets, reserved IPs and volumes.",
+		true, defaultInterval},
+	{"droplets", "Enable the droplets collector.", true, defaultInterval},
+	{"databases", "Enable the managed databases collector.", true, defaultInterval},
+	{"kubernetes", "Enable the managed Kubernetes collector.", true, defaultInterval},
+	{"volumes", "Enable the block storage volumes collector.", true, defaultInterval},
+	{"images",
+		"Enable the images collector, which reports stored snapshots, droplet backups and custom images.",
+		true, 10 * time.Minute},
+	{"loadbalancers", "Enable the load balancers collector.", true, defaultInterval},
+	{"cdn", "Enable the CDN endpoints collector.", true, defaultInterval},
+	{"domains", "Enable the DNS domains collector.", true, defaultInterval},
 	{"firewalls",
 		"Enable the cloud firewalls collector, which reports rule counts and how far each firewall is applied.",
-		false},
+		false, defaultInterval},
 	{"certificates",
 		"Enable the certificates collector, which reports when each TLS certificate expires.",
-		false},
+		false, defaultInterval},
 }
 
 // Parse builds a Config from args, falling back to environment variables.
@@ -262,11 +276,12 @@ func bind(app *kingpin.Application) *flags {
 
 // bindSimple declares the enable switch and the refresh interval of every
 // collector in simpleCollectors. The pair has the same shape for all of them,
-// so it is spelled out once here rather than thirteen times.
+// so it is spelled out once here rather than fourteen times.
 //
 // The environment variable follows from the name: COLLECTOR_<NAME> and
 // COLLECTOR_<NAME>_INTERVAL, which is the convention every collector already
-// used.
+// used. The default interval comes from the table, so a collector reading a
+// list that barely moves can be given a slower one without a flag of its own.
 func bindSimple(app *kingpin.Application) map[string]*collectorFlags {
 	bound := make(map[string]*collectorFlags, len(simpleCollectors))
 	for _, c := range simpleCollectors {
@@ -276,7 +291,7 @@ func bindSimple(app *kingpin.Application) map[string]*collectorFlags {
 				Envar(envar).Default(strconv.FormatBool(c.enabled)).Bool(),
 			interval: app.Flag("collector."+c.name+".interval",
 				"Refresh interval of the "+c.name+" collector.").
-				Envar(envar + "_INTERVAL").Default("5m").Duration(),
+				Envar(envar + "_INTERVAL").Default(c.interval.String()).Duration(),
 		}
 	}
 	return bound

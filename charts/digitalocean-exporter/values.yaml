@@ -102,6 +102,16 @@ collectors:
     enabled: false
     # -- How often the firewalls collector refreshes.
     interval: 5m
+  images:
+    # -- Report the private images the account stores: droplet and volume
+    # snapshots, automatic droplet backups and uploaded custom images.
+    # DigitalOcean bills every one of them by size for as long as it exists, and
+    # nothing in the control panel nags about a snapshot nobody needs any more.
+    enabled: true
+    # -- How often the images collector refreshes. Ten minutes rather than five:
+    # an image is created by a snapshot or a nightly backup, hours apart, so
+    # reading the list more often only spends requests.
+    interval: 10m
   kubernetes:
     # -- Report managed Kubernetes clusters and their node pools from the outside.
     # What runs inside a cluster is kube-state-metrics' job, not this exporter's.

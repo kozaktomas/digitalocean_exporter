@@ -340,7 +340,7 @@ func recordingLogger(buf *syncBuffer) *slog.Logger {
 	return slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 }
 
-// Sixteen collectors share one process, so a panic in any of them — one nil
+// Seventeen collectors share one process, so a panic in any of them — one nil
 // field in one API response — otherwise takes the exporter down, and takes it
 // down again after every restart.
 func TestSchedulerRecoversFromAPanickingCollector(t *testing.T) {

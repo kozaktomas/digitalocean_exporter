@@ -194,8 +194,8 @@ stale. A response without the headers leaves all three as they were rather than 
 them. The bundled [`DigitalOceanExporterRateLimitLow`](../alerting.md) fires below ten
 percent.
 
-**Staggered refreshes.** Collectors all default to a `5m` interval and all start together, so
-without help they would fire as one burst every five minutes. Each one's first refresh is
+**Staggered refreshes.** Collectors default to a `5m` interval — `images` to `10m` — and all
+start together, so without help they would fire as one burst. Each one's first refresh is
 therefore held back by an even share of a window — the **shortest interval** any enabled
 collector is configured with, or **three seconds**, whichever is smaller — and every later
 refresh keeps that phase. One window for the whole set is what makes the offsets distinct
@@ -256,6 +256,8 @@ basic_auth_users:
 | `--collector.registry.interval` | `COLLECTOR_REGISTRY_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.volumes` | `COLLECTOR_VOLUMES` | `true` | [Block storage volumes](collectors.md#volumes) |
 | `--collector.volumes.interval` | `COLLECTOR_VOLUMES_INTERVAL` | `5m` | Its refresh interval |
+| `--collector.images` | `COLLECTOR_IMAGES` | `true` | [Snapshots, backups and custom images](collectors.md#images) |
+| `--collector.images.interval` | `COLLECTOR_IMAGES_INTERVAL` | `10m` | Its refresh interval |
 | `--collector.loadbalancers` | `COLLECTOR_LOADBALANCERS` | `true` | [Load balancers](collectors.md#loadbalancers) |
 | `--collector.loadbalancers.interval` | `COLLECTOR_LOADBALANCERS_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.cdn` | `COLLECTOR_CDN` | `true` | [CDN endpoints](collectors.md#cdn) |

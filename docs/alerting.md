@@ -1,14 +1,15 @@
 # Alerting
 
-Twenty-one alerting rules ship with the exporter, in
+Twenty-three alerting rules ship with the exporter, in
 [`charts/digitalocean-exporter/alerts/digitalocean.rules.yaml`](https://github.com/kozaktomas/digitalocean_exporter/blob/main/charts/digitalocean-exporter/alerts/digitalocean.rules.yaml).
 
 It is a plain Prometheus rule file. Point `rule_files` at it directly, or let the chart wrap
 it in a `PrometheusRule`. Every rule carries a `severity` label of `critical`, `warning` or
 `info`, a `summary` and a `description`.
 
-Thresholds assume collectors refresh on their 5m default. A collector deliberately run
-slower needs the matching `for` raised, or it will alert on data that is simply not due yet.
+Thresholds assume collectors refresh on their default interval — 5m for every collector but
+`images`, which refreshes every 10m. A collector deliberately run slower needs the matching
+`for` raised, or it will alert on data that is simply not due yet.
 
 ## Installing them
 
@@ -124,12 +125,20 @@ the change, as something to read rather than to act on.
 |---|---|---|---|
 | `DigitalOceanRegistryStorageNearQuota` | warning | 1h | Registry storage is over 90% of what the tier includes |
 | `DigitalOceanVolumeUnattached` | info | 24h | A volume has been attached to nothing for a day |
+| `DigitalOceanSnapshotOld` | info | 1h | A snapshot has been stored for over ninety days |
 | `DigitalOceanDropletOff` | info | 24h | A droplet has been powered off for a day |
 | `DigitalOceanSpacesBucketUnreachable` | warning | 1h | A bucket could not be measured |
 
 `DigitalOceanVolumeUnattached` waits a day because a volume is legitimately detached while
 being moved between droplets. Past that it is usually a leftover from a deleted droplet or a
 released PersistentVolumeClaim, billed by allocated size for as long as it exists.
+
+`DigitalOceanSnapshotOld` is the storage equivalent of the same idea. DigitalOcean bills a
+stored image by its size every month for as long as it exists, and a snapshot taken before a
+change nobody rolled back is billed forever. Ninety days is a threshold to argue with: raise
+it if you keep quarterly restore points, lower it if snapshots are only ever taken before a
+deploy. It deliberately matches `type="snapshot"` alone — automatic droplet backups expire
+on their own schedule, and a custom image is usually a base somebody uploaded on purpose.
 
 `DigitalOceanDropletOff` is the other side of `DigitalOceanDropletDown`. A powered-off
 droplet is billed by its size exactly as a running one is, because the disk and the address

@@ -16,7 +16,7 @@ Nothing about them is Helm-specific: the JSON imports into any Grafana.
 | `droplets.json` | Per-droplet CPU, memory, disk and load, filtered by a droplet variable | `droplets`, `dropletmetrics` |
 | `kubernetes.json` | Cluster state and node pools: sizes, autoscaling bounds, nodes actually running | `kubernetes` |
 | `loadbalancers.json` | Traffic, response times and which backend droplet is failing its health check | `loadbalancers`, `loadbalancermetrics` |
-| `storage.json` | Volumes, including those attached to nothing, and container registry repositories | `volumes`, `registry` |
+| `storage.json` | Volumes, including those attached to nothing, stored images by type and the oldest of them, and container registry repositories | `volumes`, `images`, `registry` |
 | `spaces.json` | Bucket size and object count, and how fast a bucket is growing | `spaces` |
 | `exporter.json` | Is the exporter itself healthy? Refresh durations, last success, API requests and latency per collector, and how much of the rate-limit budget is left before it resets | none; self-metrics only |
 | `billing.json` | What the account costs: balance, month-to-date usage, droplet run rate, registry overage | `balance`, `droplets`, `loadbalancers`, `volumes`, `registry` |

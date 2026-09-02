@@ -3,8 +3,9 @@
 # Plain Prometheus rule groups: point `rule_files` at this file directly, or let the
 # Helm chart wrap it in a PrometheusRule with `prometheusRule.enabled=true`.
 #
-# Every threshold here assumes collectors refresh on their 5m default. A collector
-# deliberately run slower needs the matching `for` raised to match.
+# Every threshold here assumes collectors refresh on their default interval — 5m for
+# every collector but `images`, which refreshes every 10m. A collector deliberately
+# run slower needs the matching `for` raised to match.
 groups:
   - name: digitalocean-exporter
     rules:
@@ -260,6 +261,22 @@ groups:
             DigitalOcean bills a volume by its allocated size for as long as it exists,
             attached or not. A day of this is usually a leftover from a deleted droplet
             or a released PersistentVolumeClaim.
+
+      - alert: DigitalOceanSnapshotOld
+        expr: >-
+          (time() - digitalocean_image_created_timestamp_seconds{type="snapshot"})
+            > 90 * 24 * 3600
+        for: 1h
+        labels:
+          severity: info
+        annotations:
+          summary: Snapshot {{ $labels.name }} is over ninety days old
+          description: >-
+            DigitalOcean bills a stored image by its size every month, forever, and a
+            snapshot older than ninety days is usually one taken before a change nobody
+            rolled back. Check whether {{ $labels.name }} ({{ $labels.id }}) is still
+            worth keeping. Automatic droplet backups expire on their own and are not
+            counted here.
 
       - alert: DigitalOceanDropletOff
         expr: digitalocean_droplet_info{status="off"} == 1

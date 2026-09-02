@@ -3,7 +3,7 @@
 One page per question you might have about a collector: what it reports, what it costs, and
 when to turn it off. The metric names themselves are in the [metrics reference](../metrics.md).
 
-Eleven collectors are on by default. They are on because each costs one to three API
+Twelve collectors are on by default. They are on because each costs one to three API
 requests per refresh, which is negligible against the limit of 5000 an hour.
 
 Five are off. Three of them — [`spaces`](spaces.md),
@@ -146,6 +146,36 @@ digitalocean_volume_droplets == 0
 ```
 
 **Cost:** one request per refresh.
+
+---
+
+## images
+
+Every private image the account stores: droplet and volume snapshots, the automatic droplet
+backups DigitalOcean takes when the option is enabled, and custom images uploaded from
+outside. Size, minimum disk, creation time, distribution, status and regions for each.
+
+Stored images are the classic forgotten DigitalOcean cost. Destroying a droplet stops its
+charge; the snapshot taken just before destroying it keeps being billed by size every month
+until somebody deletes it, and nothing in the control panel brings it up. What the account
+is paying for images that nobody has looked at in three months is:
+
+```promql
+sum(digitalocean_image_size_bytes{}) by (type)
+```
+
+and `DigitalOceanSnapshotOld` is the alert that names them one by one.
+
+Only the account's own images are read — the images endpoint with `private=true`. The public
+distribution and application images are DigitalOcean's, cost nothing and number in the
+hundreds.
+
+It refreshes every ten minutes rather than the five every other collector defaults to. An
+image appears when somebody takes a snapshot or a nightly backup runs, which is hours apart;
+reading the list twice as often would only spend requests.
+
+**Cost:** one request per refresh, plus one more for every further 200 images. An account
+with fewer than 200 images — which is nearly all of them — therefore costs exactly one.
 
 ---
 

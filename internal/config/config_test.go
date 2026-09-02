@@ -391,6 +391,39 @@ func TestVolumesCollectorDefaultsOnAndCanBeDisabled(t *testing.T) {
 	}
 }
 
+// The images collector is the one that does not take the shared five-minute
+// default: a snapshot list changes when somebody takes a snapshot, which is
+// hours apart, so it refreshes every ten minutes instead.
+func TestImagesCollectorDefaultsOnWithATenMinuteInterval(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	i, ok := cfg.Collectors["images"]
+	if !ok {
+		t.Fatal("images collector missing from config")
+	}
+	if !i.Enabled || i.Interval != 10*time.Minute {
+		t.Errorf("images = %+v, want enabled with a 10m interval", i)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--no-collector.images"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Collectors["images"].Enabled {
+		t.Error("images collector = enabled, want disabled")
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--collector.images.interval", "1h"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := cfg.Collectors["images"].Interval; got != time.Hour {
+		t.Errorf("images interval = %s, want 1h", got)
+	}
+}
+
 func TestLoadBalancersCollectorDefaultsOnAndCanBeDisabled(t *testing.T) {
 	cfg, err := config.Parse([]string{"--do.token", "secret"})
 	if err != nil {

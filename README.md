@@ -28,7 +28,7 @@ actually deserves.
 
 ## Status
 
-Early. This release ships the exporter, the full build and release pipeline, and sixteen
+Early. This release ships the exporter, the full build and release pipeline, and seventeen
 collectors:
 
 | Collector | State |
@@ -42,6 +42,7 @@ collectors:
 | `registry` — Container Registry storage, subscription and repositories | available |
 | `spaces` — bucket size and object count (needs a Spaces access key) | available |
 | `volumes` — size of every block storage volume and what it is attached to | available |
+| `images` — size and age of every snapshot, droplet backup and custom image | available |
 | `loadbalancers` — state, backends and billed size of every load balancer | available |
 | `cdn` — CDN endpoints, their cache TTL and the certificate each one serves | available |
 | `domains` — DNS zones the account hosts and their default TTL | available |
@@ -55,7 +56,7 @@ Nine Grafana dashboards ship with it, covering every collector. Import the JSON 
 the Grafana sidecar — see the
 [dashboards page](https://kozaktomas.github.io/digitalocean_exporter/latest/dashboards/).
 
-Twenty-one alerting rules ship alongside them, as a plain Prometheus rule file the chart can
+Twenty-three alerting rules ship alongside them, as a plain Prometheus rule file the chart can
 install as a `PrometheusRule` — see the
 [alerting page](https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/).
 

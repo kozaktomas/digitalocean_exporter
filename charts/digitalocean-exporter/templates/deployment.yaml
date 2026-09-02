@@ -94,6 +94,12 @@ spec:
             {{- else }}
             - --no-collector.firewalls
             {{- end }}
+            {{- if .Values.collectors.images.enabled }}
+            - --collector.images
+            - --collector.images.interval={{ .Values.collectors.images.interval }}
+            {{- else }}
+            - --no-collector.images
+            {{- end }}
             {{- if .Values.collectors.kubernetes.enabled }}
             - --collector.kubernetes
             - --collector.kubernetes.interval={{ .Values.collectors.kubernetes.interval }}

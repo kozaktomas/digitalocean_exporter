@@ -44,6 +44,7 @@ one needs exactly the read scope for the resource it reports:
 | [`limits`](collectors.md#limits) | `account:read`, `droplet:read`, `reserved_ip:read`, `block_storage:read` |
 | [`registry`](collectors.md#registry) | `registry:read` |
 | [`volumes`](collectors.md#volumes) | `block_storage:read` |
+| [`images`](collectors.md#images) | `image:read` |
 | [`loadbalancers`](collectors.md#loadbalancers) | `load_balancer:read` |
 | [`cdn`](collectors.md#cdn) | `cdn:read` |
 | [`domains`](collectors.md#domains) | `domain:read` |

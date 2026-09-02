@@ -44,6 +44,11 @@ VOLUMES = {"volumes": [{"id": "vol", "name": "data", "region": {"slug": "fra1"},
                         "size_gigabytes": 100, "filesystem_type": "ext4",
                         "filesystem_label": "data", "droplet_ids": [1]}],
            "meta": {"total": 13}}
+IMAGES = {"images": [{"id": 1, "name": "web-1-2026-08-01", "type": "snapshot",
+                      "distribution": "Ubuntu", "status": "available",
+                      "regions": ["fra1"], "min_disk_size": 25,
+                      "size_gigabytes": 2.5, "created_at": "2026-08-01T10:00:00Z"}],
+          "meta": {"total": 1}}
 LOAD_BALANCERS = {"load_balancers": [{"id": "lb", "name": "public", "ip": "10.0.0.1",
                                       "status": "active", "size_unit": 1,
                                       "type": "REGIONAL", "algorithm": "round_robin",
@@ -112,6 +117,7 @@ ROUTES = {"/v2/customers/my/balance": BALANCE,
           "/v2/kubernetes/clusters": CLUSTERS,
           "/v2/reserved_ips": RESERVED_IPS,
           "/v2/volumes": VOLUMES,
+          "/v2/images": IMAGES,
           "/v2/load_balancers": LOAD_BALANCERS,
           "/v2/cdn/endpoints": CDN,
           "/v2/domains": DOMAINS,
@@ -176,6 +182,7 @@ DO_SPACES_ENDPOINT="http://127.0.0.1:${API_PORT}" \
          --collector.droplets.interval=1s --collector.databases.interval=1s \
          --collector.kubernetes.interval=1s \
          --collector.domains.interval=1s \
+         --collector.images.interval=1s \
          --collector.firewalls --collector.firewalls.interval=1s \
          --collector.certificates --collector.certificates.interval=1s \
          --collector.spaces --collector.spaces.interval=1s \
@@ -198,7 +205,7 @@ done
 # for "no sample equals 0" would therefore pass while a collector had not
 # started yet, and the assertions below would race it — a flake that looks
 # exactly like a broken collector. Bump this when adding a collector.
-EXPECTED_COLLECTORS=16
+EXPECTED_COLLECTORS=17
 
 # Poll until all of them have reported a successful refresh.
 METRICS=""
@@ -265,6 +272,8 @@ for metric in \
   digitalocean_kubernetes_node_pool_nodes_running \
   digitalocean_volume_size_bytes \
   digitalocean_volume_droplets \
+  digitalocean_image_size_bytes \
+  digitalocean_images \
   digitalocean_loadbalancer_status \
   digitalocean_loadbalancer_droplets \
   digitalocean_cdn_endpoint_ttl_seconds \

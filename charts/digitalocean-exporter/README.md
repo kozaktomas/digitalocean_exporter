@@ -43,6 +43,8 @@ helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
 | collectors.droplets.interval | string | `"5m"` | How often the droplets collector refreshes. |
 | collectors.firewalls.enabled | bool | `false` | Report cloud firewalls: what each is attached to, how many rules it carries, how many of those are open to the whole internet, and how many droplets a change has not reached yet. Off by default because a ruleset changes on deploys rather than continuously. |
 | collectors.firewalls.interval | string | `"5m"` | How often the firewalls collector refreshes. |
+| collectors.images.enabled | bool | `true` | Report the private images the account stores: droplet and volume snapshots, automatic droplet backups and uploaded custom images. DigitalOcean bills every one of them by size for as long as it exists, and nothing in the control panel nags about a snapshot nobody needs any more. |
+| collectors.images.interval | string | `"10m"` | How often the images collector refreshes. Ten minutes rather than five: an image is created by a snapshot or a nightly backup, hours apart, so reading the list more often only spends requests. |
 | collectors.kubernetes.enabled | bool | `true` | Report managed Kubernetes clusters and their node pools from the outside. What runs inside a cluster is kube-state-metrics' job, not this exporter's. |
 | collectors.kubernetes.interval | string | `"5m"` | How often the kubernetes collector refreshes. |
 | collectors.limits.enabled | bool | `true` | Report droplets, reserved IPs and volumes in use, which pair with the account limits the account collector reports. |
