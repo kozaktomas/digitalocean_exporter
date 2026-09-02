@@ -94,15 +94,31 @@ droplets.
 
 ## kubernetes
 
-Managed Kubernetes clusters and their node pools: version, state, node count, auto-scaling
-bounds.
+Managed Kubernetes clusters, their node pools and the individual nodes: version, state, node
+count, auto-scaling bounds, the maintenance window and which droplet is under each node.
 
 This describes clusters **from the outside** — what DigitalOcean thinks it is running for
 you. What happens inside a cluster is kube-state-metrics' job. The two answer different
 questions, and the interesting alerts come from comparing them: a pool DigitalOcean reports
 as having three nodes while the cluster sees two is a real incident.
 
-**Cost:** one request per refresh, plus one per cluster for its node pools.
+The pools, their nodes and everything the cluster list already says — surge upgrade, high
+availability, the registry integration, the maintenance window — arrive in that one response
+and cost nothing extra. The versions a cluster could be upgraded to do not: they are an
+endpoint of their own, one request per cluster per refresh, behind
+`--collector.kubernetes.upgrades`. It is on by default because an account with clusters has a
+handful of them, not hundreds; turn it off with `--no-collector.kubernetes.upgrades` on an
+account where a request per cluster every five minutes is worth saving, and the two upgrade
+metrics simply stop being reported. One cluster's lookup failing is not a failed refresh: that
+cluster keeps its previous upgrade values and the exporter logs why, so the others are
+unaffected.
+
+`digitalocean_kubernetes_node_state` is four series per node, one per documented state. That
+is the only part of this collector whose series count grows with the size of the account
+rather than the number of clusters.
+
+**Cost:** one request per refresh, plus one per additional page for accounts with many
+clusters, plus one per cluster for the upgrades lookup unless it is switched off.
 
 ---
 

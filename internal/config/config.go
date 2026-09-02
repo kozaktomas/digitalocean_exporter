@@ -123,6 +123,9 @@ type Config struct {
 	// LoadBalancerMetricsConcurrency caps how many load balancers the load
 	// balancer metrics collector measures at once.
 	LoadBalancerMetricsConcurrency int
+	// KubernetesUpgrades lets the Kubernetes collector ask what each cluster
+	// can be upgraded to, at one API request per cluster per refresh.
+	KubernetesUpgrades bool
 }
 
 // collectorFlags holds the two flags every collector has.
@@ -164,6 +167,7 @@ type flags struct {
 	spacesSecret     *string
 	spacesSecretFile *string
 	spacesRegion     *string
+	k8sUpgrades      *bool
 }
 
 // defaultInterval is how often a collector refreshes unless it asks for
@@ -272,6 +276,13 @@ func bind(app *kingpin.Application) *flags {
 	f.logFormat = app.Flag("log.format", "Log format: logfmt or json.").
 		Envar("LOG_FORMAT").Default("logfmt").Enum("logfmt", "json")
 	f.simple = bindSimple(app)
+	// The one collector switch that is neither an enable nor an interval: the
+	// upgrades lookup is the only part of the Kubernetes collector whose cost
+	// grows with the account, so it can be turned off without losing the rest.
+	f.k8sUpgrades = app.Flag("collector.kubernetes.upgrades",
+		"Ask what each Kubernetes cluster can be upgraded to. "+
+			"Costs one extra API request per cluster per refresh.").
+		Envar("COLLECTOR_KUBERNETES_UPGRADES").Default("true").Bool()
 	bindMonitoring(app, f)
 	bindSpaces(app, f)
 	return f
@@ -409,6 +420,7 @@ func (f *flags) config() (*Config, error) {
 		DropletMetricsConcurrency:      *f.dmConcurrency,
 		DropletMetricsAgentOnly:        *f.dmAgentOnly,
 		LoadBalancerMetricsConcurrency: *f.lbmConcurrency,
+		KubernetesUpgrades:             *f.k8sUpgrades,
 	}, nil
 }
 

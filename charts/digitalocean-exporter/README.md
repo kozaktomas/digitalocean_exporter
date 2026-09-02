@@ -47,6 +47,7 @@ helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
 | collectors.images.interval | string | `"10m"` | How often the images collector refreshes. Ten minutes rather than five: an image is created by a snapshot or a nightly backup, hours apart, so reading the list more often only spends requests. |
 | collectors.kubernetes.enabled | bool | `true` | Report managed Kubernetes clusters and their node pools from the outside. What runs inside a cluster is kube-state-metrics' job, not this exporter's. |
 | collectors.kubernetes.interval | string | `"5m"` | How often the kubernetes collector refreshes. |
+| collectors.kubernetes.upgrades | bool | `true` | Ask what each cluster can be upgraded to. It is the only part of this collector that costs a request per cluster rather than one per refresh, and the only source of the upgrade metrics an alert can watch. Turn it off on an account with many clusters where that per-cluster request is worth saving. |
 | collectors.limits.enabled | bool | `true` | Report droplets, reserved IPs and volumes in use, which pair with the account limits the account collector reports. |
 | collectors.limits.interval | string | `"5m"` | How often the limits collector refreshes. |
 | collectors.loadbalancermetrics.concurrency | int | `4` | How many load balancers are queried at once. |

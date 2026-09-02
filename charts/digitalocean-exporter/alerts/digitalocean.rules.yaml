@@ -159,6 +159,40 @@ groups:
             Fewer nodes are running than the pool is sized for. Half an hour of it means
             a node failed to come back rather than a rolling replacement in progress.
 
+      - alert: DigitalOceanKubernetesNodeNotRunning
+        expr: digitalocean_kubernetes_node_state{state="running"} == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            Node {{ $labels.node }} of pool {{ $labels.pool }} in cluster
+            {{ $labels.cluster }} is not running
+          description: >-
+            The node is provisioning, draining or being deleted rather than serving. Half
+            an hour of it is a node that failed to come up rather than one being replaced,
+            and the pool is short of the capacity it is billed for. The droplet underneath
+            it is named by digitalocean_kubernetes_node_info.
+
+      - alert: DigitalOceanKubernetesUpgradeAvailable
+        expr: >-
+          (digitalocean_kubernetes_cluster_upgrade_available == 1)
+            unless on (cluster_id) (
+              label_replace(digitalocean_kubernetes_cluster_auto_upgrade,
+                            "cluster_id", "$1", "id", "(.*)") == 1
+            )
+        for: 24h
+        labels:
+          severity: info
+        annotations:
+          summary: Kubernetes cluster {{ $labels.cluster }} has an upgrade available
+          description: >-
+            DigitalOcean offers a newer version and the cluster does not take it by
+            itself, so somebody has to. It waits a day because a version appears hours
+            before anyone would act on it, and it stays quiet for a cluster with
+            auto-upgrade on, which installs it in its own maintenance window.
+            digitalocean_kubernetes_cluster_available_version_info names the versions.
+
       - alert: DigitalOceanLoadBalancerDown
         expr: digitalocean_loadbalancer_status == 0
         for: 15m

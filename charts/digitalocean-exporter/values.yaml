@@ -118,6 +118,11 @@ collectors:
     enabled: true
     # -- How often the kubernetes collector refreshes.
     interval: 5m
+    # -- Ask what each cluster can be upgraded to. It is the only part of this
+    # collector that costs a request per cluster rather than one per refresh, and
+    # the only source of the upgrade metrics an alert can watch. Turn it off on an
+    # account with many clusters where that per-cluster request is worth saving.
+    upgrades: true
   limits:
     # -- Report droplets, reserved IPs and volumes in use, which pair with the
     # account limits the account collector reports.

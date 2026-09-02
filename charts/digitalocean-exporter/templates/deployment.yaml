@@ -103,6 +103,11 @@ spec:
             {{- if .Values.collectors.kubernetes.enabled }}
             - --collector.kubernetes
             - --collector.kubernetes.interval={{ .Values.collectors.kubernetes.interval }}
+            {{- if .Values.collectors.kubernetes.upgrades }}
+            - --collector.kubernetes.upgrades
+            {{- else }}
+            - --no-collector.kubernetes.upgrades
+            {{- end }}
             {{- else }}
             - --no-collector.kubernetes
             {{- end }}

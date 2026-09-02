@@ -607,7 +607,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Configured size against how many nodes actually report as running. They differ while a pool scales, recycles or fails to get capacity -- if they stay apart, DigitalOcean could not give you the nodes.",
+      "description": "Configured size against how many nodes actually report as running. They differ while a pool scales, recycles or fails to get capacity -- if they stay apart, DigitalOcean could not give you the nodes. A pool name is only unique within its cluster, so the rows are keyed by cluster, pool and size together.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1051,7 +1051,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (pool, cluster, size) (digitalocean_kubernetes_node_pool_nodes{job=~\"$job\",cluster=~\"$cluster\"})",
+          "expr": "max by (cluster, pool, size) (digitalocean_kubernetes_node_pool_nodes{job=~\"$job\",cluster=~\"$cluster\"})",
           "format": "table",
           "instant": true,
           "range": false,
@@ -1063,7 +1063,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (pool) (digitalocean_kubernetes_node_pool_nodes_running{job=~\"$job\",cluster=~\"$cluster\"})",
+          "expr": "max by (cluster, pool, size) (digitalocean_kubernetes_node_pool_nodes_running{job=~\"$job\",cluster=~\"$cluster\"})",
           "format": "table",
           "instant": true,
           "range": false,
@@ -1075,7 +1075,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (pool) (digitalocean_kubernetes_node_pool_min_nodes{job=~\"$job\",cluster=~\"$cluster\"})",
+          "expr": "max by (cluster, pool, size) (digitalocean_kubernetes_node_pool_min_nodes{job=~\"$job\",cluster=~\"$cluster\"})",
           "format": "table",
           "instant": true,
           "range": false,
@@ -1087,7 +1087,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (pool) (digitalocean_kubernetes_node_pool_max_nodes{job=~\"$job\",cluster=~\"$cluster\"})",
+          "expr": "max by (cluster, pool, size) (digitalocean_kubernetes_node_pool_max_nodes{job=~\"$job\",cluster=~\"$cluster\"})",
           "format": "table",
           "instant": true,
           "range": false,
@@ -1099,7 +1099,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (pool) (digitalocean_kubernetes_node_pool_auto_scale{job=~\"$job\",cluster=~\"$cluster\"})",
+          "expr": "max by (cluster, pool, size) (digitalocean_kubernetes_node_pool_auto_scale{job=~\"$job\",cluster=~\"$cluster\"})",
           "format": "table",
           "instant": true,
           "range": false,
@@ -1109,11 +1109,8 @@
       "title": "Node pools",
       "transformations": [
         {
-          "id": "joinByField",
-          "options": {
-            "byField": "pool",
-            "mode": "outer"
-          }
+          "id": "merge",
+          "options": {}
         },
         {
           "id": "organize",
@@ -1214,10 +1211,10 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (pool) (digitalocean_kubernetes_node_pool_nodes{job=~\"$job\",cluster=~\"$cluster\"})",
+          "expr": "max by (cluster, pool) (digitalocean_kubernetes_node_pool_nodes{job=~\"$job\",cluster=~\"$cluster\"})",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "{{pool}} configured",
+          "legendFormat": "{{cluster}}/{{pool}} configured",
           "range": true,
           "refId": "A"
         },
@@ -1227,16 +1224,222 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (pool) (digitalocean_kubernetes_node_pool_nodes_running{job=~\"$job\",cluster=~\"$cluster\"})",
+          "expr": "max by (cluster, pool) (digitalocean_kubernetes_node_pool_nodes_running{job=~\"$job\",cluster=~\"$cluster\"})",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "{{pool}} running",
+          "legendFormat": "{{cluster}}/{{pool}} running",
           "range": true,
           "refId": "B"
         }
       ],
       "title": "Nodes running vs configured",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Every node DigitalOcean knows about, with the state it reports and the droplet underneath it. A node stuck outside running is what a pool short of nodes looks like one row down; the droplet id is how you find it in the droplets dashboard.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cluster"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Cluster"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "pool"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Pool"
+              },
+              {
+                "id": "custom.width",
+                "value": 200
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "node"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Node"
+              },
+              {
+                "id": "custom.width",
+                "value": 260
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "droplet_id"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Droplet"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "state"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "State"
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "deleting": {
+                        "color": "red",
+                        "index": 3
+                      },
+                      "draining": {
+                        "color": "orange",
+                        "index": 2
+                      },
+                      "provisioning": {
+                        "color": "yellow",
+                        "index": 1
+                      },
+                      "running": {
+                        "color": "green",
+                        "index": 0
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
+      "id": 4,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (cluster, pool, node, state) (digitalocean_kubernetes_node_state{job=~\"$job\",cluster=~\"$cluster\"} == 1)",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (cluster, pool, node, droplet_id) (digitalocean_kubernetes_node_info{job=~\"$job\",cluster=~\"$cluster\"})",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "B"
+        }
+      ],
+      "title": "Nodes",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Value #A": true,
+              "Value #B": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "cluster": 0,
+              "droplet_id": 4,
+              "node": 2,
+              "pool": 1,
+              "state": 3
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
     }
   ],
   "refresh": "5m",

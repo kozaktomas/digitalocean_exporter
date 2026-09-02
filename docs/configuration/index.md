@@ -94,17 +94,22 @@ by default.
 
 The thirteen collectors that are on by default cost one to three requests each per refresh.
 On a real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database,
-a registry, a DNS zone, a snapshot and a reserved IP, one full refresh comes to **19
+a registry, a DNS zone, a snapshot and a reserved IP, one full refresh comes to **20
 requests**:
 
 ```
 account 1 · balance 1 · cdn 1 · databases 1 · domains 1 · droplets 2 · images 1
-kubernetes 1 · load_balancers 1 · registry 3 · reserved_ips 2 · reserved_ipv6 1 · volumes 2
+kubernetes 2 · load_balancers 1 · registry 3 · reserved_ips 2 · reserved_ipv6 1 · volumes 2
 ```
 
-At the default `5m` that is 12 refreshes an hour — **228 requests, 4.6% of the hourly
-budget**, and 19 in a burst, 7.6% of the per-minute one. Comfortable, and it scales with how
+At the default `5m` that is 12 refreshes an hour — **240 requests, 4.8% of the hourly
+budget**, and 20 in a burst, 8% of the per-minute one. Comfortable, and it scales with how
 much you own rather than with how often Prometheus scrapes.
+
+`kubernetes` is the one that counts twice for a single cluster: the list, and then the
+versions that cluster could be upgraded to, which is an endpoint of its own and costs a
+request per cluster. `--no-collector.kubernetes.upgrades` takes that half away and leaves the
+rest.
 
 `reserved_ips` is asked for twice because two collectors read it: [`limits`](collectors.md#limits)
 for the account-wide count and [`reservedips`](collectors.md#reservedips) for the addresses
@@ -112,7 +117,7 @@ themselves.
 
 Enabling [`firewalls`](collectors.md#firewalls) and
 [`certificates`](collectors.md#certificates) adds one request each, so the same account costs
-21. The other three are off for reasons of their own: [`spaces`](spaces.md) needs a second
+22. The other three are off for reasons of their own: [`spaces`](spaces.md) needs a second
 credential, and the two [monitoring API](monitoring-api.md) collectors cost a multiple of
 everything above.
 
@@ -255,6 +260,7 @@ basic_auth_users:
 | `--collector.droplets.interval` | `COLLECTOR_DROPLETS_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.kubernetes` | `COLLECTOR_KUBERNETES` | `true` | [Managed Kubernetes clusters](collectors.md#kubernetes) |
 | `--collector.kubernetes.interval` | `COLLECTOR_KUBERNETES_INTERVAL` | `5m` | Its refresh interval |
+| `--collector.kubernetes.upgrades` | `COLLECTOR_KUBERNETES_UPGRADES` | `true` | [Ask what each cluster can be upgraded to](collectors.md#kubernetes), at one request per cluster |
 | `--collector.limits` | `COLLECTOR_LIMITS` | `true` | [Resources in use against limits](collectors.md#limits) |
 | `--collector.limits.interval` | `COLLECTOR_LIMITS_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.registry` | `COLLECTOR_REGISTRY` | `true` | [Container Registry](collectors.md#registry) |

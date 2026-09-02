@@ -132,7 +132,9 @@ func registerCollectors(
 		{"databases", func() collector.Collector { return databases.New(client, logger) }},
 		{"droplets", func() collector.Collector { return droplets.New(client, logger) }},
 		{"images", func() collector.Collector { return images.New(client, logger) }},
-		{"kubernetes", func() collector.Collector { return kubernetes.New(client, logger) }},
+		{"kubernetes", func() collector.Collector {
+			return kubernetes.New(client, cfg.KubernetesUpgrades, logger)
+		}},
 		{"limits", func() collector.Collector { return limits.New(client) }},
 		{"registry", func() collector.Collector { return registry.New(client, logger) }},
 		{"reservedips", func() collector.Collector { return reservedips.New(client, logger) }},

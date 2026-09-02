@@ -123,7 +123,7 @@ The chart can also wrap the bundled Prometheus rule file in a `PrometheusRule`, 
 `prometheusRule.enabled=true`. It is off by default too — a chart that installs alerts
 nobody asked for is a chart that pages somebody at 3am — and `prometheusRule.labels` has to
 match whatever your Prometheus selects rules on. See [alerting](../alerting.md) for the
-twenty-three rules and for using the file without the Operator.
+twenty-seven rules and for using the file without the Operator.
 
 ## Values
 

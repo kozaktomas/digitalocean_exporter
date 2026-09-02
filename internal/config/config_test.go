@@ -369,6 +369,27 @@ func TestParseRegistersTheKubernetesCollector(t *testing.T) {
 	}
 }
 
+// The upgrades lookup is the only part of the Kubernetes collector that costs a
+// request per cluster rather than one per refresh, so it has a switch of its
+// own. It is on because an account has a handful of clusters, not hundreds.
+func TestKubernetesUpgradesDefaultOnAndCanBeDisabled(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !cfg.KubernetesUpgrades {
+		t.Error("KubernetesUpgrades = false by default, want true")
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--no-collector.kubernetes.upgrades"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.KubernetesUpgrades {
+		t.Error("KubernetesUpgrades = true with the flag negated, want false")
+	}
+}
+
 func TestVolumesCollectorDefaultsOnAndCanBeDisabled(t *testing.T) {
 	cfg, err := config.Parse([]string{"--do.token", "secret"})
 	if err != nil {

@@ -510,8 +510,11 @@ own `_metrics_up` to 0 and logs why; only failing to list them, or every one fai
 
 ## Kubernetes
 
-Collected by `kubernetes` from `/v2/kubernetes/clusters`, one set of metrics per cluster and
-one per node pool in it.
+Collected by `kubernetes` from `/v2/kubernetes/clusters`, one set of metrics per cluster, one
+per node pool in it and one per node in those pools, plus
+`/v2/kubernetes/clusters/<id>/upgrades` per cluster when
+[`--collector.kubernetes.upgrades`](configuration/collectors.md#kubernetes) is on, which it is
+by default.
 
 | Metric | Labels | Description |
 |---|---|---|
@@ -519,11 +522,17 @@ one per node pool in it.
 | `digitalocean_kubernetes_cluster_auto_upgrade` | `id`, `name`, `region` | 1 if the cluster upgrades itself in its maintenance window |
 | `digitalocean_kubernetes_cluster_surge_upgrade` | `id`, `name`, `region` | 1 if it adds a node before replacing one |
 | `digitalocean_kubernetes_cluster_ha` | `id`, `name`, `region` | 1 if the control plane is highly available |
-| `digitalocean_kubernetes_node_pool_nodes` | `cluster_id`, `cluster`, `pool`, `size` | Nodes the pool is configured to run |
-| `digitalocean_kubernetes_node_pool_nodes_running` | `cluster_id`, `cluster`, `pool`, `size` | Nodes in the pool reporting `running` |
-| `digitalocean_kubernetes_node_pool_auto_scale` | `cluster_id`, `cluster`, `pool`, `size` | 1 if the pool scales itself |
-| `digitalocean_kubernetes_node_pool_min_nodes` | `cluster_id`, `cluster`, `pool`, `size` | Smallest size the pool may scale to |
-| `digitalocean_kubernetes_node_pool_max_nodes` | `cluster_id`, `cluster`, `pool`, `size` | Largest size the pool may scale to |
+| `digitalocean_kubernetes_cluster_registry_enabled` | `id`, `name`, `region` | 1 if the account's container registry is integrated with the cluster |
+| `digitalocean_kubernetes_cluster_info` | `id`, `name`, `region`, `version`, `maintenance_day`, `maintenance_start_time` | Always 1; the maintenance window in the account's own words |
+| `digitalocean_kubernetes_cluster_upgrade_available` | `cluster_id`, `cluster` | 1 if at least one newer version is offered |
+| `digitalocean_kubernetes_cluster_available_version_info` | `cluster_id`, `cluster`, `version` | Always 1, once per version on offer |
+| `digitalocean_kubernetes_node_pool_nodes` | `cluster_id`, `cluster`, `pool_id`, `pool`, `size` | Nodes the pool is configured to run |
+| `digitalocean_kubernetes_node_pool_nodes_running` | `cluster_id`, `cluster`, `pool_id`, `pool`, `size` | Nodes in the pool reporting `running` |
+| `digitalocean_kubernetes_node_pool_auto_scale` | `cluster_id`, `cluster`, `pool_id`, `pool`, `size` | 1 if the pool scales itself |
+| `digitalocean_kubernetes_node_pool_min_nodes` | `cluster_id`, `cluster`, `pool_id`, `pool`, `size` | Smallest size the pool may scale to |
+| `digitalocean_kubernetes_node_pool_max_nodes` | `cluster_id`, `cluster`, `pool_id`, `pool`, `size` | Largest size the pool may scale to |
+| `digitalocean_kubernetes_node_state` | `cluster_id`, `cluster`, `pool_id`, `pool`, `node_id`, `node`, `state` | 1 for the node's current state and 0 for every other known one |
+| `digitalocean_kubernetes_node_info` | `cluster_id`, `cluster`, `pool_id`, `pool`, `node_id`, `node`, `droplet_id` | Always 1; ties the node to the droplet underneath it |
 
 The configured count and the running count are kept apart on purpose: a pool that is waiting
 for a node to come up reports the two apart, and that gap is the moment worth alerting on.
@@ -535,9 +544,32 @@ digitalocean_kubernetes_node_pool_nodes_running < digitalocean_kubernetes_node_p
 That comparison ships as `DigitalOceanNodePoolUnderProvisioned` on the
 [alerting page](alerting.md#resources).
 
-A pool carries its cluster twice, as `cluster_id` and as `cluster`. The name is what a
-dashboard variable and an alert summary read; the id is what joins a pool to the cluster
-metrics, which are labelled by `id`, and it is the half that survives a rename:
+`digitalocean_kubernetes_node_state` reports every state DigitalOcean documents —
+`provisioning`, `running`, `draining` and `deleting` — for every node on every scrape, plus
+whichever state a node is in if DigitalOcean has invented one since. A state that only appears
+once something is wrong is a query that returns no data exactly when it matters:
+
+```promql
+digitalocean_kubernetes_node_state{state="running"} == 0
+```
+
+That is `DigitalOceanKubernetesNodeNotRunning`, the per-node half of the pool comparison
+above. The status message DigitalOcean writes beside the state is not exported: it is free
+text that changes wording without the node changing, and every wording of it would start a new
+series. Four series per node is the cost of the state metric, so an account running hundreds
+of nodes is where to think about it — switching the collector off is the only lever, since the
+nodes arrive in the cluster list either way.
+
+`digitalocean_kubernetes_cluster_upgrade_available` needs the upgrades lookup, which is on by
+default and costs one request per cluster per refresh. Both upgrade metrics are absent, rather
+than zero, until a lookup has succeeded: a zero would read as "you are on the newest version".
+The versions on offer are `digitalocean_kubernetes_cluster_available_version_info`, one series
+each, and they join to the cluster booleans by name or through `cluster_id`.
+
+A pool, a node and the upgrade metrics carry the cluster twice, as `cluster_id` and as
+`cluster`. The name is what a dashboard variable and an alert summary read; the id is what
+joins them to the cluster metrics, which are labelled by `id`, and it is the half that
+survives a rename:
 
 ```promql
 digitalocean_kubernetes_node_pool_nodes_running
@@ -546,12 +578,26 @@ digitalocean_kubernetes_node_pool_nodes_running
 ```
 
 `digitalocean_kubernetes_cluster_up` keeps the name and labels of the older, unmaintained
-exporter. The node pool metrics do not: that exporter labels a pool by its own id and name
-and leaves the cluster out, so there is no telling whose pool it is.
+exporter, and the cluster booleans beside it follow its `id`/`name` convention. The pool and
+node metrics do not: that exporter labels a pool by its own id and name and leaves the cluster
+out, so there is no telling whose pool it is.
+
+A pool and a node carry their own id as well as their own name, for the same reason the
+cluster does. A pool name is only unique within its cluster — two clusters commonly both have
+a `workers` — so a query that groups by `pool` alone silently folds them together, and a
+rename ends every series the pool had. Group by `pool_id` and `node_id`, or by the cluster and
+the pool together, and neither happens.
 
 **This is the view from outside the cluster.** Pods, deployments and the rest are
 kube-state-metrics' job. The worker nodes themselves are ordinary droplets and are also
-reported by the `droplets` collector, from `/v2/droplets`.
+reported by the `droplets` collector, from `/v2/droplets`, which is what the `droplet_id` on
+`digitalocean_kubernetes_node_info` joins to:
+
+```promql
+digitalocean_kubernetes_node_info
+  * on (droplet_id) group_left (size, status)
+    label_replace(digitalocean_droplet_info, "droplet_id", "$1", "id", "(.*)")
+```
 
 ## Limits in use
 
@@ -798,7 +844,7 @@ out.
 
 ## Alerting
 
-Twenty-three rules ship with the exporter as a plain Prometheus rule file, covering the
+Twenty-seven rules ship with the exporter as a plain Prometheus rule file, covering the
 exporter's own health, account limits, resources that are down, certificates about to expire,
 and volumes and snapshots billed for nothing. The chart can install them as a `PrometheusRule`.
 

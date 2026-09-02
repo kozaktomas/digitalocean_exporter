@@ -101,8 +101,16 @@ CLUSTERS = {"kubernetes_clusters": [{"id": "c1", "name": "prod", "region": "fra1
                                      "node_pools": [{"id": "p1", "name": "workers",
                                                      "size": "s-4vcpu-8gb", "count": 1,
                                                      "nodes": [{"id": "n1",
+                                                                "name": "workers-3jkl",
+                                                                "droplet_id": "1",
                                                                 "status": {"state": "running"}}]}]}],
             "meta": {"total": 1}}
+# The versions a cluster can move to come from an endpoint of their own, one
+# request per cluster, which is what --collector.kubernetes.upgrades pays for.
+UPGRADES = {"available_upgrade_versions": [{"slug": "1.36.1-do.0",
+                                            "kubernetes_version": "1.36.1"}]}
+
+
 def repositories(registry):
     return {"repositories": [{"registry_name": registry, "name": "app", "tag_count": 3,
                               "manifest_count": 2,
@@ -128,6 +136,7 @@ ROUTES = {"/v2/customers/my/balance": BALANCE,
           "/v2/databases": DATABASES,
           "/v2/droplets": DROPLETS,
           "/v2/kubernetes/clusters": CLUSTERS,
+          "/v2/kubernetes/clusters/c1/upgrades": UPGRADES,
           "/v2/reserved_ips": RESERVED_IPS,
           "/v2/reserved_ipv6": RESERVED_IPV6,
           "/v2/volumes": VOLUMES,
@@ -291,6 +300,10 @@ for metric in \
   digitalocean_database_storage_bytes \
   digitalocean_kubernetes_cluster_up \
   digitalocean_kubernetes_node_pool_nodes_running \
+  digitalocean_kubernetes_node_state \
+  digitalocean_kubernetes_node_info \
+  digitalocean_kubernetes_cluster_upgrade_available \
+  digitalocean_kubernetes_cluster_available_version_info \
   digitalocean_volume_size_bytes \
   digitalocean_volume_droplets \
   digitalocean_image_size_bytes \

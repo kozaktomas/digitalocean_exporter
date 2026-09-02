@@ -1,6 +1,6 @@
 # Alerting
 
-Twenty-five alerting rules ship with the exporter, in
+Twenty-seven alerting rules ship with the exporter, in
 [`charts/digitalocean-exporter/alerts/digitalocean.rules.yaml`](https://github.com/kozaktomas/digitalocean_exporter/blob/main/charts/digitalocean-exporter/alerts/digitalocean.rules.yaml).
 
 It is a plain Prometheus rule file. Point `rule_files` at it directly, or let the chart wrap
@@ -85,6 +85,8 @@ very differently and neither clears itself.
 | `DigitalOceanDropletDown` | critical | 15m | A droplet is in a status other than `active`, `off` or `archive` |
 | `DigitalOceanKubernetesClusterDown` | critical | 15m | A managed control plane is not `running` |
 | `DigitalOceanNodePoolUnderProvisioned` | warning | 30m | A node pool runs fewer nodes than it is sized for |
+| `DigitalOceanKubernetesNodeNotRunning` | warning | 30m | A node is in a state other than `running` |
+| `DigitalOceanKubernetesUpgradeAvailable` | info | 24h | A newer version is offered for a cluster that does not upgrade itself |
 | `DigitalOceanLoadBalancerDown` | critical | 15m | A load balancer is not `active` |
 | `DigitalOceanLoadBalancerWithoutBackends` | critical | 30m | An active load balancer proxies to no droplets |
 | `DigitalOceanDatabaseUnhealthy` | critical | 15m | A managed database cluster is not `online` |
@@ -104,6 +106,19 @@ of an hour after it was created. The powered-off half is still billed, and is re
 
 `DigitalOceanDropletMetricsUnavailable` usually means the droplet agent is not running, which
 blanks the graphs in the DigitalOcean console too.
+
+`DigitalOceanKubernetesNodeNotRunning` is the per-node half of
+`DigitalOceanNodePoolUnderProvisioned`. The pool alert says a pool is short; this one names
+the node and the state it is stuck in, and `digitalocean_kubernetes_node_info` carries the
+droplet id to look up next. Both wait half an hour, so an ordinary rolling replacement passes
+in silence.
+
+`DigitalOceanKubernetesUpgradeAvailable` is `info` and deliberately not a page: an available
+version is a piece of maintenance, not an incident, and one that stays available for a day is
+still something to read rather than to be woken by.
+It stays quiet for a cluster with auto-upgrade on, which installs the version in its own
+maintenance window, and it needs `--collector.kubernetes.upgrades`, which is on by default and
+costs one request per cluster per refresh.
 
 ## Certificates and firewalls
 
