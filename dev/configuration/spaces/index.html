@@ -1538,19 +1538,33 @@ at a Secret holding both — see <a href="../../helm/secrets/">secrets</a>.</p>
 <code>name@region</code>. A bucket without a region falls back to <code>--spaces.region</code>. This works with a
 limited-access key, and it is what you want in production: you measure the buckets you care
 about and nothing else.</p>
+<p>Several buckets may also be given at once, <strong>separated by commas</strong>:
+<code>--collector.spaces.bucket=assets,backups@ams3</code>. That matters most for the environment
+variable, which is the only form a repeatable flag has in a container: <code>COLLECTOR_SPACES_BUCKET</code>
+is one string, and a list has to be written into it somehow.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nv">COLLECTOR_SPACES_BUCKET</span><span class="o">=</span>assets,backups@ams3
+</code></pre></div>
 <p>A bucket is identified by its name <em>and</em> its region, here and in the metrics, because a
 Spaces name is only unique within a region. Naming <code>backups@fra1</code> and <code>backups@ams3</code>
 measures two buckets and reports two series, one per region label.</p>
 <p><strong>Discovery</strong> — pass no buckets and the collector lists them itself, then locates each one.
 Listing all buckets is a full-access capability, so this needs a <strong>full-access</strong> key; a
-limited key is told to name its buckets instead. Convenient for a first look, more
-privilege than the job needs, and one extra request per bucket on every refresh.</p>
+limited key is told to name its buckets instead. Convenient for a first look, and more
+privilege than the job needs.</p>
+<p>Locating costs one extra request per bucket, but only until it has an answer: a bucket does
+not change region, so the region is remembered and the request is not repeated. A bucket is
+located again only after a measurement of it fails, which is the one event that can mean the
+remembered region is no longer right.</p>
+<p>A bucket that cannot be located — the key lost its grant on it, or it was created or
+destroyed between the listing and the location request — is assumed to be in
+<code>--spaces.region</code> and the failure is logged. If that assumption is wrong, the measurement
+that follows marks that one bucket <code>_up 0</code>. It costs nothing to the rest of the account.</p>
 <h2 id="failure-is-isolated-per-bucket">Failure is isolated per bucket<a class="headerlink" href="#failure-is-isolated-per-bucket" title="Permanent link">&para;</a></h2>
 <p>A collector that measures many things at once isolates them. If one bucket fails — wrong
 region, key lost its grant, network — that bucket keeps its previous values and reports its
 own <code>_up 0</code>, and the reason is logged. The buckets that succeeded are unaffected, and the
-collector as a whole still reports success. Only a failure of discovery, or of every
-bucket, fails the refresh.</p>
+collector as a whole still reports success. Only a failure to <em>list</em> the buckets, or a
+failure of every bucket, fails the refresh.</p>
 <p>One wrinkle worth knowing when you read those logs: <strong>a HEAD carries no response body</strong>, so
 the S3 error code that a <code>GET</code> would have spelled out never arrives. A key that has lost
 its grant on a bucket produces a bare <code>403 Forbidden</code> rather than <code>AccessDenied</code>, and an
@@ -1565,7 +1579,7 @@ It matters only if you measure a lot of buckets, since each one is a single requ
 together. It is separate from the global <code>--do.timeout</code> because the collector fans out over
 buckets and discovery adds a request per bucket. Check a real refresh duration against it
 if you measure many:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nv">digitalocean_exporter_collector_duration_seconds</span><span class="p">{</span><span class="nl">collector</span><span class="o">=</span><span class="p">"</span><span class="s">spaces</span><span class="p">"}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nv">digitalocean_exporter_collector_duration_seconds</span><span class="p">{</span><span class="nl">collector</span><span class="o">=</span><span class="p">"</span><span class="s">spaces</span><span class="p">"}</span>
 </code></pre></div>
 
 
