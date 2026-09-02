@@ -1,6 +1,6 @@
 # Alerting
 
-Twenty-seven alerting rules ship with the exporter, in
+Twenty-eight alerting rules ship with the exporter, in
 [`charts/digitalocean-exporter/alerts/digitalocean.rules.yaml`](https://github.com/kozaktomas/digitalocean_exporter/blob/main/charts/digitalocean-exporter/alerts/digitalocean.rules.yaml).
 
 It is a plain Prometheus rule file. Point `rule_files` at it directly, or let the chart wrap
@@ -90,6 +90,7 @@ very differently and neither clears itself.
 | `DigitalOceanLoadBalancerDown` | critical | 15m | A load balancer is not `active` |
 | `DigitalOceanLoadBalancerWithoutBackends` | critical | 30m | An active load balancer proxies to no droplets |
 | `DigitalOceanDatabaseUnhealthy` | critical | 15m | A managed database cluster is not `online` |
+| `DigitalOceanAppDeploymentError` | warning | 10m | The deployment an App Platform app is serving is in the `ERROR` phase |
 | `DigitalOceanDropletMetricsUnavailable` | warning | 30m | The monitoring API returns nothing for a droplet |
 
 `DigitalOceanLoadBalancerWithoutBackends` is the one worth having even in a small account: an
@@ -106,6 +107,15 @@ of an hour after it was created. The powered-off half is still billed, and is re
 
 `DigitalOceanDropletMetricsUnavailable` usually means the droplet agent is not running, which
 blanks the graphs in the DigitalOcean console too.
+
+`DigitalOceanAppDeploymentError` is a warning rather than a page because App Platform keeps
+serving the last deployment that worked: nothing is down, but the change somebody shipped is
+not live and the app looks fine from the outside, which is exactly the failure nobody
+notices. Ten minutes is longer than a build takes to give up, so a deployment passing through
+the phase on its way to being retried does not fire it. It reads
+`digitalocean_app_deployment_phase{phase="ERROR"}`, which is reported for the *active*
+deployment only — a failed deployment that was never promoted leaves the phase of the one
+still being served alone.
 
 `DigitalOceanKubernetesNodeNotRunning` is the per-node half of
 `DigitalOceanNodePoolUnderProvisioned`. The pool alert says a pool is short; this one names

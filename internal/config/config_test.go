@@ -489,6 +489,28 @@ func TestCDNCollectorDefaultsOnAndCanBeDisabled(t *testing.T) {
 	}
 }
 
+func TestAppsCollectorDefaultsOnAndCanBeDisabled(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	c, ok := cfg.Collectors["apps"]
+	if !ok {
+		t.Fatal("apps collector missing from config")
+	}
+	if !c.Enabled || c.Interval != 5*time.Minute {
+		t.Errorf("apps = %+v, want enabled with a 5m interval", c)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--no-collector.apps"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Collectors["apps"].Enabled {
+		t.Error("apps collector = enabled, want disabled")
+	}
+}
+
 func TestDomainsCollectorDefaultsOnAndCanBeDisabled(t *testing.T) {
 	cfg, err := config.Parse([]string{"--do.token", "secret"})
 	if err != nil {

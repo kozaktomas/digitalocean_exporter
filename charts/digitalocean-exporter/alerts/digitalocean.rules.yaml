@@ -225,6 +225,21 @@ groups:
             The managed cluster is in a status other than online. Load and query metrics
             come from DigitalOcean's per-cluster endpoint, not from this exporter.
 
+      - alert: DigitalOceanAppDeploymentError
+        expr: digitalocean_app_deployment_phase{phase="ERROR"} == 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: The deployment App Platform is serving for {{ $labels.name }} is in error
+          description: >-
+            The app's active deployment failed to build or to roll out, so App Platform is
+            serving whatever was live before it — the app looks healthy from the outside
+            while the change nobody noticed failing is not on it. Ten minutes is longer
+            than a build takes to give up, so this is a settled failure rather than one
+            passing through. Read the build and deploy logs of {{ $labels.name }}
+            ({{ $labels.id }}) in the App Platform console.
+
       - alert: DigitalOceanDropletMetricsUnavailable
         expr: digitalocean_droplet_metrics_up == 0
         for: 30m

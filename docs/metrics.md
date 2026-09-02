@@ -276,6 +276,60 @@ endpoint fronts is a Spaces bucket, and the `spaces` collector measures that buc
 endpoint with a `custom_domain` and an empty `certificate_id` is serving that domain without
 TLS of its own.
 
+## App Platform
+
+Collected by `apps` from `/v2/apps`, one set of metrics per app and one more per component
+of its spec.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_app_info` | `id`, `name`, `tier`, `region`, `default_ingress` | Always 1 |
+| `digitalocean_app_deployment_phase` | `id`, `name`, `phase` | 1 for the phase the active deployment is in and 0 for every other known one |
+| `digitalocean_app_deployment_in_progress` | `id`, `name` | 1 while a deployment is building or rolling out |
+| `digitalocean_app_last_deployment_active_timestamp_seconds` | `id`, `name` | When the most recent deployment went active |
+| `digitalocean_app_created_timestamp_seconds` | `id`, `name` | When the app was created |
+| `digitalocean_app_component_instances` | `id`, `name`, `component`, `kind`, `instance_size` | Instances the spec asks for of this component |
+
+`phase` is spelled the way the API spells it: `PENDING_BUILD`, `BUILDING`, `PENDING_DEPLOY`,
+`DEPLOYING`, `ACTIVE`, `SUPERSEDED`, `ERROR`, `CANCELED`. All eight are reported for every
+app on every scrape, so a query for the one you care about has a series before a deployment
+ever enters it. A phase DigitalOcean adds later is reported beside them rather than dropped.
+
+The phase is the **active** deployment's — the one App Platform is actually serving. An app
+that has never had a successful deployment has no active deployment, and reports no phase
+series at all rather than eight zeros, which would read as a deployment in none of the
+phases. `digitalocean_app_deployment_in_progress` is the other half: it is 1 while a new
+deployment is building or rolling out over whatever is live.
+
+That split is what makes the failure worth alerting on. A deployment in `ERROR` does not take
+the app down — the previous one keeps serving — so the app looks healthy from the outside
+while the change somebody shipped is not on it:
+
+```promql
+digitalocean_app_deployment_phase{phase="ERROR"} == 1
+```
+
+That is `DigitalOceanAppDeploymentError` on the [alerting page](alerting.md#resources).
+
+`kind` on the component metric is `service`, `worker`, `job` or `static_site`. A static site
+runs no instances — App Platform serves it from its CDN — so it reports 0 with an empty
+`instance_size`; the series exists so that a table of an app's components does not silently
+miss half of a site-plus-API app. Functions components are not reported: they are billed by
+invocation and have neither an instance count nor an instance size.
+
+The instance count is what the spec **asks for**, not what is running. App Platform bills a
+service by instance count and instance size, which makes `sum by (name)` of it the line that
+explains a bill, but a component that is failing to start still reports the count it was
+configured with.
+
+### Runtime load is not here
+
+Runtime load per component — CPU, memory, restart count — is not here. It lives behind
+DigitalOcean's monitoring API under endpoints the API client this exporter uses has no
+methods for, so there is nothing to read yet. The
+[`dropletmetrics`](#droplet-metrics) and [`loadbalancermetrics`](#load-balancer-metrics)
+collectors cover the parts of that API that are reachable.
+
 ## Domains
 
 Collected by `domains` from `/v2/domains`, one metric per DNS zone.
@@ -844,7 +898,7 @@ out.
 
 ## Alerting
 
-Twenty-seven rules ship with the exporter as a plain Prometheus rule file, covering the
+Twenty-eight rules ship with the exporter as a plain Prometheus rule file, covering the
 exporter's own health, account limits, resources that are down, certificates about to expire,
 and volumes and snapshots billed for nothing. The chart can install them as a `PrometheusRule`.
 

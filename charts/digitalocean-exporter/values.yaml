@@ -57,6 +57,16 @@ collectors:
     enabled: true
     # -- How often the account collector refreshes.
     interval: 5m
+  apps:
+    # -- Report App Platform apps: tier, region, the phase of the active
+    # deployment, whether one is in progress, and the instances each component
+    # of the spec asks for. One list request covers the whole account. The
+    # runtime metrics of an app — CPU, memory, restarts — are not here: they
+    # live behind DigitalOcean's monitoring API, which the API client has no
+    # methods for.
+    enabled: true
+    # -- How often the apps collector refreshes.
+    interval: 5m
   balance:
     # -- Report account balance and month-to-date usage. Reads
     # `/v2/customers/my/balance`, which needs a token with the billing scope; a

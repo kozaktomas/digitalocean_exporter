@@ -23,6 +23,7 @@ import (
 
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/account"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/apps"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/balance"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/cdn"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/certificates"
@@ -142,6 +143,7 @@ func registerCollectors(
 		{"volumes", func() collector.Collector { return volumes.New(client, logger) }},
 		{"loadbalancers", func() collector.Collector { return loadbalancers.New(client, logger) }},
 		{"cdn", func() collector.Collector { return cdn.New(client, logger) }},
+		{"apps", func() collector.Collector { return apps.New(client, logger) }},
 		{"domains", func() collector.Collector { return domains.New(client, logger) }},
 		{"firewalls", func() collector.Collector { return firewalls.New(client, logger) }},
 		{"certificates", func() collector.Collector { return certificates.New(client, logger) }},

@@ -58,6 +58,12 @@ spec:
             {{- else }}
             - --no-collector.account
             {{- end }}
+            {{- if .Values.collectors.apps.enabled }}
+            - --collector.apps
+            - --collector.apps.interval={{ .Values.collectors.apps.interval }}
+            {{- else }}
+            - --no-collector.apps
+            {{- end }}
             {{- if .Values.collectors.balance.enabled }}
             - --collector.balance
             - --collector.balance.interval={{ .Values.collectors.balance.interval }}

@@ -24,6 +24,8 @@ helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
 | affinity | object | `{}` | Affinity rules for the pod. |
 | collectors.account.enabled | bool | `true` | Report account status and the account's resource limits. |
 | collectors.account.interval | string | `"5m"` | How often the account collector refreshes. |
+| collectors.apps.enabled | bool | `true` | Report App Platform apps: tier, region, the phase of the active deployment, whether one is in progress, and the instances each component of the spec asks for. One list request covers the whole account. The runtime metrics of an app — CPU, memory, restarts — are not here: they live behind DigitalOcean's monitoring API, which the API client has no methods for. |
+| collectors.apps.interval | string | `"5m"` | How often the apps collector refreshes. |
 | collectors.balance.enabled | bool | `true` | Report account balance and month-to-date usage. Reads `/v2/customers/my/balance`, which needs a token with the billing scope; a token scoped to resources alone gets 403 there and the collector reports `collector_success 0`. Disable it for such a token. |
 | collectors.balance.interval | string | `"5m"` | How often the balance collector refreshes. |
 | collectors.cdn.enabled | bool | `true` | Report CDN endpoints, their cache TTL and the certificate each one serves. DigitalOcean exposes no traffic figures for CDN endpoints, so this is inventory only. |

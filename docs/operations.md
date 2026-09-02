@@ -251,7 +251,7 @@ not.
 
 ## Alerting
 
-Twenty-seven rules ship with the exporter as a plain Prometheus rule file, which the chart can
+Twenty-eight rules ship with the exporter as a plain Prometheus rule file, which the chart can
 install as a `PrometheusRule`. [Alerting](alerting.md) lists every one of them, what it fires
 on and what is deliberately left out. The three worth having on day one:
 

@@ -61,6 +61,7 @@ Three things follow from that, and they are worth knowing before you tune anythi
 | [`volumes`](configuration/collectors.md#volumes) | Block storage volumes and what uses them | on |
 | [`loadbalancers`](configuration/collectors.md#loadbalancers) | Load balancers, backends, billed size | on |
 | [`cdn`](configuration/collectors.md#cdn) | CDN endpoints and their certificates | on |
+| [`apps`](configuration/collectors.md#apps) | App Platform apps, deployment phase, component instances | on |
 | [`domains`](configuration/collectors.md#domains) | DNS zones the account hosts, and their TTL | on |
 | [`firewalls`](configuration/collectors.md#firewalls) | Firewall rules, attachments and pending changes | **off** |
 | [`certificates`](configuration/collectors.md#certificates) | TLS certificates and when each one expires | **off** |

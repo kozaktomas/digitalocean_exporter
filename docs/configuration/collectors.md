@@ -3,7 +3,7 @@
 One page per question you might have about a collector: what it reports, what it costs, and
 when to turn it off. The metric names themselves are in the [metrics reference](../metrics.md).
 
-Thirteen collectors are on by default. They are on because each costs one to three API
+Fourteen collectors are on by default. They are on because each costs one to three API
 requests per refresh, which is negligible against the limit of 5000 an hour.
 
 Five are off. Three of them — [`spaces`](spaces.md),
@@ -256,6 +256,36 @@ expiring certificate is easier to catch here than in the control panel.
 [stricter limit of their own](https://docs.digitalocean.com/reference/api/reference/public-apis/) —
 5 requests per 10 seconds, independent of the account-wide limits. One request every 5
 minutes is nowhere near it, but do not set this interval to seconds.
+
+---
+
+## apps
+
+Every App Platform app: its tier and region, the phase of the deployment it is serving,
+whether another one is rolling out, when it was created, when it last went live, and the
+instances each component of its spec asks for.
+
+One list response carries all of it — the tier, both deployments and the whole spec arrive
+together — so nothing here costs a request per app.
+
+The widely used older exporter shipped an app metric, so this is also one of the collectors
+a migration looks for.
+
+**Runtime load is not here.** CPU, memory and restart count per component live behind
+DigitalOcean's monitoring API, under endpoints the API client this exporter uses has no
+methods for. That is a gap in what can be read, not a decision, and it is why an App
+Platform app has no equivalent of the [droplet metrics](monitoring-api.md#dropletmetrics).
+What is here is the state and the shape of the app, which is what a deployment that failed
+shows up in.
+
+A failed deployment is the reason to have it. App Platform keeps serving the last deployment
+that worked, so a build that failed takes nothing down and is invisible from the outside;
+`digitalocean_app_deployment_phase{phase="ERROR"}` is what
+[`DigitalOceanAppDeploymentError`](../alerting.md#resources) fires on.
+
+**Cost:** one request per refresh, plus one per additional page. The exporter asks for 200
+items a page as it does everywhere else; the apps endpoint serves a smaller page by default,
+so an account with a great many apps pays a request per page of whatever size it returns.
 
 ---
 

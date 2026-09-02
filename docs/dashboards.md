@@ -1,6 +1,6 @@
 # Dashboards
 
-Nine Grafana dashboards ship with the exporter, in
+Ten Grafana dashboards ship with the exporter, in
 [`charts/digitalocean-exporter/dashboards/`](https://github.com/kozaktomas/digitalocean_exporter/tree/main/charts/digitalocean-exporter/dashboards).
 Between them they cover every collector, so the metrics in the
 [metrics reference](metrics.md) can be looked at rather than read about.
@@ -16,6 +16,7 @@ Nothing about them is Helm-specific: the JSON imports into any Grafana.
 | `droplets.json` | Per-droplet CPU, memory, disk and load, filtered by a droplet variable, plus what share of droplets have backups and the monitoring agent | `droplets`, `dropletmetrics` |
 | `kubernetes.json` | Cluster state, node pools and every node in them: sizes, autoscaling bounds, nodes actually running, and the state each node reports with the droplet under it | `kubernetes` |
 | `loadbalancers.json` | Traffic, response times and which backend droplet is failing its health check | `loadbalancers`, `loadbalancermetrics` |
+| `apps.json` | App Platform: tier and region per app, the phase of the deployment being served, how long ago it went live, and the instances each component asks for | `apps` |
 | `storage.json` | Volumes, including those attached to nothing, stored images by type and the oldest of them, and container registry repositories | `volumes`, `images`, `registry` |
 | `spaces.json` | Bucket size and object count, and how fast a bucket is growing | `spaces` |
 | `exporter.json` | Is the exporter itself healthy? Refresh durations, last success, API requests and latency per collector, and how much of the rate-limit budget is left before it resets | none; self-metrics only |
@@ -23,7 +24,7 @@ Nothing about them is Helm-specific: the JSON imports into any Grafana.
 | `security.json` | Certificates about to expire, firewall rules open to the internet, changes that have not landed | `certificates`, `firewalls` |
 
 A dashboard whose collector is switched off shows empty panels rather than breaking, which is
-why all nine ship together. `security`, `spaces` and parts of `droplets` and `loadbalancers`
+why all ten ship together. `security`, `spaces` and parts of `droplets` and `loadbalancers`
 depend on collectors that are [off by default](configuration/collectors.md); every other
 dashboard fills itself from the collectors an untouched install already runs.
 
@@ -32,7 +33,7 @@ dashboard fills itself from the collectors an untouched install already runs.
 Download the JSON, then in Grafana pick **Dashboards → New → Import**, upload the file and
 choose your Prometheus datasource. Repeat per file, or point Grafana's
 [file provisioning](https://grafana.com/docs/grafana/latest/administration/provisioning/#dashboards)
-at a directory holding all nine.
+at a directory holding all ten.
 
 ```bash
 curl -sSLO https://raw.githubusercontent.com/kozaktomas/digitalocean_exporter/main/charts/digitalocean-exporter/dashboards/overview.json
@@ -86,8 +87,8 @@ Every dashboard declares two:
   with `All`. Every query filters on it, so two exporters scraped by one Prometheus — a
   personal account and a company one, say — stay apart.
 
-`droplets`, `kubernetes`, `loadbalancers` and `spaces` add a third for the resource they
-break down by.
+`droplets`, `kubernetes`, `loadbalancers`, `spaces` and `apps` add a third for the resource
+they break down by.
 
 The dashboards are tagged `digitalocean` and each carries a links dropdown filtered to that
 tag, so they navigate between each other. A dashboard added to the folder with the same tag
@@ -97,7 +98,7 @@ joins that dropdown by itself.
 
 A renamed or dropped metric does not fail anything on its own: the panel that used it simply
 goes empty, months before anyone notices. So the dashboards are held against the exporter in
-the test suite. `make check` extracts every PromQL expression from all nine and checks each
+the test suite. `make check` extracts every PromQL expression from all ten and checks each
 `digitalocean_` metric it names against the descriptors the collectors actually register,
 using the same wiring the exporter itself uses. It also enforces the portability rules above,
 and that each file is committed in its normalised form.

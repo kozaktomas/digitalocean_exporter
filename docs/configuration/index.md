@@ -92,18 +92,18 @@ trap worth knowing about — see [the monitoring API](monitoring-api.md#the-budg
 exporter defends it by [rate-limiting itself](#staying-under-the-burst-limit), which is on
 by default.
 
-The thirteen collectors that are on by default cost one to three requests each per refresh.
+The fourteen collectors that are on by default cost one to three requests each per refresh.
 On a real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database,
-a registry, a DNS zone, a snapshot and a reserved IP, one full refresh comes to **20
-requests**:
+a registry, a DNS zone, a snapshot, a reserved IP and an App Platform app, one full refresh
+comes to **21 requests**:
 
 ```
-account 1 · balance 1 · cdn 1 · databases 1 · domains 1 · droplets 2 · images 1
+account 1 · apps 1 · balance 1 · cdn 1 · databases 1 · domains 1 · droplets 2 · images 1
 kubernetes 2 · load_balancers 1 · registry 3 · reserved_ips 2 · reserved_ipv6 1 · volumes 2
 ```
 
-At the default `5m` that is 12 refreshes an hour — **240 requests, 4.8% of the hourly
-budget**, and 20 in a burst, 8% of the per-minute one. Comfortable, and it scales with how
+At the default `5m` that is 12 refreshes an hour — **252 requests, 5% of the hourly
+budget**, and 21 in a burst, 8.4% of the per-minute one. Comfortable, and it scales with how
 much you own rather than with how often Prometheus scrapes.
 
 `kubernetes` is the one that counts twice for a single cluster: the list, and then the
@@ -117,7 +117,7 @@ themselves.
 
 Enabling [`firewalls`](collectors.md#firewalls) and
 [`certificates`](collectors.md#certificates) adds one request each, so the same account costs
-22. The other three are off for reasons of their own: [`spaces`](spaces.md) needs a second
+23. The other three are off for reasons of their own: [`spaces`](spaces.md) needs a second
 credential, and the two [monitoring API](monitoring-api.md) collectors cost a multiple of
 everything above.
 

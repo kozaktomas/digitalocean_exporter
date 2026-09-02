@@ -95,6 +95,21 @@ DATABASES = {"databases": [{"id": "1", "name": "main", "engine": "mysql", "versi
                             "maintenance_window": {"day": "sunday", "hour": "03:00:00",
                                                    "pending": False}}],
              "meta": {"total": 1}}
+# One App Platform app: a service and a static site, with a deployment that has
+# gone live and another rolling out over it. The static site is the component
+# App Platform runs no instances for.
+APPS = {"apps": [{"id": "app-1", "tier_slug": "basic",
+                  "region": {"slug": "fra1"},
+                  "default_ingress": "https://smoke.ondigitalocean.app",
+                  "created_at": "2026-01-01T00:00:00Z",
+                  "last_deployment_active_at": "2026-08-24T09:00:00Z",
+                  "active_deployment": {"id": "dep-1", "phase": "ACTIVE"},
+                  "in_progress_deployment": {"id": "dep-2", "phase": "DEPLOYING"},
+                  "spec": {"name": "smoke", "region": "fra",
+                           "services": [{"name": "web", "instance_count": 2,
+                                         "instance_size_slug": "apps-s-1vcpu-1gb"}],
+                           "static_sites": [{"name": "docs"}]}}],
+        "meta": {"total": 1}}
 CLUSTERS = {"kubernetes_clusters": [{"id": "c1", "name": "prod", "region": "fra1",
                                      "version": "1.35.5-do.1", "status": {"state": "running"},
                                      "auto_upgrade": True, "surge_upgrade": True, "ha": False,
@@ -133,6 +148,7 @@ def monitoring():
 BUCKET_USAGE = {"x-rgw-object-count": "2", "x-rgw-bytes-used": "3072"}
 
 ROUTES = {"/v2/customers/my/balance": BALANCE,
+          "/v2/apps": APPS,
           "/v2/databases": DATABASES,
           "/v2/droplets": DROPLETS,
           "/v2/kubernetes/clusters": CLUSTERS,
@@ -206,6 +222,7 @@ DO_SPACES_ENDPOINT="http://127.0.0.1:${API_PORT}" \
          --collector.droplets.interval=1s --collector.databases.interval=1s \
          --collector.kubernetes.interval=1s \
          --collector.domains.interval=1s \
+         --collector.apps.interval=1s \
          --collector.images.interval=1s \
          --collector.firewalls --collector.firewalls.interval=1s \
          --collector.certificates --collector.certificates.interval=1s \
@@ -229,7 +246,7 @@ done
 # for "no sample equals 0" would therefore pass while a collector had not
 # started yet, and the assertions below would race it — a flake that looks
 # exactly like a broken collector. Bump this when adding a collector.
-EXPECTED_COLLECTORS=18
+EXPECTED_COLLECTORS=19
 
 # Poll until all of them have reported a successful refresh.
 METRICS=""
@@ -311,6 +328,10 @@ for metric in \
   digitalocean_loadbalancer_status \
   digitalocean_loadbalancer_droplets \
   digitalocean_cdn_endpoint_ttl_seconds \
+  digitalocean_app_info \
+  digitalocean_app_deployment_phase \
+  digitalocean_app_deployment_in_progress \
+  digitalocean_app_component_instances \
   digitalocean_domain_ttl_seconds \
   digitalocean_firewall_inbound_rules_open \
   digitalocean_firewall_pending_changes \

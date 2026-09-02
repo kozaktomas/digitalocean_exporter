@@ -37,6 +37,7 @@ one needs exactly the read scope for the resource it reports:
 | Collector | Scopes it needs |
 |---|---|
 | [`account`](collectors.md#account) | `account:read` |
+| [`apps`](collectors.md#apps) | `app:read` |
 | [`balance`](collectors.md#balance) | `billing:read` |
 | [`databases`](collectors.md#databases) | `database:read` |
 | [`droplets`](collectors.md#droplets) | `droplet:read` |
