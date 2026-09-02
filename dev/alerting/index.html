@@ -1438,7 +1438,7 @@
 
 
 <h1 id="alerting">Alerting<a class="headerlink" href="#alerting" title="Permanent link">&para;</a></h1>
-<p>Twenty-seven alerting rules ship with the exporter, in
+<p>Twenty-eight alerting rules ship with the exporter, in
 <a href="https://github.com/kozaktomas/digitalocean_exporter/blob/main/charts/digitalocean-exporter/alerts/digitalocean.rules.yaml"><code>charts/digitalocean-exporter/alerts/digitalocean.rules.yaml</code></a>.</p>
 <p>It is a plain Prometheus rule file. Point <code>rule_files</code> at it directly, or let the chart wrap
 it in a <code>PrometheusRule</code>. Every rule carries a <code>severity</code> label of <code>critical</code>, <code>warning</code> or
@@ -1622,6 +1622,12 @@ very differently and neither clears itself.</p>
 <td>A managed database cluster is not <code>online</code></td>
 </tr>
 <tr>
+<td><code>DigitalOceanAppDeploymentError</code></td>
+<td>warning</td>
+<td>10m</td>
+<td>The deployment an App Platform app is serving is in the <code>ERROR</code> phase</td>
+</tr>
+<tr>
 <td><code>DigitalOceanDropletMetricsUnavailable</code></td>
 <td>warning</td>
 <td>30m</td>
@@ -1641,6 +1647,14 @@ of an hour after it was created. The powered-off half is still billed, and is re
 <code>DigitalOceanDropletOff</code> at info under <a href="#cost">Cost</a>.</p>
 <p><code>DigitalOceanDropletMetricsUnavailable</code> usually means the droplet agent is not running, which
 blanks the graphs in the DigitalOcean console too.</p>
+<p><code>DigitalOceanAppDeploymentError</code> is a warning rather than a page because App Platform keeps
+serving the last deployment that worked: nothing is down, but the change somebody shipped is
+not live and the app looks fine from the outside, which is exactly the failure nobody
+notices. Ten minutes is longer than a build takes to give up, so a deployment passing through
+the phase on its way to being retried does not fire it. It reads
+<code>digitalocean_app_deployment_phase{phase="ERROR"}</code>, which is reported for the <em>active</em>
+deployment only — a failed deployment that was never promoted leaves the phase of the one
+still being served alone.</p>
 <p><code>DigitalOceanKubernetesNodeNotRunning</code> is the per-node half of
 <code>DigitalOceanNodePoolUnderProvisioned</code>. The pool alert says a pool is short; this one names
 the node and the state it is stuck in, and <code>digitalocean_kubernetes_node_info</code> carries the

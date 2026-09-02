@@ -1321,6 +1321,18 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>How often the account collector refreshes.</td>
 </tr>
 <tr>
+<td>collectors.apps.enabled</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Report App Platform apps: tier, region, the phase of the active deployment, whether one is in progress, and the instances each component of the spec asks for. One list request covers the whole account. The runtime metrics of an app — CPU, memory, restarts — are not here: they live behind DigitalOcean's monitoring API, which the API client has no methods for.</td>
+</tr>
+<tr>
+<td>collectors.apps.interval</td>
+<td>string</td>
+<td><code>"5m"</code></td>
+<td>How often the apps collector refreshes.</td>
+</tr>
+<tr>
 <td>collectors.balance.enabled</td>
 <td>bool</td>
 <td><code>true</code></td>

@@ -1372,7 +1372,7 @@
 
 
 <h1 id="dashboards">Dashboards<a class="headerlink" href="#dashboards" title="Permanent link">&para;</a></h1>
-<p>Nine Grafana dashboards ship with the exporter, in
+<p>Ten Grafana dashboards ship with the exporter, in
 <a href="https://github.com/kozaktomas/digitalocean_exporter/tree/main/charts/digitalocean-exporter/dashboards"><code>charts/digitalocean-exporter/dashboards/</code></a>.
 Between them they cover every collector, so the metrics in the
 <a href="../metrics/">metrics reference</a> can be looked at rather than read about.</p>
@@ -1409,6 +1409,11 @@ Nothing about them is Helm-specific: the JSON imports into any Grafana.</p>
 <td><code>loadbalancers</code>, <code>loadbalancermetrics</code></td>
 </tr>
 <tr>
+<td><code>apps.json</code></td>
+<td>App Platform: tier and region per app, the phase of the deployment being served, how long ago it went live, and the instances each component asks for</td>
+<td><code>apps</code></td>
+</tr>
+<tr>
 <td><code>storage.json</code></td>
 <td>Volumes, including those attached to nothing, stored images by type and the oldest of them, and container registry repositories</td>
 <td><code>volumes</code>, <code>images</code>, <code>registry</code></td>
@@ -1436,14 +1441,14 @@ Nothing about them is Helm-specific: the JSON imports into any Grafana.</p>
 </tbody>
 </table>
 <p>A dashboard whose collector is switched off shows empty panels rather than breaking, which is
-why all nine ship together. <code>security</code>, <code>spaces</code> and parts of <code>droplets</code> and <code>loadbalancers</code>
+why all ten ship together. <code>security</code>, <code>spaces</code> and parts of <code>droplets</code> and <code>loadbalancers</code>
 depend on collectors that are <a href="../configuration/collectors/">off by default</a>; every other
 dashboard fills itself from the collectors an untouched install already runs.</p>
 <h2 id="importing-them-by-hand">Importing them by hand<a class="headerlink" href="#importing-them-by-hand" title="Permanent link">&para;</a></h2>
 <p>Download the JSON, then in Grafana pick <strong>Dashboards → New → Import</strong>, upload the file and
 choose your Prometheus datasource. Repeat per file, or point Grafana's
 <a href="https://grafana.com/docs/grafana/latest/administration/provisioning/#dashboards">file provisioning</a>
-at a directory holding all nine.</p>
+at a directory holding all ten.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl<span class="w"> </span>-sSLO<span class="w"> </span>https://raw.githubusercontent.com/kozaktomas/digitalocean_exporter/main/charts/digitalocean-exporter/dashboards/overview.json
 </code></pre></div>
 <h2 id="installing-them-with-the-chart">Installing them with the chart<a class="headerlink" href="#installing-them-with-the-chart" title="Permanent link">&para;</a></h2>
@@ -1483,15 +1488,15 @@ folder. If your sidecar watches a different label, <code>grafana.dashboards.labe
   with <code>All</code>. Every query filters on it, so two exporters scraped by one Prometheus — a
   personal account and a company one, say — stay apart.</li>
 </ul>
-<p><code>droplets</code>, <code>kubernetes</code>, <code>loadbalancers</code> and <code>spaces</code> add a third for the resource they
-break down by.</p>
+<p><code>droplets</code>, <code>kubernetes</code>, <code>loadbalancers</code>, <code>spaces</code> and <code>apps</code> add a third for the resource
+they break down by.</p>
 <p>The dashboards are tagged <code>digitalocean</code> and each carries a links dropdown filtered to that
 tag, so they navigate between each other. A dashboard added to the folder with the same tag
 joins that dropdown by itself.</p>
 <h2 id="keeping-them-in-step">Keeping them in step<a class="headerlink" href="#keeping-them-in-step" title="Permanent link">&para;</a></h2>
 <p>A renamed or dropped metric does not fail anything on its own: the panel that used it simply
 goes empty, months before anyone notices. So the dashboards are held against the exporter in
-the test suite. <code>make check</code> extracts every PromQL expression from all nine and checks each
+the test suite. <code>make check</code> extracts every PromQL expression from all ten and checks each
 <code>digitalocean_</code> metric it names against the descriptors the collectors actually register,
 using the same wiring the exporter itself uses. It also enforces the portability rules above,
 and that each file is committed in its normalised form.</p>
