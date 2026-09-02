@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
 )
 
 // defaultInterval is what a collector registered with a non-positive interval
@@ -190,11 +192,16 @@ func (s *Scheduler) loop(ctx context.Context, e entry, offset time.Duration) {
 //
 // runCtx is the scheduler's own context, not the one the refresh runs under:
 // telling "the API is unreachable" from "we are shutting down" needs both.
+//
+// The refresh runs under a context naming the collector, which is what lets the
+// API client attribute a request to whoever asked for it. The scheduler is the
+// only place that knows: by the time a request reaches the transport, nothing
+// about it says which collector built it.
 func (s *Scheduler) refresh(runCtx context.Context, c Collector, timeout time.Duration) {
-	ctx, cancel := context.WithTimeout(runCtx, timeout)
+	name := c.Name()
+	ctx, cancel := context.WithTimeout(doclient.WithCollector(runCtx, name), timeout)
 	defer cancel()
 
-	name := c.Name()
 	start := time.Now()
 	err := guardedRefresh(ctx, c)
 	s.duration.WithLabelValues(name).Set(time.Since(start).Seconds())

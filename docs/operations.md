@@ -33,8 +33,11 @@ panel from:
 | `digitalocean_exporter_collector_success` | Last refresh of each collector, 1 or 0 |
 | `digitalocean_exporter_collector_last_success_timestamp_seconds` | When each collector last succeeded |
 | `digitalocean_exporter_collector_duration_seconds` | How long a refresh takes |
-| `digitalocean_exporter_api_requests_total` | API requests by resource and HTTP status |
+| `digitalocean_exporter_api_requests_total` | API requests by collector, resource and HTTP status |
+| `digitalocean_exporter_api_request_duration_seconds` | How long one API request takes, by collector |
 | `digitalocean_exporter_api_rate_limit_remaining` | Requests left in the current window, from DigitalOcean's own headers |
+| `digitalocean_exporter_api_rate_limit` | What that window allows in total — the account's own ceiling |
+| `digitalocean_exporter_api_rate_limit_reset_timestamp_seconds` | When the window refills |
 | `digitalocean_exporter_build_info` | Version and commit of the running binary |
 
 The full list, with labels, is in the [metrics reference](metrics.md); the rules written
@@ -95,12 +98,30 @@ causes:
   user with `ProtectSystem=strict`; the file must be readable by that user and live
   somewhere the unit can reach.
 
-### `rate_limit_remaining` is falling towards zero
+### The API budget is falling towards zero
 
-Something is spending the 5000-per-hour budget faster than it can be replenished. Almost
-always `dropletmetrics` on an account with more droplets than the arithmetic allows — see
-[the monitoring API](configuration/monitoring-api.md#the-budget). Lengthen that collector's
-interval, or turn it off.
+Read it as a share of the account's own ceiling rather than as a count, because the hourly
+allowance varies by account:
+
+```promql
+digitalocean_exporter_api_rate_limit_remaining / digitalocean_exporter_api_rate_limit
+```
+
+Something is spending that budget faster than it can be replenished, and the request counter
+names it:
+
+```promql
+sum by (collector) (rate(digitalocean_exporter_api_requests_total[5m])) * 3600
+```
+
+Almost always `dropletmetrics` on an account with more droplets than the arithmetic allows —
+see [the monitoring API](configuration/monitoring-api.md#the-budget). Lengthen that
+collector's interval, or turn it off.
+
+If the budget is already spent, `digitalocean_exporter_api_rate_limit_reset_timestamp_seconds
+- time()` is how many seconds the refreshes keep failing for. Nothing frees the hourly limit
+before then, and the exporter does not retry into it; the metrics stay at their last values
+until the window turns.
 
 Note that a second replica of the exporter doubles the spend. Run one.
 
@@ -110,7 +131,8 @@ as long as their `Retry-After` asks — unless that wait is longer than the coll
 in which case the refresh fails at once rather than burning attempts. A rejection of *this*
 limit, the hourly one, carries no `Retry-After` and is never retried. A `429` rate
 that is not zero means the limit is set higher than the collectors can afford —
-`sum by (status) (rate(digitalocean_exporter_api_requests_total[5m]))` shows it. See
+`sum by (status) (rate(digitalocean_exporter_api_requests_total[5m]))` shows it, and adding
+`collector` to the grouping shows whose refresh is behind it. See
 [staying under the burst limit](configuration/index.md#staying-under-the-burst-limit).
 
 ### A refresh takes much longer than the API does
@@ -119,7 +141,10 @@ The rate limiter is between the collector and the API, and a collector that fans
 every droplet or bucket spends most of its refresh waiting in it: at the default 4 requests
 a second, 200 requests take 50 seconds however fast the API answers.
 `digitalocean_exporter_collector_duration_seconds` is measuring the queue as much as the
-API. That is the intended trade — a slow refresh beats a rejected one — but if a collector
+API. `digitalocean_exporter_api_request_duration_seconds` is the other half of that
+comparison: it times the requests alone, without the wait in front of them, so a refresh
+that is slow because the API is slow looks different from one that is slow because it makes
+hundreds of calls. That is the intended trade — a slow refresh beats a rejected one — but if a collector
 is timing out on it, raise that collector's timeout or lengthen its interval rather than
 raising the rate limit into DigitalOcean's own.
 
@@ -145,6 +170,7 @@ install as a `PrometheusRule`. [Alerting](alerting.md) lists every one of them, 
 on and what is deliberately left out. The three worth having on day one:
 
 - `DigitalOceanExporterCollectorFailing` — `digitalocean_exporter_collector_success == 0`.
-- `DigitalOceanExporterRateLimitLow` — `digitalocean_exporter_api_rate_limit_remaining < 500`.
+- `DigitalOceanExporterRateLimitLow` — `digitalocean_exporter_api_rate_limit_remaining /
+  digitalocean_exporter_api_rate_limit < 0.1`.
 - `DigitalOceanVolumeUnattached` — `digitalocean_volume_droplets == 0`, a volume billed while
   attached to nothing.

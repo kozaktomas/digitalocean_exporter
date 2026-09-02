@@ -46,16 +46,24 @@ groups:
             that.
 
       - alert: DigitalOceanExporterRateLimitLow
-        expr: digitalocean_exporter_api_rate_limit_remaining < 500
+        expr: >-
+          digitalocean_exporter_api_rate_limit_remaining
+          / digitalocean_exporter_api_rate_limit < 0.1
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: Fewer than 500 DigitalOcean API requests left this hour
+          summary: Under 10% of the DigitalOcean API budget is left this hour
           description: >-
-            The account allows 5000 requests an hour and shares them with everything else
-            using this token. Lengthen the interval of the expensive collectors —
-            dropletmetrics costs 10 requests per droplet per refresh.
+            The ratio is against the account's own ceiling rather than a fixed number,
+            because the hourly allowance varies by account and is shared with everything
+            else using this token. `digitalocean_exporter_api_rate_limit_reset_timestamp_seconds
+            - time()` is how many seconds the starvation still has to run; refreshes that
+            fail before then keep their previous snapshot. Lengthen the interval of the
+            expensive collectors — dropletmetrics costs 10 requests per droplet per
+            refresh — and check
+            `sum by (collector) (rate(digitalocean_exporter_api_requests_total[5m]))` for
+            which one is spending it.
 
   - name: digitalocean-account
     rules:

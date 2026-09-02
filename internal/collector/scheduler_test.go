@@ -6,6 +6,8 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,10 +16,12 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector"
+	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
 )
 
 // fake is a Collector whose refresh behaviour the test controls.
@@ -590,4 +594,77 @@ func TestSchedulerDoesNotOverlapRefreshesOfTheSameCollector(t *testing.T) {
 			t.Errorf("refresh calls in 5m = %d, want 4 back-to-back 90s refreshes", got)
 		}
 	})
+}
+
+// apiCollector refreshes by making one real API call through the instrumented
+// client, which is the only way to observe what the scheduler put on the
+// context: the name travels under an unexported key.
+type apiCollector struct {
+	name   string
+	client *godo.Client
+	once   sync.Once
+	done   chan struct{}
+}
+
+func (c *apiCollector) Name() string { return c.name }
+
+func (c *apiCollector) Describe(chan<- *prometheus.Desc) {}
+
+func (c *apiCollector) Collect(chan<- prometheus.Metric) {}
+
+func (c *apiCollector) Refresh(ctx context.Context) error {
+	defer c.once.Do(func() { close(c.done) })
+	_, _, err := c.client.Account.Get(ctx)
+	return err
+}
+
+// Nothing about a request reaching the transport says which collector built
+// it, so the scheduler is what names the collector on the context the refresh
+// runs under. This holds the whole chain: a refresh's API calls are counted
+// under that collector's own name.
+func TestSchedulerNamesTheRefreshingCollectorForTheAPIClient(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"account":{"status":"active"}}`))
+	}))
+	defer srv.Close()
+
+	apiReg := prometheus.NewRegistry()
+	client, err := doclient.New(doclient.Config{
+		Token: "token", BaseURL: srv.URL + "/", UserAgent: "test-agent",
+		Timeout: 5 * time.Second, Metrics: doclient.NewMetrics(apiReg),
+	})
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+
+	c := &apiCollector{name: "account", client: client, done: make(chan struct{})}
+	scheduler := collector.NewScheduler(5*time.Second, discardLogger(), prometheus.NewRegistry())
+	scheduler.Register(c, time.Minute, 0)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	stopped := make(chan struct{})
+	go func() {
+		defer close(stopped)
+		scheduler.Run(ctx)
+	}()
+
+	select {
+	case <-c.done:
+	case <-time.After(5 * time.Second):
+		cancel()
+		t.Fatal("the collector was never refreshed")
+	}
+	cancel()
+	<-stopped
+
+	expected := `
+# HELP digitalocean_exporter_api_requests_total Total DigitalOcean API requests by collector, resource and status.
+# TYPE digitalocean_exporter_api_requests_total counter
+digitalocean_exporter_api_requests_total{collector="account",resource="account",status="200"} 1
+`
+	if err := testutil.GatherAndCompare(apiReg, strings.NewReader(expected),
+		"digitalocean_exporter_api_requests_total"); err != nil {
+		t.Errorf("request counter: %v", err)
+	}
 }

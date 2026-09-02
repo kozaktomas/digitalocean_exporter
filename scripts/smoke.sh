@@ -192,10 +192,24 @@ if [ "$succeeded" -ne "$EXPECTED_COLLECTORS" ]; then
   exit 1
 fi
 
+# Every API request is attributed to the collector whose refresh made it, which
+# only works if the scheduler's context reaches the transport. A counter with
+# nothing but collector="none" would still look fine metric by metric.
+if grep -q '^digitalocean_exporter_api_requests_total{collector="account"' <<<"$METRICS"; then
+  echo "ok   digitalocean_exporter_api_requests_total is attributed per collector"
+else
+  echo "FAIL digitalocean_exporter_api_requests_total carries no collector attribution"
+  grep "^digitalocean_exporter_api_requests_total" <<<"$METRICS"
+  exit 1
+fi
+
 fail=0
 for metric in \
   digitalocean_exporter_build_info \
   digitalocean_exporter_collector_success \
+  digitalocean_exporter_api_request_duration_seconds \
+  digitalocean_exporter_api_rate_limit \
+  digitalocean_exporter_api_rate_limit_reset_timestamp_seconds \
   digitalocean_account_active \
   digitalocean_month_to_date_usage \
   digitalocean_spaces_bucket_size_bytes \

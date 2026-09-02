@@ -69,11 +69,15 @@ load balancers at `5m` is 12 × 70 = 840 requests an hour, which is affordable.
 Watch the result rather than trusting the arithmetic:
 
 ```promql
-digitalocean_exporter_api_rate_limit_remaining
+digitalocean_exporter_api_rate_limit_remaining / digitalocean_exporter_api_rate_limit
+sum by (collector) (rate(digitalocean_exporter_api_requests_total[5m])) * 3600
 ```
 
-It is read from the API response headers, so it is DigitalOcean's own count, not an
-estimate. Alert on it going below a few hundred.
+Both come from the exporter's own instrumentation: the first is DigitalOcean's count of what
+is left over the ceiling it reports for this account, not an estimate, and the second is what
+each collector is spending an hour — this collector's share of it included, which the
+`resource` label cannot show, since every monitoring query reads `/v2/monitoring`. Alert on
+the ratio rather than on a fixed number of requests; the bundled rules already do.
 
 ---
 

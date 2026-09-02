@@ -37,12 +37,29 @@ const (
 	maxDrain = 64 << 10
 )
 
+// durationBuckets bound one API request. The API answers a plain list in tens
+// of milliseconds and a monitoring query in seconds, and a request held behind
+// the rate limiter is not counted here at all, so the range that matters runs
+// from 50ms to the far side of the default per-collector timeout.
+var durationBuckets = []float64{0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 30}
+
 // Metrics tracks the exporter's use of the DigitalOcean API.
 type Metrics struct {
-	// Requests counts API calls by resource and response status.
+	// Requests counts API calls by the collector that asked for them, the
+	// resource they addressed and the response status.
 	Requests *prometheus.CounterVec
-	// RateLimit holds the remaining hourly request budget reported by the API.
-	RateLimit prometheus.Gauge
+	// Duration observes how long each of those calls took, by collector and
+	// resource. It carries no status: a label set per outcome would multiply
+	// the buckets for a distinction the counter already makes.
+	Duration *prometheus.HistogramVec
+	// Remaining holds the requests left in the current rate-limit window.
+	Remaining prometheus.Gauge
+	// Limit holds that window's ceiling, which varies by account and is worth
+	// having because the remaining count means nothing without it.
+	Limit prometheus.Gauge
+	// Reset holds the Unix timestamp at which the window refills, which is how
+	// long a starved exporter stays starved.
+	Reset prometheus.Gauge
 }
 
 // NewMetrics creates the API metrics and registers them with reg.
@@ -50,15 +67,52 @@ func NewMetrics(reg prometheus.Registerer) *Metrics {
 	m := &Metrics{
 		Requests: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "digitalocean_exporter_api_requests_total",
-			Help: "Total DigitalOcean API requests by resource and response status.",
-		}, []string{"resource", "status"}),
-		RateLimit: prometheus.NewGauge(prometheus.GaugeOpts{
+			Help: "Total DigitalOcean API requests by collector, resource and status.",
+		}, []string{"collector", "resource", "status"}),
+		Duration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Name:    "digitalocean_exporter_api_request_duration_seconds",
+			Help:    "Duration of DigitalOcean API requests by collector and resource.",
+			Buckets: durationBuckets,
+		}, []string{"collector", "resource"}),
+		Remaining: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "digitalocean_exporter_api_rate_limit_remaining",
 			Help: "Requests left in the current DigitalOcean API rate-limit window.",
 		}),
+		Limit: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "digitalocean_exporter_api_rate_limit",
+			Help: "Requests the current DigitalOcean API rate-limit window allows in total.",
+		}),
+		Reset: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "digitalocean_exporter_api_rate_limit_reset_timestamp_seconds",
+			Help: "Unix timestamp at which the current DigitalOcean API rate-limit window refills.",
+		}),
 	}
-	reg.MustRegister(m.Requests, m.RateLimit)
+	reg.MustRegister(m.Requests, m.Duration, m.Remaining, m.Limit, m.Reset)
 	return m
+}
+
+// observeRateLimit records the rate-limit headers DigitalOcean sends with
+// every response.
+//
+// A header that is absent or unparsable leaves its gauge as it was: an
+// endpoint that answers without the headers says nothing about the budget, and
+// writing a zero there would read as a budget that has just run out.
+func (m *Metrics) observeRateLimit(header http.Header) {
+	setFromHeader(m.Remaining, header, "RateLimit-Remaining")
+	setFromHeader(m.Limit, header, "RateLimit-Limit")
+	setFromHeader(m.Reset, header, "RateLimit-Reset")
+}
+
+// setFromHeader sets gauge to the numeric value of the named header, and
+// leaves it untouched when the header is missing or is not a number. Header
+// names are matched case-insensitively, as http.Header.Get canonicalises both
+// the name it is given and the ones it parsed off the wire.
+func setFromHeader(gauge prometheus.Gauge, header http.Header, name string) {
+	value, err := strconv.ParseFloat(header.Get(name), 64)
+	if err != nil {
+		return
+	}
+	gauge.Set(value)
 }
 
 // Config describes the API client to build.
@@ -182,6 +236,10 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 // attempt makes one request, waiting for the rate limiter first and counting
 // the outcome afterwards. Retries come back through here, so every one of them
 // is paced and counted like a first attempt.
+//
+// The time spent waiting for the limiter is deliberately outside the duration
+// histogram: it is the exporter's own queue rather than the API's latency, and
+// it already shows up in the collector's refresh duration.
 func (t *transport) attempt(req *http.Request) (*http.Response, error) {
 	if t.limiter != nil {
 		if err := t.limiter.Wait(req.Context()); err != nil {
@@ -193,19 +251,19 @@ func (t *transport) attempt(req *http.Request) (*http.Response, error) {
 	authed := req.Clone(req.Context())
 	authed.Header.Set("Authorization", "Bearer "+t.token)
 
+	name := collectorName(req.Context())
 	res := resource(req.URL.Path)
+
+	start := time.Now()
 	resp, err := t.base.RoundTrip(authed)
+	t.metrics.Duration.WithLabelValues(name, res).Observe(time.Since(start).Seconds())
 	if err != nil {
-		t.metrics.Requests.WithLabelValues(res, "error").Inc()
+		t.metrics.Requests.WithLabelValues(name, res, "error").Inc()
 		return nil, err
 	}
 
-	t.metrics.Requests.WithLabelValues(res, strconv.Itoa(resp.StatusCode)).Inc()
-	if remaining := resp.Header.Get("RateLimit-Remaining"); remaining != "" {
-		if value, convErr := strconv.ParseFloat(remaining, 64); convErr == nil {
-			t.metrics.RateLimit.Set(value)
-		}
-	}
+	t.metrics.Requests.WithLabelValues(name, res, strconv.Itoa(resp.StatusCode)).Inc()
+	t.metrics.observeRateLimit(resp.Header)
 	return resp, nil
 }
 

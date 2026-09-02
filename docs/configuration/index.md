@@ -70,7 +70,15 @@ This trips people up once each, so it is worth stating plainly.
 **A scrape costs nothing.** Serving `/metrics` reads an in-memory snapshot and issues no API
 requests at all — measured: twenty consecutive scrapes moved
 `digitalocean_exporter_api_requests_total` by zero. The API budget is spent by collector
-refreshes alone, on their own intervals.
+refreshes alone, on their own intervals — and by which collector, since every request is
+counted under the name of the refresh that made it:
+
+```promql
+sum by (collector) (rate(digitalocean_exporter_api_requests_total[5m])) * 3600
+```
+
+That is the figures below, measured rather than assumed. A request made outside a refresh
+carries `collector="none"`.
 
 DigitalOcean applies [two limits at once](https://docs.digitalocean.com/reference/api/reference/public-apis/):
 
@@ -168,7 +176,23 @@ sum by (status) (rate(digitalocean_exporter_api_requests_total[5m]))
 ```
 
 A rising `429` rate means the rate limit is set too high for what the collectors are asking
-of it.
+of it; grouping by `collector` instead names the refresh that is asking.
+
+**What is left of the budget.** Three gauges come straight from DigitalOcean's own response
+headers — `digitalocean_exporter_api_rate_limit_remaining`,
+`digitalocean_exporter_api_rate_limit` and
+`digitalocean_exporter_api_rate_limit_reset_timestamp_seconds`. Watch the first against the
+second, because the hourly ceiling varies by account and a threshold in requests would not
+travel between them:
+
+```promql
+digitalocean_exporter_api_rate_limit_remaining / digitalocean_exporter_api_rate_limit
+```
+
+The third says when the window refills, which is how long a spent budget keeps the metrics
+stale. A response without the headers leaves all three as they were rather than zeroing
+them. The bundled [`DigitalOceanExporterRateLimitLow`](../alerting.md) fires below ten
+percent.
 
 **Staggered refreshes.** Collectors all default to a `5m` interval and all start together, so
 without help they would fire as one burst every five minutes. Each one's first refresh is

@@ -42,12 +42,20 @@ Off by default, so that installing the chart never adds alerts nobody asked for.
 | `DigitalOceanExporterAbsent` | critical | 15m | No `digitalocean_exporter_build_info` sample at all — nothing about the account is being observed |
 | `DigitalOceanExporterCollectorFailing` | warning | 15m | A collector's refresh keeps failing. Its metrics are stale, not missing |
 | `DigitalOceanExporterCollectorStale` | warning | 15m | A collector has not refreshed for an hour while still reporting success — a refresh that hangs rather than fails |
-| `DigitalOceanExporterRateLimitLow` | warning | 5m | Under 500 of the account's 5000 hourly API requests left |
+| `DigitalOceanExporterRateLimitLow` | warning | 5m | Under 10% of the account's hourly API budget left, measured against the ceiling the account itself reports |
 
 `DigitalOceanExporterCollectorFailing` on `balance` is almost always a token without the
 billing scope; see [token permissions](configuration/permissions.md). The two collector
 alerts are complements: a failing refresh sets `collector_success` to 0, a hung one leaves it
 at 1 while the timestamp ages.
+
+`DigitalOceanExporterRateLimitLow` compares what is left against
+`digitalocean_exporter_api_rate_limit`, the ceiling the account itself reports, rather than
+against a number written into the rule — the hourly allowance is not the same everywhere. Its
+description points at `digitalocean_exporter_api_rate_limit_reset_timestamp_seconds`, which
+is how long the starvation still has to run, and at
+`sum by (collector) (rate(digitalocean_exporter_api_requests_total[5m]))`, which is what is
+spending it.
 
 ## Account limits
 

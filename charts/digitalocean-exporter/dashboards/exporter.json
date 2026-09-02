@@ -266,7 +266,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Requests the exporter makes, by API resource. The monitoring-API collectors dominate because they ask per droplet and per load balancer. Lengthen an interval to bring this down.",
+      "description": "Requests each collector's refreshes make, which is where the hourly budget goes. The resource label cannot answer this: limits and droplets both read /v2/droplets, and both monitoring collectors read /v2/monitoring.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -329,15 +329,15 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (resource) (rate(digitalocean_exporter_api_requests_total{job=~\"$job\"}[$__rate_interval]))",
+          "expr": "sum by (collector) (rate(digitalocean_exporter_api_requests_total{job=~\"$job\"}[$__rate_interval]))",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "{{resource}}",
+          "legendFormat": "{{collector}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "DigitalOcean API requests",
+      "title": "DigitalOcean API requests by collector",
       "type": "timeseries"
     },
     {
@@ -345,13 +345,14 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Requests left in the current DigitalOcean rate-limit window. The account allowance is 5000 requests per hour and it is shared with everything else using the same token -- doctl, Terraform, CI. Heading toward zero means the exporter is about to start failing refreshes.",
+      "description": "What is left of the current rate-limit window as a share of the account's own ceiling, which varies by account. The budget is shared with everything else using the same token -- doctl, Terraform, CI. Under 10% is what the alert fires on.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisSoftMax": 1,
             "axisSoftMin": 0,
             "drawStyle": "line",
             "fillOpacity": 0,
@@ -378,11 +379,11 @@
               },
               {
                 "color": "green",
-                "value": 500
+                "value": 0.1
               }
             ]
           },
-          "unit": "short"
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -412,7 +413,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "digitalocean_exporter_api_rate_limit_remaining{job=~\"$job\"}",
+          "expr": "digitalocean_exporter_api_rate_limit_remaining{job=~\"$job\"} / digitalocean_exporter_api_rate_limit{job=~\"$job\"}",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{instance}}",
@@ -420,8 +421,151 @@
           "refId": "A"
         }
       ],
-      "title": "API rate limit remaining",
+      "title": "API budget remaining",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "95th percentile of one API request, by collector. The wait behind the exporter's own rate limiter is not included -- that is in the refresh duration above, and telling the two apart is the point: a slow refresh is either the API or the queue.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 8,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le, collector) (rate(digitalocean_exporter_api_request_duration_seconds_bucket{job=~\"$job\"}[$__rate_interval])))",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "{{collector}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "API request duration (p95)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "How long the current rate-limit window still has to run, from DigitalOcean's own reset header. With the budget spent this is how long the exporter serves stale data before refreshes start working again.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "id": 9,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max(digitalocean_exporter_api_rate_limit_reset_timestamp_seconds{job=~\"$job\"} - time())",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "Until reset",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Time until the rate-limit window resets",
+      "type": "stat"
     },
     {
       "datasource": {
@@ -456,7 +600,7 @@
         "h": 5,
         "w": 12,
         "x": 0,
-        "y": 26
+        "y": 34
       },
       "id": 6,
       "options": {
@@ -838,7 +982,7 @@
         "h": 5,
         "w": 12,
         "x": 12,
-        "y": 26
+        "y": 34
       },
       "id": 7,
       "options": {

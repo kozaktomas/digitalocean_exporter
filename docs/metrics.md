@@ -565,8 +565,11 @@ capability, so a limited key must be given an explicit bucket list.
 | `digitalocean_exporter_collector_success` | `collector` | 1 if the collector's last refresh succeeded |
 | `digitalocean_exporter_collector_duration_seconds` | `collector` | Duration of the last refresh |
 | `digitalocean_exporter_collector_last_success_timestamp_seconds` | `collector` | Unix timestamp of the last successful refresh |
-| `digitalocean_exporter_api_requests_total` (counter) | `resource`, `status` | API requests by resource and HTTP status |
+| `digitalocean_exporter_api_requests_total` (counter) | `collector`, `resource`, `status` | API requests by collector, resource and HTTP status |
+| `digitalocean_exporter_api_request_duration_seconds` (histogram) | `collector`, `resource` | Duration of one API request |
 | `digitalocean_exporter_api_rate_limit_remaining` | — | Requests left in the current API rate-limit window |
+| `digitalocean_exporter_api_rate_limit` | — | Requests that window allows in total |
+| `digitalocean_exporter_api_rate_limit_reset_timestamp_seconds` | — | Unix timestamp at which that window refills |
 
 ### Behaviour on failure
 
@@ -578,11 +581,43 @@ looks like DigitalOcean itself went away.
 Before a collector's first successful refresh it emits nothing at all, rather than zeros.
 A starting exporter must not be readable as an account with no droplets and no money.
 
+### Attributing the API cost
+
+`collector` on `digitalocean_exporter_api_requests_total` is the collector whose refresh
+made the request, which is what the `resource` label cannot say: `limits` and `droplets`
+both read `/v2/droplets`, and both monitoring collectors read `/v2/monitoring`. So the cost
+each collector is quoted at in the [collector reference](configuration/collectors.md) can be
+checked against the exporter itself:
+
+```promql
+sum by (collector) (rate(digitalocean_exporter_api_requests_total[5m])) * 3600
+```
+
+A request made outside any refresh carries `collector="none"`.
+
+`digitalocean_exporter_api_request_duration_seconds` times the same requests, per collector
+and resource. It measures the request alone: the wait behind the exporter's own rate limiter
+is not in it, which is what separates "the API is slow" from "this collector is queued
+behind its own fan-out". Neither metric carries a per-resource identifier, so their
+cardinality is bounded by the number of collectors.
+
 ### Rate limiting
 
-DigitalOcean allows 5000 API requests per hour per token.
-`digitalocean_exporter_api_rate_limit_remaining` is read from the response headers, so the
-budget is visible before it runs out and the exporter starts serving stale data.
+DigitalOcean allows 5000 API requests per hour per token, though the ceiling varies by
+account. All three rate-limit gauges are read from the response headers, so they are
+DigitalOcean's own count rather than an estimate: what is left, what the window allows, and
+when it refills.
+
+```promql
+digitalocean_exporter_api_rate_limit_remaining / digitalocean_exporter_api_rate_limit
+digitalocean_exporter_api_rate_limit_reset_timestamp_seconds - time()
+```
+
+The first is the share of the budget still available — the shape the bundled alert fires on,
+because a fixed threshold means nothing against a ceiling that varies. The second is how
+long a starved exporter stays starved. A response that carries no rate-limit headers leaves
+the gauges as they were rather than zeroing them: a zero reads as a budget that has just run
+out.
 
 ## Alerting
 
