@@ -4,6 +4,7 @@ package doclient
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,9 +26,11 @@ const (
 	// baseBackoff is the wait before the first retry when the response carries
 	// no Retry-After of its own. It doubles with every further attempt.
 	baseBackoff = time.Second
-	// maxBackoff caps that wait. A longer one only burns the collector's
-	// timeout: the refresh would fail on the deadline instead of on the API,
-	// and the next one is due on the interval anyway.
+	// maxBackoff caps that fallback wait. It does not cap a Retry-After: when
+	// the API says when its window reopens, waiting less is an attempt that is
+	// certain to be rejected, and a rejected attempt still spends from the
+	// hourly budget. A wait that does not fit the request's deadline is not
+	// shortened either, it is not made at all.
 	maxBackoff = 10 * time.Second
 	// maxDrain bounds how much of a discarded body is read back before the
 	// connection is reused. An API error body is a few hundred bytes.
@@ -76,7 +79,7 @@ type Config struct {
 	// MaxAttempts bounds how many times a single request is tried. Zero means
 	// defaultMaxAttempts; one disables retries.
 	MaxAttempts int
-	// Metrics counts the requests the client makes.
+	// Metrics counts the requests the client makes. It is required.
 	Metrics *Metrics
 }
 
@@ -89,6 +92,12 @@ type Config struct {
 // instrumentation that counts every request. Here each attempt is paced and
 // counted alike.
 func New(cfg Config) (*godo.Client, error) {
+	// Every request records itself, so a client without metrics would panic on
+	// the first one. Saying so here beats a nil dereference minutes later.
+	if cfg.Metrics == nil {
+		return nil, errors.New("api metrics are required")
+	}
+
 	attempts := cfg.MaxAttempts
 	if attempts <= 0 {
 		attempts = defaultMaxAttempts
@@ -133,26 +142,39 @@ type transport struct {
 }
 
 // RoundTrip implements http.RoundTripper.
+//
+// A rejected or failed request is tried again up to the attempt budget, as
+// long as the wait the API asks for fits inside the caller's deadline. When it
+// does not, the response is handed back as it is: the collector fails on the
+// API's own answer rather than on a deadline, and the attempts it would have
+// spent stay in the hourly budget.
 func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	attempts := t.maxAttempts
 	if req.Body != nil {
-		// Only a request that can be replayed is retried. Every call the
-		// exporter makes is a GET, so this is a guard rather than a limitation.
+		// Only a request that can be replayed is retried, and a body read by
+		// the first attempt is gone. Every call the exporter makes is a GET,
+		// so this is a guard rather than a limitation.
 		attempts = 1
 	}
 
 	for attempt := 1; ; attempt++ {
 		resp, err := t.attempt(req)
-		if err != nil || attempt >= attempts || !retryable(resp.StatusCode) {
+		if attempt >= attempts {
 			return resp, err
 		}
 
-		wait := backoff(resp, attempt)
-		// The body has to be read and closed before the connection can serve
-		// the retry; leaving it open leaks one per rejected request.
-		drain(resp)
-		if err := sleep(req.Context(), wait); err != nil {
-			return nil, err
+		wait, retry := nextWait(resp, err, attempt)
+		if !retry || !fits(req.Context(), wait) {
+			return resp, err
+		}
+
+		if resp != nil {
+			// The body has to be read and closed before the connection can
+			// serve the retry; leaving it open leaks one per rejected request.
+			drain(resp)
+		}
+		if sleepErr := sleep(req.Context(), wait); sleepErr != nil {
+			return nil, sleepErr
 		}
 	}
 }
@@ -187,6 +209,42 @@ func (t *transport) attempt(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
+// nextWait returns how long to wait before trying the request again, and
+// whether trying it again is worth anything at all.
+func nextWait(resp *http.Response, err error, attempt int) (time.Duration, bool) {
+	if err != nil {
+		if !retryableError(err) {
+			return 0, false
+		}
+		// A connection that failed says nothing about when it will work, so
+		// the doubling fallback is all there is to go on.
+		return fallbackBackoff(attempt), true
+	}
+	return retryDelay(resp, attempt)
+}
+
+// retryDelay returns how long to wait before retrying resp, and whether resp
+// is worth retrying.
+//
+// The API asks for a wait in two different ways, and one of them is a refusal.
+// A Retry-After — which DigitalOcean sends for the burst limit — names the
+// moment its window reopens, and is honoured in full. A 429 without one, but
+// with the hourly budget reported as spent, is the hourly limit: nothing frees
+// that up before the hour turns, so it is returned rather than retried. What
+// is left, a 5xx or a 429 carrying neither signal, gets the doubling fallback.
+func retryDelay(resp *http.Response, attempt int) (time.Duration, bool) {
+	if !retryable(resp.StatusCode) {
+		return 0, false
+	}
+	if wait, ok := retryAfter(resp.Header.Get("Retry-After")); ok {
+		return wait, true
+	}
+	if resp.StatusCode == http.StatusTooManyRequests && budgetSpent(resp.Header) {
+		return 0, false
+	}
+	return fallbackBackoff(attempt), true
+}
+
 // retryable reports whether a status is worth another attempt: the burst
 // rejection itself, and the server-side failures that are usually transient.
 // 501 is excluded, because an endpoint that is not implemented will not become
@@ -196,13 +254,26 @@ func retryable(status int) bool {
 		(status >= http.StatusInternalServerError && status != http.StatusNotImplemented)
 }
 
-// backoff returns how long to wait before the next attempt: the server's own
-// Retry-After when it sent one — a rejected burst says when the window opens
-// again — and a doubling fallback otherwise.
-func backoff(resp *http.Response, attempt int) time.Duration {
-	if wait, ok := retryAfter(resp.Header.Get("Retry-After")); ok {
-		return min(wait, maxBackoff)
-	}
+// retryableError reports whether a transport-level failure is worth another
+// attempt. A reset connection, an unexpected EOF, a DNS hiccup or a refused
+// connect often is, and Go's transport replays none of them but the idle one.
+// A context that is done never is: the caller has already given up, and the
+// next attempt would fail on the same context without reaching the API.
+func retryableError(err error) bool {
+	return !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded)
+}
+
+// budgetSpent reports whether the response says the hourly allowance is gone.
+// DigitalOcean sends RateLimit-Remaining on every response; a 429 that carries
+// a zero is the hourly limit rather than the burst one.
+func budgetSpent(header http.Header) bool {
+	remaining, err := strconv.ParseFloat(header.Get("RateLimit-Remaining"), 64)
+	return err == nil && remaining <= 0
+}
+
+// fallbackBackoff returns the wait to use when the response names none itself:
+// one second, then two, then four, capped.
+func fallbackBackoff(attempt int) time.Duration {
 	return min(baseBackoff<<(attempt-1), maxBackoff)
 }
 
@@ -219,6 +290,16 @@ func retryAfter(value string) (time.Duration, bool) {
 		return max(time.Until(when), 0), true
 	}
 	return 0, false
+}
+
+// fits reports whether waiting for d still leaves the request's context alive
+// to make the retry with. A context without a deadline always has the time.
+func fits(ctx context.Context, d time.Duration) bool {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return true
+	}
+	return time.Now().Add(d).Before(deadline)
 }
 
 // sleep waits for d, or until ctx is done.

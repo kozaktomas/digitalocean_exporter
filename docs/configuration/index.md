@@ -137,18 +137,38 @@ Lowering it below the default is the lever to reach for when
 `4` moves the exporter towards being rejected rather than throttled.
 
 **Retries.** A request rejected with `429`, or failed with a `5xx`, is tried again — three
-attempts in total, waiting as long as the response's `Retry-After` header asks for, or one
-second and then two when it sends none. So a rejected burst costs a slower refresh rather
-than a failed one. Every attempt is counted by `digitalocean_exporter_api_requests_total`,
-because every attempt spends from the budget:
+attempts in total. What the exporter waits between them is whatever the response asks for:
+
+- **A `Retry-After` is honoured in full**, however long it is. DigitalOcean sends one when
+  the burst limit is hit, and it names the moment the window reopens; coming back sooner is
+  an attempt certain to be rejected, and a rejected attempt spends from the hourly budget
+  like any other. If that wait does not fit in the time the caller has left — a collector's
+  timeout, or the shutdown of the process — the rejection is returned straight away instead,
+  so the refresh fails on the API's own answer rather than on a deadline, and the attempts
+  it would have spent stay in the budget.
+- **A response that names no wait** — a `5xx`, or a `429` carrying neither signal — is
+  retried after one second, then two, capped at ten.
+- **A connection that fails outright** — a reset, an unexpected EOF, a name that does not
+  resolve — is retried on the same budget and the same fallback wait. Every request the
+  exporter makes is a bodiless `GET`, so replaying one is safe; a request with a body would
+  never be retried.
+
+Two rejections are not retried at all. A `429` that carries no `Retry-After` and reports
+`RateLimit-Remaining: 0` is the **hourly** limit rather than the burst one, and nothing
+frees that up before the hour turns. And a `4xx` other than `429` is the exporter's own
+fault: a `401` is a bad token and a `403` a missing scope, neither of which improves on a
+second attempt.
+
+So a rejected burst costs a slower refresh rather than a failed one. Every attempt is
+counted by `digitalocean_exporter_api_requests_total`, because every attempt spends from
+the budget:
 
 ```promql
 sum by (status) (rate(digitalocean_exporter_api_requests_total[5m]))
 ```
 
 A rising `429` rate means the rate limit is set too high for what the collectors are asking
-of it. Retries do not cover `4xx` responses other than `429`: a `401` is a bad token and a
-`403` a missing scope, and neither improves on a second attempt.
+of it.
 
 **Staggered refreshes.** Collectors all default to a `5m` interval and all start together, so
 without help they would fire as one burst every five minutes. Each one's first refresh is

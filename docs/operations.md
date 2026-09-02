@@ -105,7 +105,10 @@ interval, or turn it off.
 Note that a second replica of the exporter doubles the spend. Run one.
 
 The per-minute limit is a separate matter, and the exporter defends it itself: it paces its
-requests at `--do.rate-limit` a second and retries the rejections it does get. A `429` rate
+requests at `--do.rate-limit` a second and retries the burst rejections it does get, waiting
+as long as their `Retry-After` asks — unless that wait is longer than the collector has left,
+in which case the refresh fails at once rather than burning attempts. A rejection of *this*
+limit, the hourly one, carries no `Retry-After` and is never retried. A `429` rate
 that is not zero means the limit is set higher than the collectors can afford —
 `sum by (status) (rate(digitalocean_exporter_api_requests_total[5m]))` shows it. See
 [staying under the burst limit](configuration/index.md#staying-under-the-burst-limit).

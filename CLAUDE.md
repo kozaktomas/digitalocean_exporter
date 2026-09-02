@@ -38,9 +38,12 @@ scrape timeout. Do not add a collector that calls the API from `Collect`.
 
 **The burst limit is defended in two places, and a new collector inherits both.** Every
 request goes through the one instrumented transport in `internal/doclient`, which paces
-requests at `--do.rate-limit` across all collectors at once and retries a 429 or a 5xx up to
-three attempts, honouring `Retry-After`; each attempt is counted separately, because each
-one spends from the budget. The scheduler then offsets each collector's first refresh by an
+requests at `--do.rate-limit` across all collectors at once and retries a 429, a 5xx or a
+broken connection up to three attempts; each attempt is counted separately, because each one
+spends from the budget. A `Retry-After` is waited out in full, and skipped rather than
+shortened when it does not fit the caller's deadline; a 429 that reports the hourly budget
+spent and names no wait is not retried at all, because nothing frees it before the hour
+turns. The scheduler then offsets each collector's first refresh by an
 even share of one window shared by the whole set — the shortest interval among the
 registered collectors, capped at three seconds — so the offsets stay distinct however the
 intervals differ, the set never fires as one burst, and every later refresh keeps that
