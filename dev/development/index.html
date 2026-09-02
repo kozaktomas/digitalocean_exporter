@@ -1567,6 +1567,20 @@ reporting success over an unchanged site. The workflow enforces the order rather
 trusting it: a push to a branch whose commit already carries a <code>vX.Y.Z</code> tag stands down and
 leaves the publishing to the release. The tag must be plain <code>vMAJOR.MINOR.PATCH</code>; anything
 else is rejected.</p>
+<p><strong>A deployment is verified by commit.</strong> The published site carries a <code>deployed-commit.txt</code>
+at its root naming the commit that deployment came from, and the workflow polls the live
+site for that SHA — the Pages CDN caches for ten minutes, so it polls rather than checking
+once — before it reports success. Polling for the version name would verify nothing:
+<code>dev</code>, and <code>0.3</code> for every <code>0.3.x</code>, are on the site already from the deployment that first
+published them, so a deployment Pages ignored would pass the check on every branch push and
+every patch release.</p>
+<p><strong><code>latest</code> follows the highest version, not the newest tag.</strong> Before it publishes, the
+release reads the versions mike stores on <code>docs-versions</code> and passes the <code>latest</code> alias only
+when the minor being published is greater than or equal to the highest one already there. A
+fix backported to an older minor — <code>v0.2.1</code> tagged after <code>v0.3.0</code> is out — therefore
+publishes its own <code>0.2/</code> and leaves <code>latest</code>, and the site root that redirects to it, on
+<code>0.3</code>. A patch of the highest minor still moves the alias: <code>v0.3.1</code> republishes <code>0.3</code>, which
+is where <code>latest</code> already points, and it has to move with it onto the newer content.</p>
 <p><strong>Nothing ships from an unchecked commit.</strong> The release workflow starts with a <code>check</code> job —
 <code>make check</code>, <code>make alerts-lint</code>, <code>make chart-lint</code> and <code>make smoke</code> — and every job that
 builds or publishes anything waits on it. This is not belt and braces: the order above pushes
