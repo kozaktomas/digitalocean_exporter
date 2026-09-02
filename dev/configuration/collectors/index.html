@@ -1628,13 +1628,17 @@ travels.</p>
 <hr />
 <h2 id="registry">registry<a class="headerlink" href="#registry" title="Permanent link">&para;</a></h2>
 <p>Container Registry storage usage, subscription tier and the repositories in it.</p>
+<p>An account may hold <strong>more than one</strong> registry, and every one of them is measured and
+labelled by name. One registry that cannot be read keeps its last figures and reports
+<code>digitalocean_registry_up 0</code> without costing the others.</p>
 <p>An account <strong>without</strong> a registry is not an error. The collector reports no metrics and
 keeps <code>collector_success 1</code>, so it is safe to leave enabled everywhere, including on
 accounts that will never have one.</p>
 <p>Storage usage is the number to alert on: registry tiers have hard storage ceilings, and
 pushing past one fails a deploy at the worst moment.</p>
-<p><strong>Cost:</strong> three requests per refresh — the registry, its subscription tier and its
-repositories.</p>
+<p><strong>Cost:</strong> two requests per refresh — listing the registries and the account-wide
+subscription tier — plus one per registry for its repositories, and one more for every
+further page of them. An account with a single registry therefore still costs three.</p>
 <hr />
 <h2 id="volumes">volumes<a class="headerlink" href="#volumes" title="Permanent link">&para;</a></h2>
 <p>Every block storage volume: size, region, and how many droplets it is attached to.</p>

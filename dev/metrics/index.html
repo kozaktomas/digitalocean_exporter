@@ -2632,9 +2632,9 @@ with credentials of its own; that is a separate exporter's job, not this one's.<
 page as the signal that another may follow. An account whose cluster count divides exactly
 by the page size costs one extra empty request per refresh.</p>
 <h2 id="container-registry">Container registry<a class="headerlink" href="#container-registry" title="Permanent link">&para;</a></h2>
-<p>Collected by <code>registry</code> from <code>/v2/registry</code>, <code>/v2/registry/subscription</code> and
-<code>/v2/registry/{name}/repositoriesV2</code>: three GETs per refresh, plus one for every further
-page of repositories.</p>
+<p>Collected by <code>registry</code> from <code>/v2/registries</code>, <code>/v2/registries/subscription</code> and
+<code>/v2/registries/{name}/repositoriesV2</code>: two GETs per refresh plus one per registry, and one
+more for every further page of a registry's repositories.</p>
 <table>
 <thead>
 <tr>
@@ -2648,6 +2648,11 @@ page of repositories.</p>
 <td><code>digitalocean_registry_storage_usage_bytes</code></td>
 <td><code>registry</code>, <code>region</code></td>
 <td>Storage the registry uses, as last measured by DigitalOcean</td>
+</tr>
+<tr>
+<td><code>digitalocean_registry_storage_usage_updated_timestamp_seconds</code></td>
+<td><code>registry</code>, <code>region</code></td>
+<td>Unix timestamp of that measurement</td>
 </tr>
 <tr>
 <td><code>digitalocean_registry_storage_included_bytes</code></td>
@@ -2668,6 +2673,11 @@ page of repositories.</p>
 <td><code>digitalocean_registry_info</code></td>
 <td><code>registry</code>, <code>region</code>, <code>tier</code>, <code>tier_name</code></td>
 <td>Always 1; the labels carry the tier slug and its display name</td>
+</tr>
+<tr>
+<td><code>digitalocean_registry_up</code></td>
+<td><code>registry</code>, <code>region</code></td>
+<td>Whether the last refresh could list that registry's repositories</td>
 </tr>
 <tr>
 <td><code>digitalocean_registry_repositories</code></td>
@@ -2696,7 +2706,22 @@ page of repositories.</p>
 </tr>
 </tbody>
 </table>
-<p><strong>An account without a registry is not a failure.</strong> <code>/v2/registry</code> answers <code>404</code> there, which
+<p><strong>The <code>registry</code> label is the registry's name, and an account can hold several.</strong> A
+Professional subscription may create more than one, and once it has, part of the
+single-registry <code>/v2/registry</code> surface stops answering. The collector therefore enumerates
+registries through <code>/v2/registries</code> and measures each one the same way. Where that endpoint
+is unavailable — an account whose API does not offer it yet — it reads <code>/v2/registry</code>
+instead and reports the one registry, which is what every account did before. The
+subscription is account-wide however many registries it covers, so it stays a single
+request and its allowance is reported against each of them.</p>
+<p><strong>One registry that cannot be read does not cost the others.</strong> Its
+<code>digitalocean_registry_up</code> goes to 0, it keeps the repository figures it last reported, and
+the refresh still succeeds with <code>collector_success</code> 1 — the failure is logged at warning
+level, because nothing else would report it. Only every registry failing fails the refresh.
+A registry seen for the first time whose repositories could not be listed reports no
+repository metrics at all, rather than a count of zero that would read as a registry
+holding nothing.</p>
+<p><strong>An account without a registry is not a failure.</strong> Both endpoints answer <code>404</code> there, which
 the collector treats as a legitimate state: the refresh succeeds, <code>collector_success</code> stays
 1 and no registry metric is emitted at all. It logs that once, at info level. The same
 applies while the exporter runs — a deleted registry stops being reported rather than
@@ -2705,9 +2730,13 @@ registry scope: that is a real failure and drops <code>collector_success</code> 
 <p><code>digitalocean_registry_storage_usage_bytes</code> is DigitalOcean's own measurement, recomputed on
 its schedule of several hours, not the exporter's. Refreshing more often does not make the
 figure fresher, which is why the default interval of 5m is about the collector staying in
-step with the rest of the exporter rather than about resolution. The API does report when it
-last measured, but under a field name the DigitalOcean Go client does not parse, so there is
-no staleness metric for it.</p>
+step with the rest of the exporter rather than about resolution.
+<code>digitalocean_registry_storage_usage_updated_timestamp_seconds</code> is when that measurement was
+taken, so the age of the size is visible rather than assumed:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kr">time</span><span class="o">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">digitalocean_registry_storage_usage_updated_timestamp_seconds</span>
+</code></pre></div>
+<p>The API leaves that field unset until it has measured the registry at least once, and a
+registry in that state reports no timestamp rather than the epoch.</p>
 <p>A repository that has never been pushed to reports its tag and manifest counts and nothing
 else: it has no manifest, and a zero size would read as an image of no size.</p>
 <p>Repository names are used as label values verbatim, slashes included
@@ -2831,7 +2860,7 @@ made the request, which is what the <code>resource</code> label cannot say: <cod
 both read <code>/v2/droplets</code>, and both monitoring collectors read <code>/v2/monitoring</code>. So the cost
 each collector is quoted at in the <a href="../configuration/collectors/">collector reference</a> can be
 checked against the exporter itself:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">collector</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3600</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">collector</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3600</span>
 </code></pre></div>
 <p>A request made outside any refresh carries <code>collector="none"</code>.</p>
 <p><code>digitalocean_exporter_api_request_duration_seconds</code> times the same requests, per collector
@@ -2844,8 +2873,8 @@ cardinality is bounded by the number of collectors.</p>
 account. All three rate-limit gauges are read from the response headers, so they are
 DigitalOcean's own count rather than an estimate: what is left, what the window allows, and
 when it refills.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nv">digitalocean_exporter_api_rate_limit_remaining</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_exporter_api_rate_limit</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="nv">digitalocean_exporter_api_rate_limit_reset_timestamp_seconds</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="kr">time</span><span class="o">()</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nv">digitalocean_exporter_api_rate_limit_remaining</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_exporter_api_rate_limit</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="nv">digitalocean_exporter_api_rate_limit_reset_timestamp_seconds</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="kr">time</span><span class="o">()</span>
 </code></pre></div>
 <p>The first is the share of the budget still available — the shape the bundled alert fires on,
 because a fixed threshold means nothing against a ceiling that varies. The second is how
