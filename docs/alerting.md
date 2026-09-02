@@ -1,6 +1,6 @@
 # Alerting
 
-Twenty-three alerting rules ship with the exporter, in
+Twenty-five alerting rules ship with the exporter, in
 [`charts/digitalocean-exporter/alerts/digitalocean.rules.yaml`](https://github.com/kozaktomas/digitalocean_exporter/blob/main/charts/digitalocean-exporter/alerts/digitalocean.rules.yaml).
 
 It is a plain Prometheus rule file. Point `rule_files` at it directly, or let the chart wrap
@@ -133,6 +133,7 @@ the change, as something to read rather than to act on.
 |---|---|---|---|
 | `DigitalOceanRegistryStorageNearQuota` | warning | 1h | Registry storage is over 90% of what the tier includes |
 | `DigitalOceanVolumeUnattached` | info | 24h | A volume has been attached to nothing for a day |
+| `DigitalOceanReservedIPUnassigned` | info | 24h | A reserved IP has been assigned to nothing for a day |
 | `DigitalOceanSnapshotOld` | info | 1h | A snapshot has been stored for over ninety days |
 | `DigitalOceanDropletOff` | info | 24h | A droplet has been powered off for a day |
 | `DigitalOceanSpacesBucketUnreachable` | warning | 1h | A bucket could not be measured |
@@ -140,6 +141,11 @@ the change, as something to read rather than to act on.
 `DigitalOceanVolumeUnattached` waits a day because a volume is legitimately detached while
 being moved between droplets. Past that it is usually a leftover from a deleted droplet or a
 released PersistentVolumeClaim, billed by allocated size for as long as it exists.
+
+`DigitalOceanReservedIPUnassigned` is the same rule for addresses. A reserved IP is free
+while it serves a droplet and billed by the hour while it does not, which is the opposite way
+round from what most people assume, and an address left behind by a destroyed droplet is
+never mentioned again. A day is long enough to cover a migration between droplets.
 
 `DigitalOceanSnapshotOld` is the storage equivalent of the same idea. DigitalOcean bills a
 stored image by its size every month for as long as it exists, and a snapshot taken before a

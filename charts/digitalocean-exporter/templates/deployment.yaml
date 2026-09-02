@@ -118,6 +118,12 @@ spec:
             {{- else }}
             - --no-collector.registry
             {{- end }}
+            {{- if .Values.collectors.reservedips.enabled }}
+            - --collector.reservedips
+            - --collector.reservedips.interval={{ .Values.collectors.reservedips.interval }}
+            {{- else }}
+            - --no-collector.reservedips
+            {{- end }}
             {{- if .Values.collectors.spaces.enabled }}
             - --collector.spaces
             - --collector.spaces.interval={{ .Values.collectors.spaces.interval }}

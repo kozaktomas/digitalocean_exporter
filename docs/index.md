@@ -56,6 +56,8 @@ Three things follow from that, and they are worth knowing before you tune anythi
 | [`kubernetes`](configuration/collectors.md#kubernetes) | Managed clusters and their node pools | on |
 | [`limits`](configuration/collectors.md#limits) | Droplets, reserved IPs and volumes in use | on |
 | [`registry`](configuration/collectors.md#registry) | Container Registry storage and repositories | on |
+| [`reservedips`](configuration/collectors.md#reservedips) | Reserved IPs and whether each one is assigned | on |
+| [`images`](configuration/collectors.md#images) | Snapshots, droplet backups and custom images | on |
 | [`volumes`](configuration/collectors.md#volumes) | Block storage volumes and what uses them | on |
 | [`loadbalancers`](configuration/collectors.md#loadbalancers) | Load balancers, backends, billed size | on |
 | [`cdn`](configuration/collectors.md#cdn) | CDN endpoints and their certificates | on |

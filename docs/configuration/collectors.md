@@ -3,7 +3,7 @@
 One page per question you might have about a collector: what it reports, what it costs, and
 when to turn it off. The metric names themselves are in the [metrics reference](../metrics.md).
 
-Twelve collectors are on by default. They are on because each costs one to three API
+Thirteen collectors are on by default. They are on because each costs one to three API
 requests per refresh, which is negligible against the limit of 5000 an hour.
 
 Five are off. Three of them — [`spaces`](spaces.md),
@@ -138,6 +138,32 @@ pushing past one fails a deploy at the worst moment.
 **Cost:** two requests per refresh — listing the registries and the account-wide
 subscription tier — plus one per registry for its repositories, and one more for every
 further page of them. An account with a single registry therefore still costs three.
+
+---
+
+## reservedips
+
+Every reserved IP address the account holds, IPv4 and IPv6, and the droplet each one is
+assigned to.
+
+This is on by default for the same reason [`volumes`](#volumes) is: the address assigned to
+**nothing**. A reserved IP is free while it serves a droplet and billed by the hour while it
+does not, which is the opposite way round from what most people assume, and an address left
+behind by a destroyed droplet is never mentioned again:
+
+```promql
+digitalocean_reserved_ip_assigned == 0
+```
+
+The IPv6 listing carries no project, so `project_id` on `digitalocean_reserved_ip_info` is
+empty for `version="6"` addresses. Everything else is reported for both.
+
+It does not replace the count [`limits`](#limits) reports. That one is a single account-wide
+total to hold against the account's reserved IP limit; this one is the addresses themselves.
+
+**Cost:** two requests per refresh, one per address family, plus one more for every further
+200 addresses of either. An account with fewer than 200 reserved IPs — which is nearly all of
+them — therefore costs exactly two.
 
 ---
 

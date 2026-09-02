@@ -92,22 +92,27 @@ trap worth knowing about — see [the monitoring API](monitoring-api.md#the-budg
 exporter defends it by [rate-limiting itself](#staying-under-the-burst-limit), which is on
 by default.
 
-The eleven collectors that are on by default cost one to three requests each per refresh. On
-a real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database, a
-registry and a DNS zone, one full refresh measured **15 requests**:
+The thirteen collectors that are on by default cost one to three requests each per refresh.
+On a real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database,
+a registry, a DNS zone, a snapshot and a reserved IP, one full refresh comes to **19
+requests**:
 
 ```
-account 1 · balance 1 · cdn 1 · databases 1 · domains 1 · droplets 2
-kubernetes 1 · load_balancers 1 · registry 3 · reserved_ips 1 · volumes 2
+account 1 · balance 1 · cdn 1 · databases 1 · domains 1 · droplets 2 · images 1
+kubernetes 1 · load_balancers 1 · registry 3 · reserved_ips 2 · reserved_ipv6 1 · volumes 2
 ```
 
-At the default `5m` that is 12 refreshes an hour — **180 requests, 3.6% of the hourly
-budget**, and 15 in a burst, 6% of the per-minute one. Comfortable, and it scales with how
+At the default `5m` that is 12 refreshes an hour — **228 requests, 4.6% of the hourly
+budget**, and 19 in a burst, 7.6% of the per-minute one. Comfortable, and it scales with how
 much you own rather than with how often Prometheus scrapes.
+
+`reserved_ips` is asked for twice because two collectors read it: [`limits`](collectors.md#limits)
+for the account-wide count and [`reservedips`](collectors.md#reservedips) for the addresses
+themselves.
 
 Enabling [`firewalls`](collectors.md#firewalls) and
 [`certificates`](collectors.md#certificates) adds one request each, so the same account costs
-17. The other three are off for reasons of their own: [`spaces`](spaces.md) needs a second
+21. The other three are off for reasons of their own: [`spaces`](spaces.md) needs a second
 credential, and the two [monitoring API](monitoring-api.md) collectors cost a multiple of
 everything above.
 
@@ -254,6 +259,8 @@ basic_auth_users:
 | `--collector.limits.interval` | `COLLECTOR_LIMITS_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.registry` | `COLLECTOR_REGISTRY` | `true` | [Container Registry](collectors.md#registry) |
 | `--collector.registry.interval` | `COLLECTOR_REGISTRY_INTERVAL` | `5m` | Its refresh interval |
+| `--collector.reservedips` | `COLLECTOR_RESERVEDIPS` | `true` | [Reserved IPs and what they are assigned to](collectors.md#reservedips) |
+| `--collector.reservedips.interval` | `COLLECTOR_RESERVEDIPS_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.volumes` | `COLLECTOR_VOLUMES` | `true` | [Block storage volumes](collectors.md#volumes) |
 | `--collector.volumes.interval` | `COLLECTOR_VOLUMES_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.images` | `COLLECTOR_IMAGES` | `true` | [Snapshots, backups and custom images](collectors.md#images) |

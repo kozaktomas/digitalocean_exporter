@@ -12,7 +12,7 @@ Nothing about them is Helm-specific: the JSON imports into any Grafana.
 
 | Dashboard | What it answers | Collectors it needs |
 |---|---|---|
-| `overview.json` | Is anything down, and how much of the account is there? One row of totals across droplets, clusters, load balancers, databases, CDN, DNS, registry and Spaces | `account`, `droplets`, `kubernetes`, `loadbalancers`, `databases`, `cdn`, `domains`, `registry`, `spaces` |
+| `overview.json` | Is anything down, and how much of the account is there? One row of totals across droplets, clusters, load balancers, databases, CDN, DNS, registry and Spaces, plus the reserved IPs that are assigned to nothing | `account`, `droplets`, `kubernetes`, `loadbalancers`, `databases`, `cdn`, `domains`, `registry`, `reservedips`, `spaces` |
 | `droplets.json` | Per-droplet CPU, memory, disk and load, filtered by a droplet variable, plus what share of droplets have backups and the monitoring agent | `droplets`, `dropletmetrics` |
 | `kubernetes.json` | Cluster state and node pools: sizes, autoscaling bounds, nodes actually running | `kubernetes` |
 | `loadbalancers.json` | Traffic, response times and which backend droplet is failing its health check | `loadbalancers`, `loadbalancermetrics` |

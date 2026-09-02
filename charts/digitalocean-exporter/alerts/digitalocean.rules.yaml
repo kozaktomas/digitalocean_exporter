@@ -277,6 +277,18 @@ groups:
             attached or not. A day of this is usually a leftover from a deleted droplet
             or a released PersistentVolumeClaim.
 
+      - alert: DigitalOceanReservedIPUnassigned
+        expr: digitalocean_reserved_ip_assigned == 0
+        for: 24h
+        labels:
+          severity: info
+        annotations:
+          summary: Reserved IP {{ $labels.ip }} is assigned to nothing
+          description: >-
+            DigitalOcean bills a reserved IP that is not assigned to a droplet, and only
+            then. A day of this in {{ $labels.region }} is usually an address held after
+            the droplet behind it was destroyed — either reassign it or release it.
+
       - alert: DigitalOceanSnapshotOld
         expr: >-
           (time() - digitalocean_image_created_timestamp_seconds{type="snapshot"})

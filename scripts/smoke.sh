@@ -41,7 +41,18 @@ DROPLETS = {"droplets": [{"id": 1, "name": "web-1", "status": "active", "vcpus":
                           "size": {"slug": "s-2vcpu-4gb", "price_hourly": 0.02679, "price_monthly": 18},
                           "image": {"slug": "ubuntu-24-04"}}],
             "meta": {"total": 5}}
-RESERVED_IPS = {"reserved_ips": [], "meta": {"total": 0}}
+# Two reserved IPv4 addresses, one assigned to the droplet above and one idle,
+# plus a reserved IPv6. The idle one is what the reservedips collector exists
+# for: DigitalOcean bills a reserved IP only while it serves nothing.
+RESERVED_IPS = {"reserved_ips": [{"ip": "192.0.2.1", "region": {"slug": "fra1"},
+                                  "project_id": "proj",
+                                  "droplet": {"id": 1, "name": "web-1"}},
+                                 {"ip": "192.0.2.2", "region": {"slug": "fra1"},
+                                  "project_id": "proj", "droplet": None}],
+                "meta": {"total": 2}}
+RESERVED_IPV6 = {"reserved_ipv6s": [{"ip": "2604:a880::1", "region_slug": "fra1",
+                                     "reserved_at": "2026-08-01T10:00:00Z"}],
+                 "meta": {"total": 1}}
 VOLUMES = {"volumes": [{"id": "vol", "name": "data", "region": {"slug": "fra1"},
                         "size_gigabytes": 100, "filesystem_type": "ext4",
                         "filesystem_label": "data", "droplet_ids": [1]}],
@@ -118,6 +129,7 @@ ROUTES = {"/v2/customers/my/balance": BALANCE,
           "/v2/droplets": DROPLETS,
           "/v2/kubernetes/clusters": CLUSTERS,
           "/v2/reserved_ips": RESERVED_IPS,
+          "/v2/reserved_ipv6": RESERVED_IPV6,
           "/v2/volumes": VOLUMES,
           "/v2/images": IMAGES,
           "/v2/load_balancers": LOAD_BALANCERS,
@@ -181,6 +193,7 @@ DO_SPACES_ENDPOINT="http://127.0.0.1:${API_PORT}" \
          --do.rate-limit=100 \
          --collector.account.interval=1s --collector.balance.interval=1s \
          --collector.registry.interval=1s --collector.limits.interval=1s \
+         --collector.reservedips.interval=1s \
          --collector.droplets.interval=1s --collector.databases.interval=1s \
          --collector.kubernetes.interval=1s \
          --collector.domains.interval=1s \
@@ -207,7 +220,7 @@ done
 # for "no sample equals 0" would therefore pass while a collector had not
 # started yet, and the assertions below would race it — a flake that looks
 # exactly like a broken collector. Bump this when adding a collector.
-EXPECTED_COLLECTORS=17
+EXPECTED_COLLECTORS=18
 
 # Poll until all of them have reported a successful refresh.
 METRICS=""
@@ -266,6 +279,8 @@ for metric in \
   digitalocean_registry_storage_usage_updated_timestamp_seconds \
   digitalocean_registry_repository_tags \
   digitalocean_account_droplets \
+  digitalocean_reserved_ip_assigned \
+  digitalocean_reserved_ips \
   digitalocean_account_volumes \
   digitalocean_droplet_up \
   digitalocean_droplet_price_monthly \

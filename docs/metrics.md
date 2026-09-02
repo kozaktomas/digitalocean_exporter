@@ -144,6 +144,35 @@ alert rather than a panel. Volumes created by a Kubernetes `PersistentVolumeClai
 usual culprits: deleting a pod does not delete its claim, and a released claim keeps its
 volume until something reaps it.
 
+## Reserved IPs
+
+Collected by `reservedips` from `/v2/reserved_ips` and `/v2/reserved_ipv6`, one set of
+metrics per reserved IP address. The `version` label is `4` or `6` and is what tells the two
+listings apart.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_reserved_ip_assigned` | `ip`, `region`, `version` | 1 when the address is assigned to a droplet, 0 when it is idle |
+| `digitalocean_reserved_ip_info` | `ip`, `region`, `version`, `droplet_id`, `droplet_name`, `project_id` | Always 1 |
+| `digitalocean_reserved_ips` | `region`, `version` | Number of reserved IPs in that region of that version |
+
+A reserved IP costs nothing while it is assigned to a droplet and is billed by the hour as
+soon as it is not — the opposite way round from what most people expect, and the reason the
+assignment is a metric rather than a label:
+
+```promql
+digitalocean_reserved_ip_assigned == 0
+```
+
+`digitalocean_reserved_ip_info` names the droplet behind an address, with `droplet_id` and
+`droplet_name` empty for an idle one. `project_id` comes from the IPv4 listing only: the
+IPv6 endpoint reports no project, so it is empty for every `version="6"` address.
+
+`digitalocean_reserved_ips` counts the same addresses by region, which is the panel version
+of the question. It is unrelated to `digitalocean_account_reserved_ips`, which the
+[`limits`](#limits-in-use) collector reads as a single account-wide total to compare against
+the account's limit.
+
 ## Images
 
 Collected by `images` from `/v2/images?private=true`, one set of metrics per stored image.

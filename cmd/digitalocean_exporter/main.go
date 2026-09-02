@@ -37,6 +37,7 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/loadbalancermetrics"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/loadbalancers"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/registry"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/reservedips"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/spaces"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/volumes"
 	"github.com/kozaktomas/digitalocean_exporter/internal/config"
@@ -134,6 +135,7 @@ func registerCollectors(
 		{"kubernetes", func() collector.Collector { return kubernetes.New(client, logger) }},
 		{"limits", func() collector.Collector { return limits.New(client) }},
 		{"registry", func() collector.Collector { return registry.New(client, logger) }},
+		{"reservedips", func() collector.Collector { return reservedips.New(client, logger) }},
 		{"spaces", func() collector.Collector { return newSpaces(cfg.Spaces, logger) }},
 		{"volumes", func() collector.Collector { return volumes.New(client, logger) }},
 		{"loadbalancers", func() collector.Collector { return loadbalancers.New(client, logger) }},

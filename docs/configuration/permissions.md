@@ -43,6 +43,7 @@ one needs exactly the read scope for the resource it reports:
 | [`kubernetes`](collectors.md#kubernetes) | `kubernetes:read` |
 | [`limits`](collectors.md#limits) | `account:read`, `droplet:read`, `reserved_ip:read`, `block_storage:read` |
 | [`registry`](collectors.md#registry) | `registry:read` |
+| [`reservedips`](collectors.md#reservedips) | `reserved_ip:read` |
 | [`volumes`](collectors.md#volumes) | `block_storage:read` |
 | [`images`](collectors.md#images) | `image:read` |
 | [`loadbalancers`](collectors.md#loadbalancers) | `load_balancer:read` |

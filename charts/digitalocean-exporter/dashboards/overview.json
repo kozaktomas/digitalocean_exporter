@@ -142,7 +142,7 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 12,
+        "w": 9,
         "x": 6,
         "y": 0
       },
@@ -242,6 +242,74 @@
         }
       ],
       "title": "Inventory",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Reserved IPs assigned to no droplet. DigitalOcean bills a reserved IP only while it serves nothing, so anything above zero is money spent on an address a destroyed droplet left behind. DigitalOceanReservedIPUnassigned alerts on it after a day. Needs --collector.reservedips.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 15,
+        "y": 0
+      },
+      "id": 8,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "count(max by (ip) (digitalocean_reserved_ip_assigned{job=~\"$job\"}) == 0) or vector(0)",
+          "format": "time_series",
+          "instant": true,
+          "legendFormat": "Idle reserved IPs",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Idle reserved IPs",
       "type": "stat"
     },
     {

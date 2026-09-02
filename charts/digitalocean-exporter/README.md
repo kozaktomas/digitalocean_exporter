@@ -57,6 +57,8 @@ helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
 | collectors.loadbalancers.interval | string | `"5m"` | How often the loadbalancers collector refreshes. |
 | collectors.registry.enabled | bool | `true` | Report Container Registry storage, subscription tier and repositories. An account without a registry is not a failure: the collector reports no metrics and keeps `collector_success 1`, so it is safe to leave enabled everywhere. |
 | collectors.registry.interval | string | `"5m"` | How often the registry collector refreshes. |
+| collectors.reservedips.enabled | bool | `true` | Report every reserved IP address and whether it is assigned to a droplet. DigitalOcean bills a reserved IP that is assigned to nothing, the same way it bills an unattached volume, and both IPv4 and IPv6 addresses are read. |
+| collectors.reservedips.interval | string | `"5m"` | How often the reservedips collector refreshes. |
 | collectors.spaces.buckets | list | `[]` | Buckets to measure, each as `name` or `name@region`. An entry may also name several buckets separated by commas. Leave empty to discover them, which needs a full-access Spaces key; with a limited key the buckets have to be named here. |
 | collectors.spaces.concurrency | int | `4` | How many buckets are measured at once. |
 | collectors.spaces.enabled | bool | `false` | Report the size and object count of Spaces buckets. Off by default because it needs `spaces.accessKey` and `spaces.secretKey`, a Spaces key pair, which is a separate credential from the API token. |
