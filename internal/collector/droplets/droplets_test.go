@@ -16,20 +16,40 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
 )
 
-// Two droplets: one running an image with a slug, one powered off and running
-// a custom image, which has no slug and must fall back to its name.
+// Two droplets: one running an image with a slug, backed up, monitored, in a
+// VPC and tagged; one powered off, without either feature, running a custom
+// image, which has no slug and must fall back to its name.
 const dropletsJSON = `{"droplets":[` +
 	`{"id":1,"name":"web-1","status":"active","vcpus":2,"memory":4096,"disk":80,` +
+	`"created_at":"2026-01-02T03:04:05Z","features":["backups","monitoring","private_networking"],` +
+	`"vpc_uuid":"vpc-1","tags":["web","production"],` +
 	`"region":{"slug":"fra1"},"size_slug":"s-2vcpu-4gb",` +
 	`"size":{"slug":"s-2vcpu-4gb","price_hourly":0.02679,"price_monthly":18},` +
 	`"image":{"slug":"ubuntu-24-04","distribution":"Ubuntu","name":"24.04 (LTS) x64"}},` +
 	`{"id":2,"name":"db-1","status":"off","vcpus":4,"memory":8192,"disk":160,` +
+	`"created_at":"2026-02-03T04:05:06Z","features":["private_networking"],` +
 	`"region":{"slug":"ams3"},"size_slug":"s-4vcpu-8gb",` +
 	`"size":{"slug":"s-4vcpu-8gb","price_hourly":0.07143,"price_monthly":48},` +
 	`"image":{"distribution":"Debian","name":"do-kube-1.35"}}` +
 	`],"meta":{"total":2}}`
 
+// The two info samples. One exposition line is longer than a source line may
+// be, so each is joined from two pieces; the text itself is unchanged.
+const dropletInfoMetrics = `digitalocean_droplet_info{id="1",image="ubuntu-24-04",name="web-1",` +
+	`region="fra1",size="s-2vcpu-4gb",status="active",tags="production,web",vpc_uuid="vpc-1"} 1
+digitalocean_droplet_info{id="2",image="do-kube-1.35",name="db-1",` +
+	`region="ams3",size="s-4vcpu-8gb",status="off",tags="",vpc_uuid=""} 1
+`
+
 const dropletMetrics = `
+# HELP digitalocean_droplet_backups_enabled Whether DigitalOcean's automatic backups are enabled for the droplet.
+# TYPE digitalocean_droplet_backups_enabled gauge
+digitalocean_droplet_backups_enabled{id="1",name="web-1",region="fra1"} 1
+digitalocean_droplet_backups_enabled{id="2",name="db-1",region="ams3"} 0
+# HELP digitalocean_droplet_created_timestamp_seconds When the droplet was created, as a Unix timestamp.
+# TYPE digitalocean_droplet_created_timestamp_seconds gauge
+digitalocean_droplet_created_timestamp_seconds{id="1",name="web-1",region="fra1"} 1.767323045e+09
+digitalocean_droplet_created_timestamp_seconds{id="2",name="db-1",region="ams3"} 1.770091506e+09
 # HELP digitalocean_droplet_cpus Number of virtual CPUs of the droplet.
 # TYPE digitalocean_droplet_cpus gauge
 digitalocean_droplet_cpus{id="1",name="web-1",region="fra1"} 2
@@ -38,10 +58,13 @@ digitalocean_droplet_cpus{id="2",name="db-1",region="ams3"} 4
 # TYPE digitalocean_droplet_disk_bytes gauge
 digitalocean_droplet_disk_bytes{id="1",name="web-1",region="fra1"} 85899345920
 digitalocean_droplet_disk_bytes{id="2",name="db-1",region="ams3"} 171798691840
-# HELP digitalocean_droplet_info Always 1. Its labels describe the droplet's size, status and image.
+# HELP digitalocean_droplet_info Always 1. Its labels describe the droplet's size, status, image, VPC and tags.
 # TYPE digitalocean_droplet_info gauge
-digitalocean_droplet_info{id="1",image="ubuntu-24-04",name="web-1",region="fra1",size="s-2vcpu-4gb",status="active"} 1
-digitalocean_droplet_info{id="2",image="do-kube-1.35",name="db-1",region="ams3",size="s-4vcpu-8gb",status="off"} 1
+` + dropletInfoMetrics +
+	`# HELP digitalocean_droplet_monitoring_agent Whether the droplet carries DigitalOcean's monitoring agent.
+# TYPE digitalocean_droplet_monitoring_agent gauge
+digitalocean_droplet_monitoring_agent{id="1",name="web-1",region="fra1"} 1
+digitalocean_droplet_monitoring_agent{id="2",name="db-1",region="ams3"} 0
 # HELP digitalocean_droplet_memory_bytes Memory of the droplet.
 # TYPE digitalocean_droplet_memory_bytes gauge
 digitalocean_droplet_memory_bytes{id="1",name="web-1",region="fra1"} 4294967296
@@ -182,6 +205,42 @@ func TestFailedRefreshKeepsPreviousSnapshot(t *testing.T) {
 	}
 }
 
+// A droplet whose creation time the API omitted emits no timestamp at all. A
+// zero would place it in 1970 and make its age pass every threshold, which is
+// worse than the panel being empty.
+func TestRefreshWithoutCreatedAtEmitsNoTimestamp(t *testing.T) {
+	c := newTestCollector(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"droplets":[{"id":1,"name":"web-1","status":"active","vcpus":1,` +
+			`"memory":1024,"disk":25,"region":{"slug":"fra1"},"size":{"slug":"s-1vcpu-1gb"},` +
+			`"image":{"slug":"debian-12"}}],"meta":{"total":1}}`))
+	})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const metric = "digitalocean_droplet_created_timestamp_seconds"
+	if err := testutil.CollectAndCompare(c, strings.NewReader(""), metric); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+
+	// The features it also lacks are reported as 0 rather than left out: a
+	// droplet without backups is a fact worth graphing, not a gap.
+	const features = `
+# HELP digitalocean_droplet_backups_enabled Whether DigitalOcean's automatic backups are enabled for the droplet.
+# TYPE digitalocean_droplet_backups_enabled gauge
+digitalocean_droplet_backups_enabled{id="1",name="web-1",region="fra1"} 0
+# HELP digitalocean_droplet_monitoring_agent Whether the droplet carries DigitalOcean's monitoring agent.
+# TYPE digitalocean_droplet_monitoring_agent gauge
+digitalocean_droplet_monitoring_agent{id="1",name="web-1",region="fra1"} 0
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(features),
+		"digitalocean_droplet_backups_enabled", "digitalocean_droplet_monitoring_agent"); err != nil {
+		t.Errorf("unexpected feature metrics: %v", err)
+	}
+}
+
 func TestName(t *testing.T) {
 	c := newTestCollector(t, okHandler)
 	if got := c.Name(); got != "droplets" {
@@ -200,7 +259,7 @@ func TestDescribeCoversEveryMetric(t *testing.T) {
 	for range ch {
 		count++
 	}
-	if want := 7; count != want {
+	if want := 10; count != want {
 		t.Errorf("Describe sent %d descriptors, want %d", count, want)
 	}
 }

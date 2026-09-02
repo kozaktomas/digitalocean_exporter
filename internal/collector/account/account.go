@@ -8,16 +8,30 @@ package account
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// activeStatus is the only account status that is not a problem.
+const activeStatus = "active"
+
+// knownStatuses are the account statuses DigitalOcean documents. All three are
+// reported on every scrape, so that a dashboard or an alert has a series for
+// the status it is looking for before the account ever enters it: a status
+// that only appears once the account is in trouble is a query that returns no
+// data exactly when it matters.
+var knownStatuses = []string{activeStatus, "warning", "locked"}
+
 // Metric descriptors.
 var (
 	activeDesc = prometheus.NewDesc("digitalocean_account_active",
 		"Whether the account status is active.", nil, nil)
+	statusDesc = prometheus.NewDesc("digitalocean_account_status",
+		"Always 1 for the account's current status and 0 for every other known one.",
+		[]string{"status"}, nil)
 	verifiedDesc = prometheus.NewDesc("digitalocean_account_verified",
 		"Whether the account email address is verified.", nil, nil)
 	dropletLimitDesc = prometheus.NewDesc("digitalocean_account_droplet_limit",
@@ -32,6 +46,7 @@ var (
 
 // snapshot is an immutable set of values from one successful refresh.
 type snapshot struct {
+	status          string
 	active          float64
 	verified        float64
 	dropletLimit    float64
@@ -59,7 +74,7 @@ func (c *Collector) Name() string { return "account" }
 // Describe implements collector.Collector.
 func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 	for _, d := range []*prometheus.Desc{
-		activeDesc, verifiedDesc, dropletLimitDesc, floatingIPLimitDesc,
+		activeDesc, statusDesc, verifiedDesc, dropletLimitDesc, floatingIPLimitDesc,
 		reservedIPLimitDesc, volumeLimitDesc,
 	} {
 		ch <- d
@@ -76,7 +91,8 @@ func (c *Collector) Refresh(ctx context.Context) error {
 	}
 
 	next := &snapshot{
-		active:          boolToFloat(acct.Status == "active"),
+		status:          acct.Status,
+		active:          boolToFloat(acct.Status == activeStatus),
 		verified:        boolToFloat(acct.EmailVerified),
 		dropletLimit:    float64(acct.DropletLimit),
 		floatingIPLimit: float64(acct.FloatingIPLimit),
@@ -102,6 +118,8 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
+	c.collectStatus(ch, snap.status)
+
 	for _, m := range []struct {
 		desc  *prometheus.Desc
 		value float64
@@ -114,6 +132,21 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 		{volumeLimitDesc, snap.volumeLimit},
 	} {
 		ch <- prometheus.MustNewConstMetric(m.desc, prometheus.GaugeValue, m.value)
+	}
+}
+
+// collectStatus emits one series per known status, and one more for a status
+// DigitalOcean has invented since this was written: an unknown status left out
+// would make every series read 0, which is indistinguishable from the exporter
+// having stopped reporting the metric.
+func (c *Collector) collectStatus(ch chan<- prometheus.Metric, status string) {
+	statuses := knownStatuses
+	if status != "" && !slices.Contains(statuses, status) {
+		statuses = append(slices.Clone(statuses), status)
+	}
+	for _, s := range statuses {
+		ch <- prometheus.MustNewConstMetric(statusDesc, prometheus.GaugeValue,
+			boolToFloat(s == status), s)
 	}
 }
 

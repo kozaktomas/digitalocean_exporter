@@ -80,6 +80,13 @@ they are droplets. Expect a node pool to appear here as well as under
 Price is what the size costs, which makes a simple `sum by (region)` a decent
 cost-per-region panel without touching the billing API.
 
+Whether backups are on, whether the droplet carries DigitalOcean's monitoring agent, when it
+was created, which VPC it is in and what it is tagged with all arrive in the same list
+response as the rest. Reporting them costs no extra request, which is why they are on rather
+than behind a flag. The agent one is worth knowing before enabling
+[`dropletmetrics`](monitoring-api.md#dropletmetrics): a droplet without the agent is one that
+collector will spend ten requests a refresh on and get no readings back for.
+
 **Cost:** one request per refresh, plus one per additional page for accounts with many
 droplets.
 

@@ -62,6 +62,7 @@ spending it.
 
 | Alert | Severity | For | Fires when |
 |---|---|---|---|
+| `DigitalOceanAccountNotActive` | critical | 15m | The account is in a status other than `active` |
 | `DigitalOceanAccountNearDropletLimit` | warning | 1h | Over 80% of the droplet limit is in use |
 | `DigitalOceanAccountNearVolumeLimit` | warning | 1h | Over 80% of the volume limit is in use |
 | `DigitalOceanAccountNearReservedIPLimit` | warning | 1h | Over 80% of the reserved IP limit is in use |
@@ -69,6 +70,13 @@ spending it.
 These are the alerts that turn a confusing failure into an expected one: a node pool that
 will not scale up, or a PersistentVolumeClaim that leaves a pod pending, is often nothing but
 an account limit.
+
+`DigitalOceanAccountNotActive` is the exception among them, and the reason it is critical:
+the limits above merely stop something being created, while a `warning` status is an unpaid
+invoice that ends with resources being destroyed, and `locked` means that has already begun.
+It reads `digitalocean_account_status{status!="active"}` rather than
+`digitalocean_account_active`, so the status itself is in the summary — the two are handled
+very differently and neither clears itself.
 
 ## Resources
 

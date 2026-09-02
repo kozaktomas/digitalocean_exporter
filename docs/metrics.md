@@ -9,11 +9,27 @@ Collected by `account` from `/v2/account`.
 | Metric | Description |
 |---|---|
 | `digitalocean_account_active` | 1 if the account status is `active`, else 0 |
+| `digitalocean_account_status` | 1 for the account's current status and 0 for every other known one. Labelled `status`, one series each for `active`, `warning` and `locked` |
 | `digitalocean_account_verified` | 1 if the account email address is verified |
 | `digitalocean_account_droplet_limit` | Maximum number of droplets allowed |
 | `digitalocean_account_floating_ip_limit` | Maximum number of floating IPs allowed |
 | `digitalocean_account_reserved_ip_limit` | Maximum number of reserved IPs allowed |
 | `digitalocean_account_volume_limit` | Maximum number of volumes allowed |
+
+`digitalocean_account_active` collapses everything that is not `active` into one 0, which
+loses the distinction worth having: `warning` is the billing-trouble state — an unpaid
+invoice, a card that would not charge — while `locked` means DigitalOcean has already begun
+acting on it and the API refuses to create anything. `digitalocean_account_status` keeps them
+apart, and reports all three statuses on every scrape, so the query for the one you care
+about returns a 0 rather than no data at all before the account ever enters it:
+
+```promql
+digitalocean_account_status{status="warning"} == 1
+```
+
+A status DigitalOcean invents later gets a series of its own alongside the three, so an
+unrecognised status still reads as *some* status rather than as the metric disappearing.
+That is what `DigitalOceanAccountNotActive` alerts on.
 
 ## Droplets
 
@@ -27,12 +43,16 @@ Collected by `droplets` from `/v2/droplets`, one set of metrics per droplet.
 | `digitalocean_droplet_disk_bytes` | `id`, `name`, `region` | Disk of the droplet |
 | `digitalocean_droplet_price_hourly` | `id`, `name`, `region` | Price per hour in US dollars |
 | `digitalocean_droplet_price_monthly` | `id`, `name`, `region` | Price per month in US dollars |
-| `digitalocean_droplet_info` | `id`, `name`, `region`, `size`, `status`, `image` | Always 1 |
+| `digitalocean_droplet_backups_enabled` | `id`, `name`, `region` | 1 if DigitalOcean's automatic backups are enabled |
+| `digitalocean_droplet_monitoring_agent` | `id`, `name`, `region` | 1 if the droplet carries DigitalOcean's monitoring agent |
+| `digitalocean_droplet_created_timestamp_seconds` | `id`, `name`, `region` | When the droplet was created, as a Unix timestamp |
+| `digitalocean_droplet_info` | `id`, `name`, `region`, `size`, `status`, `image`, `vpc_uuid`, `tags` | Always 1 |
 
 The first six names and their label sets are those of the older, unmaintained exporter, so
-dashboards survive a migration. The size, the exact status and the image are the labels it
-does not carry; widening the metrics would have broken that compatibility, so they live on
-`digitalocean_droplet_info` instead. Join on `id` to break a bill down by size:
+dashboards survive a migration. The size, the exact status, the image, the VPC and the tags
+are the labels it does not carry; widening the metrics would have broken that compatibility,
+so they live on `digitalocean_droplet_info` instead. Join on `id` to break a bill down by
+size:
 
 ```promql
 sum by (size) (
@@ -49,6 +69,36 @@ digitalocean_droplet_up == 0
   unless on (id) digitalocean_droplet_info{status=~"off|archive"}
 ```
 
+The last three metrics and the last two labels come out of the same droplet listing as
+everything else here, so none of them costs an extra request.
+
+`digitalocean_droplet_backups_enabled` is 0 for a droplet with no restore point of any kind.
+Backups are switched on per droplet and billed as a percentage of what the droplet costs, so
+the share of an account that has them is a decision somebody made rather than a default:
+
+```promql
+avg(digitalocean_droplet_backups_enabled)
+```
+
+`digitalocean_droplet_monitoring_agent` is 1 when the droplet was created with DigitalOcean's
+monitoring agent. It is the cheap half of the [droplet metrics](#droplet-metrics) question:
+a droplet at 0 here is one that will report no readings once that collector is enabled — an
+empty graph, and the usual explanation behind `DigitalOceanDropletMetricsUnavailable` — and
+it is what `--collector.dropletmetrics.agent-only` skips. Knowing it before paying ten
+requests per droplet per refresh is the point.
+
+The age of a droplet is `time() - digitalocean_droplet_created_timestamp_seconds`. A droplet
+whose creation time the API did not return emits no sample at all rather than a zero, since
+an epoch timestamp would read as a droplet created in 1970 and put it past every threshold.
+
+`vpc_uuid` is what joins a droplet to the load balancer in front of it, which carries the
+same label:
+
+```promql
+count by (vpc_uuid) (digitalocean_droplet_info)
+  and on (vpc_uuid) digitalocean_loadbalancer_info
+```
+
 **One figure deliberately differs from the older exporter.** It reads DigitalOcean's disk
 gigabytes as decimal and its memory megabytes as binary; this collector reads both as
 binary, which makes `digitalocean_droplet_disk_bytes` about 7% larger. A droplet sold as
@@ -60,8 +110,13 @@ image name — `do-kube-1.35.5-do.1`, which names the cluster version. Their nam
 generated and change when a node is replaced, so the series churn; read them through
 `sum()` rather than by name.
 
-Droplet tags are not exported. A droplet carries any number of them, and a label per tag
-would multiply the series of every droplet by the tags it happens to have.
+Tags are one label rather than a label per tag: `tags` holds all of them, sorted and joined
+with commas, which keeps a droplet to a single info series however many it carries. Matching
+one tag therefore means matching around the commas — `digitalocean_droplet_info{tags=~"(.*,)?web(,.*)?"}`,
+since a Prometheus label matcher is anchored at both ends — and the label is on the info
+metric alone. Neither `tags` nor `vpc_uuid` is on the up or the status series: retagging a
+droplet, or moving it between VPCs, must not break the continuity of the series an alert
+watches.
 
 ## Volumes
 
@@ -345,6 +400,13 @@ makes visible.
 Bandwidth is deliberately absent. The API splits it by interface and direction and takes one
 request per combination, which would add four requests per droplet — more than a third of
 the budget again — for a figure the bill already summarises.
+
+Which droplets have the agent at all is answered for free by
+`digitalocean_droplet_monitoring_agent` in the [droplets](#droplets) collector, without
+enabling this one: a droplet at 0 there is one this collector will spend ten requests a
+refresh on and get nothing back for, and the explanation for its empty panels — and for a
+`digitalocean_droplet_metrics_up` of 0 when the fetch fails outright — before anybody starts
+looking for a fault in the exporter.
 
 A droplet reports readings only if DigitalOcean's monitoring agent is installed and running
 on it. A droplet without the agent is **not** a failure: its fetch succeeds and returns no

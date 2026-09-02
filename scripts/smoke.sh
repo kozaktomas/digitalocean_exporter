@@ -36,6 +36,8 @@ SUBSCRIPTION = {"subscription": {"tier": {"name": "Basic", "slug": "basic",
                                  "updated_at": "2026-01-01T00:00:00Z"}}
 DROPLETS = {"droplets": [{"id": 1, "name": "web-1", "status": "active", "vcpus": 2, "memory": 4096,
                           "disk": 80, "region": {"slug": "fra1"},
+                          "created_at": "2026-01-01T00:00:00Z", "vpc_uuid": "vpc",
+                          "features": ["backups", "monitoring"], "tags": ["web"],
                           "size": {"slug": "s-2vcpu-4gb", "price_hourly": 0.02679, "price_monthly": 18},
                           "image": {"slug": "ubuntu-24-04"}}],
             "meta": {"total": 5}}
@@ -256,6 +258,7 @@ for metric in \
   digitalocean_exporter_api_rate_limit \
   digitalocean_exporter_api_rate_limit_reset_timestamp_seconds \
   digitalocean_account_active \
+  digitalocean_account_status \
   digitalocean_month_to_date_usage \
   digitalocean_spaces_bucket_size_bytes \
   digitalocean_spaces_bucket_objects \
@@ -266,6 +269,9 @@ for metric in \
   digitalocean_account_volumes \
   digitalocean_droplet_up \
   digitalocean_droplet_price_monthly \
+  digitalocean_droplet_backups_enabled \
+  digitalocean_droplet_monitoring_agent \
+  digitalocean_droplet_created_timestamp_seconds \
   digitalocean_database_status \
   digitalocean_database_storage_bytes \
   digitalocean_kubernetes_cluster_up \

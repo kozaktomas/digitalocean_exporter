@@ -5,13 +5,23 @@
 // dashboards survive a migration. Its disk figure does not: this collector
 // reads DigitalOcean's gigabytes as binary, the same way it reads the memory
 // figure, which makes digitalocean_droplet_disk_bytes about 7% larger here.
+//
+// Backups, the monitoring agent, the creation time, the VPC and the tags all
+// arrive in the same list response as the rest, so reporting them costs no
+// extra request. The VPC is a label rather than a metric because it is what
+// joins a droplet to the load balancer in front of it, which exports the same
+// vpc_uuid.
 package droplets
 
 import (
 	"context"
 	"log/slog"
+	"slices"
+	"sort"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
@@ -27,6 +37,13 @@ const (
 
 // activeStatus is the droplet status that counts as up.
 const activeStatus = "active"
+
+// The droplet features that are worth a metric of their own. They arrive in
+// the same list request as everything else here, so reading them costs nothing.
+const (
+	backupsFeature    = "backups"
+	monitoringFeature = "monitoring"
+)
 
 // Metric descriptors. Their label sets match the older exporter exactly, so
 // the descriptive labels live on an info metric of their own rather than
@@ -44,31 +61,52 @@ var (
 		"Price of the droplet per hour in US dollars.", []string{"id", "name", "region"}, nil)
 	priceMonthlyDesc = prometheus.NewDesc("digitalocean_droplet_price_monthly",
 		"Price of the droplet per month in US dollars.", []string{"id", "name", "region"}, nil)
+	backupsDesc = prometheus.NewDesc("digitalocean_droplet_backups_enabled",
+		"Whether DigitalOcean's automatic backups are enabled for the droplet.",
+		[]string{"id", "name", "region"}, nil)
+	monitoringAgentDesc = prometheus.NewDesc("digitalocean_droplet_monitoring_agent",
+		"Whether the droplet carries DigitalOcean's monitoring agent.",
+		[]string{"id", "name", "region"}, nil)
+	createdDesc = prometheus.NewDesc("digitalocean_droplet_created_timestamp_seconds",
+		"When the droplet was created, as a Unix timestamp.",
+		[]string{"id", "name", "region"}, nil)
 	infoDesc = prometheus.NewDesc("digitalocean_droplet_info",
-		"Always 1. Its labels describe the droplet's size, status and image.",
-		[]string{"id", "name", "region", "size", "status", "image"}, nil)
+		"Always 1. Its labels describe the droplet's size, status, image, VPC and tags.",
+		[]string{"id", "name", "region", "size", "status", "image", "vpc_uuid", "tags"}, nil)
 )
 
 // descriptors lists every metric the collector can emit.
 var descriptors = []*prometheus.Desc{
-	upDesc, cpusDesc, memoryDesc, diskDesc, priceHourlyDesc, priceMonthlyDesc, infoDesc,
+	upDesc, cpusDesc, memoryDesc, diskDesc, priceHourlyDesc, priceMonthlyDesc,
+	backupsDesc, monitoringAgentDesc, createdDesc, infoDesc,
 }
 
 // droplet is what one refresh learned about a single droplet.
 type droplet struct {
-	id     string
-	name   string
-	region string
-	size   string
-	status string
-	image  string
+	id      string
+	name    string
+	region  string
+	size    string
+	status  string
+	image   string
+	vpcUUID string
+	tags    string
 
-	up           float64
-	cpus         float64
-	memory       float64
-	disk         float64
-	priceHourly  float64
-	priceMonthly float64
+	up              float64
+	cpus            float64
+	memory          float64
+	disk            float64
+	priceHourly     float64
+	priceMonthly    float64
+	backups         float64
+	monitoringAgent float64
+
+	// created is false for a droplet whose creation time the API did not
+	// return or returned unparseably. Such a droplet emits no timestamp at
+	// all rather than a zero, which would place it in 1970 and make its age
+	// pass every threshold.
+	created   bool
+	createdAt float64
 }
 
 // Collector reports the droplets of the account.
@@ -124,16 +162,24 @@ func (c *Collector) Refresh(ctx context.Context) error {
 // newDroplet converts one API droplet into its snapshot form.
 func newDroplet(d *godo.Droplet) droplet {
 	out := droplet{
-		id:           strconv.Itoa(d.ID),
-		name:         d.Name,
-		status:       d.Status,
-		image:        imageName(d.Image),
-		up:           boolToFloat(d.Status == activeStatus),
-		cpus:         float64(d.Vcpus),
-		memory:       float64(d.Memory) * bytesPerMebibyte,
-		disk:         float64(d.Disk) * bytesPerGibibyte,
-		priceHourly:  0,
-		priceMonthly: 0,
+		id:              strconv.Itoa(d.ID),
+		name:            d.Name,
+		status:          d.Status,
+		image:           imageName(d.Image),
+		vpcUUID:         d.VPCUUID,
+		tags:            joinTags(d.Tags),
+		up:              boolToFloat(d.Status == activeStatus),
+		cpus:            float64(d.Vcpus),
+		memory:          float64(d.Memory) * bytesPerMebibyte,
+		disk:            float64(d.Disk) * bytesPerGibibyte,
+		priceHourly:     0,
+		priceMonthly:    0,
+		backups:         boolToFloat(slices.Contains(d.Features, backupsFeature)),
+		monitoringAgent: boolToFloat(slices.Contains(d.Features, monitoringFeature)),
+	}
+	if created, err := time.Parse(time.RFC3339, d.Created); err == nil {
+		out.created = true
+		out.createdAt = float64(created.Unix())
 	}
 	if d.Region != nil {
 		out.region = d.Region.Slug
@@ -144,6 +190,18 @@ func newDroplet(d *godo.Droplet) droplet {
 		out.priceMonthly = float64(d.Size.PriceMonthly)
 	}
 	return out
+}
+
+// joinTags renders a droplet's tags as one label. They are sorted first: the
+// API's order is not documented as stable, and a label that reorders itself
+// between two refreshes churns the series for no reason. One label holding
+// them all is what keeps a droplet to one info series however many tags it
+// carries.
+func joinTags(tags []string) string {
+	sorted := make([]string, len(tags))
+	copy(sorted, tags)
+	sort.Strings(sorted)
+	return strings.Join(sorted, ",")
 }
 
 // imageName names the image a droplet runs. Custom images, which is what
@@ -183,7 +241,13 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 		gauge(ch, diskDesc, d.disk, labels...)
 		gauge(ch, priceHourlyDesc, d.priceHourly, labels...)
 		gauge(ch, priceMonthlyDesc, d.priceMonthly, labels...)
-		gauge(ch, infoDesc, 1, d.id, d.name, d.region, d.size, d.status, d.image)
+		gauge(ch, backupsDesc, d.backups, labels...)
+		gauge(ch, monitoringAgentDesc, d.monitoringAgent, labels...)
+		if d.created {
+			gauge(ch, createdDesc, d.createdAt, labels...)
+		}
+		gauge(ch, infoDesc, 1, d.id, d.name, d.region, d.size, d.status, d.image,
+			d.vpcUUID, d.tags)
 	}
 }
 

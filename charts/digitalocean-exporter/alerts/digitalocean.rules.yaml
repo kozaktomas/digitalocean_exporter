@@ -68,6 +68,21 @@ groups:
 
   - name: digitalocean-account
     rules:
+      - alert: DigitalOceanAccountNotActive
+        expr: digitalocean_account_status{status!="active"} == 1
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: The DigitalOcean account status is {{ $labels.status }}
+          description: >-
+            The account is not active. `warning` is the billing-trouble state — an unpaid
+            invoice or a card DigitalOcean could not charge — and it is the one that ends
+            with resources being destroyed if it is left alone; `locked` means that has
+            already begun and the API will refuse to create anything. Neither clears
+            itself: settle the balance or contact DigitalOcean support. Every resource on
+            the account is at stake, which is why this is critical rather than a warning.
+
       - alert: DigitalOceanAccountNearDropletLimit
         expr: digitalocean_account_droplets / digitalocean_account_droplet_limit > 0.8
         for: 1h

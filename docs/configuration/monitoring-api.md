@@ -109,6 +109,14 @@ That is not an exporter failure — the request succeeds and returns no series, 
 reports `digitalocean_droplet_metrics_up 1` with no readings under it, and the collector
 carries on.
 
+The same droplet listing exports that feature as `digitalocean_droplet_monitoring_agent`, so
+how many droplets this collector would report nothing for is answerable **before** enabling
+it, from the `droplets` collector an untouched install already runs:
+
+```promql
+count(digitalocean_droplet_monitoring_agent == 0)
+```
+
 Those ten requests per refresh are spent all the same. `--collector.dropletmetrics.agent-only`
 (default off) skips them: the droplet listing the collector already makes says whether a
 droplet has the monitoring agent, and with the flag set only droplets that do are queried.
@@ -116,10 +124,10 @@ On an account where most droplets have no agent, that is most of the collector's
 
 !!! warning "The feature is what the droplet was *created* with"
 
-    `agent-only` reads the `monitoring` feature from the droplet listing, and DigitalOcean
-    sets that when the droplet is created with monitoring enabled. **An agent installed
-    afterwards does not set it**, and neither do some droplets that answer the monitoring API
-    anyway — managed Kubernetes nodes, for instance, list `droplet_agent` rather than
+    `agent-only` reads the `monitoring` feature from the droplet listing — the same feature
+    `digitalocean_droplet_monitoring_agent` reports — and DigitalOcean sets it when the
+    droplet is created with monitoring enabled. **An agent installed afterwards does not set
+    it**, and neither do some droplets that answer the monitoring API anyway — managed Kubernetes nodes, for instance, list `droplet_agent` rather than
     `monitoring` and still return readings. Such a droplet disappears from the exposition
     entirely with this flag on: it is not measured, so it reports nothing at all, not even
     `digitalocean_droplet_metrics_up`.
