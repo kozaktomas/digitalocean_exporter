@@ -1815,6 +1815,14 @@ that is slow because the API is slow looks different from one that is slow becau
 hundreds of calls. That is the intended trade — a slow refresh beats a rejected one — but if a collector
 is timing out on it, raise that collector's timeout or lengthen its interval rather than
 raising the rate limit into DigitalOcean's own.</p>
+<p>The two monitoring-API collectors say exactly how far they got when that happens: the log
+line carries <code>measured N of M droplets</code> (or load balancers), and the refresh counts as a
+failure however many answered. The next refresh continues from where that one stopped, so
+the metrics still cover the whole fleet — over several refreshes rather than one — while
+<code>digitalocean_exporter_collector_success</code> stays 0 to say the timeout is too small for the
+account. <code>--collector.dropletmetrics.agent-only</code> is the other lever there: it drops the
+droplets that have no agent to report anything, see
+<a href="../configuration/monitoring-api/#dropletmetrics">the monitoring API</a>.</p>
 <h3 id="a-spaces-bucket-stopped-updating">A Spaces bucket stopped updating<a class="headerlink" href="#a-spaces-bucket-stopped-updating" title="Permanent link">&para;</a></h3>
 <p>Buckets are isolated: one failing bucket keeps its own previous values and reports its own
 <code>_up 0</code> without affecting the others or the collector as a whole. Check the logs for that

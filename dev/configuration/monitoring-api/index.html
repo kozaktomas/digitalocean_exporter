@@ -1415,6 +1415,14 @@ answer is a longer timeout, fewer droplets or a longer interval, not a higher li
 place it no longer decides how fast the requests go out — the limiter does — so lowering
 it changes little; raising it only piles more requests up behind the limiter. Leave it
 at <code>4</code> unless you have turned the rate limit off.</p>
+<p><strong>A refresh that runs out of time is a failed refresh, not a partial one.</strong> The droplets
+it did reach keep their fresh readings, but the collector reports
+<code>digitalocean_exporter_collector_success 0</code> and logs how many of how many it measured —
+an account whose fleet no longer fits in its timeout says so instead of quietly
+publishing two thirds of itself. The next refresh then <strong>starts where that one stopped</strong>,
+so a fleet slightly too large for its timeout is covered over a few refreshes rather than
+measuring the head of the list forever while the tail is never measured at all. Both
+collectors do this.</p>
 <p>A burst rejection that does get through comes back with a <code>retry-after</code> header, and the
 exporter honours it: the request is retried, up to three attempts, and only then does the
 refresh fail and keep its previous snapshot. Every attempt is counted by
@@ -1441,8 +1449,25 @@ and the rest.</p>
 requests and get the same readings back. <code>5m</code> is the default; going below <code>2m</code> is waste.</p>
 <p><strong>Droplets without DigitalOcean's monitoring agent report no readings.</strong> The agent is what
 produces this data; a droplet created without it, or one where it stopped, simply has none.
-That is not an exporter failure — the droplet reports <code>digitalocean_droplet_metrics_up 0</code>
-and the collector carries on.</p>
+That is not an exporter failure — the request succeeds and returns no series, so the droplet
+reports <code>digitalocean_droplet_metrics_up 1</code> with no readings under it, and the collector
+carries on.</p>
+<p>Those ten requests per refresh are spent all the same. <code>--collector.dropletmetrics.agent-only</code>
+(default off) skips them: the droplet listing the collector already makes says whether a
+droplet has the monitoring agent, and with the flag set only droplets that do are queried.
+On an account where most droplets have no agent, that is most of the collector's cost gone.</p>
+<div class="admonition warning">
+<p class="admonition-title">The feature is what the droplet was <em>created</em> with</p>
+<p><code>agent-only</code> reads the <code>monitoring</code> feature from the droplet listing, and DigitalOcean
+sets that when the droplet is created with monitoring enabled. <strong>An agent installed
+afterwards does not set it</strong>, and neither do some droplets that answer the monitoring API
+anyway — managed Kubernetes nodes, for instance, list <code>droplet_agent</code> rather than
+<code>monitoring</code> and still return readings. Such a droplet disappears from the exposition
+entirely with this flag on: it is not measured, so it reports nothing at all, not even
+<code>digitalocean_droplet_metrics_up</code>.</p>
+<p>Run without the flag first and compare: if a droplet you care about is reporting readings
+now and vanishes with it on, leave it off.</p>
+</div>
 <p><code>--collector.dropletmetrics.concurrency</code> (default <code>4</code>) sets how many droplets are queried
 at once, and <code>--collector.dropletmetrics.timeout</code> (default <code>2m</code>) bounds one full refresh.
 With many droplets the refresh has to fit in that timeout, and what decides how long it
@@ -1470,8 +1495,10 @@ the <a href="../collectors/#loadbalancers"><code>loadbalancers</code></a> collec
 there are, not which one is sick.</p>
 <p>Same knobs, same meanings: <code>--collector.loadbalancermetrics.interval</code> (<code>5m</code>),
 <code>--collector.loadbalancermetrics.timeout</code> (<code>2m</code>),
-<code>--collector.loadbalancermetrics.concurrency</code> (<code>4</code>). A load balancer with no readings
-reports <code>digitalocean_loadbalancer_metrics_up 0</code>.</p>
+<code>--collector.loadbalancermetrics.concurrency</code> (<code>4</code>). A load balancer whose fetch failed
+reports <code>digitalocean_loadbalancer_metrics_up 0</code> and keeps its previous readings; one that
+answered with no series at all — a network load balancer has no HTTP metrics ever — is up
+with nothing under it.</p>
 
 
 

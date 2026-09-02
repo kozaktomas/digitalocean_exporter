@@ -1381,6 +1381,12 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>How often the domains collector refreshes.</td>
 </tr>
 <tr>
+<td>collectors.dropletmetrics.agentOnly</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Measure only droplets whose listing reports DigitalOcean's monitoring agent, saving the 10 requests a droplet without it costs for no readings. Off by default: the feature is set on droplets created with the agent, so one installed later — or a managed Kubernetes node, which reports readings without it — would go unmeasured and disappear from the metrics.</td>
+</tr>
+<tr>
 <td>collectors.dropletmetrics.concurrency</td>
 <td>int</td>
 <td><code>4</code></td>
