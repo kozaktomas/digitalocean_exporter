@@ -1634,15 +1634,34 @@ own. Set it to <code>0</code> to turn it off, which is what a stub API deserves 
 <a href="monitoring-api/"><code>dropletmetrics</code></a> makes a large account uncomfortable; raising it above
 <code>4</code> moves the exporter towards being rejected rather than throttled.</p>
 <p><strong>Retries.</strong> A request rejected with <code>429</code>, or failed with a <code>5xx</code>, is tried again — three
-attempts in total, waiting as long as the response's <code>Retry-After</code> header asks for, or one
-second and then two when it sends none. So a rejected burst costs a slower refresh rather
-than a failed one. Every attempt is counted by <code>digitalocean_exporter_api_requests_total</code>,
-because every attempt spends from the budget:</p>
+attempts in total. What the exporter waits between them is whatever the response asks for:</p>
+<ul>
+<li><strong>A <code>Retry-After</code> is honoured in full</strong>, however long it is. DigitalOcean sends one when
+  the burst limit is hit, and it names the moment the window reopens; coming back sooner is
+  an attempt certain to be rejected, and a rejected attempt spends from the hourly budget
+  like any other. If that wait does not fit in the time the caller has left — a collector's
+  timeout, or the shutdown of the process — the rejection is returned straight away instead,
+  so the refresh fails on the API's own answer rather than on a deadline, and the attempts
+  it would have spent stay in the budget.</li>
+<li><strong>A response that names no wait</strong> — a <code>5xx</code>, or a <code>429</code> carrying neither signal — is
+  retried after one second, then two, capped at ten.</li>
+<li><strong>A connection that fails outright</strong> — a reset, an unexpected EOF, a name that does not
+  resolve — is retried on the same budget and the same fallback wait. Every request the
+  exporter makes is a bodiless <code>GET</code>, so replaying one is safe; a request with a body would
+  never be retried.</li>
+</ul>
+<p>Two rejections are not retried at all. A <code>429</code> that carries no <code>Retry-After</code> and reports
+<code>RateLimit-Remaining: 0</code> is the <strong>hourly</strong> limit rather than the burst one, and nothing
+frees that up before the hour turns. And a <code>4xx</code> other than <code>429</code> is the exporter's own
+fault: a <code>401</code> is a bad token and a <code>403</code> a missing scope, neither of which improves on a
+second attempt.</p>
+<p>So a rejected burst costs a slower refresh rather than a failed one. Every attempt is
+counted by <code>digitalocean_exporter_api_requests_total</code>, because every attempt spends from
+the budget:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">status</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
 </code></pre></div>
 <p>A rising <code>429</code> rate means the rate limit is set too high for what the collectors are asking
-of it. Retries do not cover <code>4xx</code> responses other than <code>429</code>: a <code>401</code> is a bad token and a
-<code>403</code> a missing scope, and neither improves on a second attempt.</p>
+of it.</p>
 <p><strong>Staggered refreshes.</strong> Collectors all default to a <code>5m</code> interval and all start together, so
 without help they would fire as one burst every five minutes. Each one's first refresh is
 therefore held back by an even share of a window — the <strong>shortest interval</strong> any enabled

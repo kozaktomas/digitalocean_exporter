@@ -1618,7 +1618,10 @@ always <code>dropletmetrics</code> on an account with more droplets than the ari
 interval, or turn it off.</p>
 <p>Note that a second replica of the exporter doubles the spend. Run one.</p>
 <p>The per-minute limit is a separate matter, and the exporter defends it itself: it paces its
-requests at <code>--do.rate-limit</code> a second and retries the rejections it does get. A <code>429</code> rate
+requests at <code>--do.rate-limit</code> a second and retries the burst rejections it does get, waiting
+as long as their <code>Retry-After</code> asks — unless that wait is longer than the collector has left,
+in which case the refresh fails at once rather than burning attempts. A rejection of <em>this</em>
+limit, the hourly one, carries no <code>Retry-After</code> and is never retried. A <code>429</code> rate
 that is not zero means the limit is set higher than the collectors can afford —
 <code>sum by (status) (rate(digitalocean_exporter_api_requests_total[5m]))</code> shows it. See
 <a href="../configuration/#staying-under-the-burst-limit">staying under the burst limit</a>.</p>
