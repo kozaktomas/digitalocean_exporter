@@ -657,3 +657,34 @@ func TestParseRateLimitCanBeSet(t *testing.T) {
 		t.Errorf("rate limit from the environment = %v, want 2.5", cfg.RateLimit)
 	}
 }
+
+// The API base URL used to be read straight from the environment, outside the
+// flag parser, which made an endpoint that redirects every request the one
+// setting the exporter could not report on. It is a flag now — hidden, because
+// it exists for development and the smoke test rather than for operators.
+func TestParseAPIBaseURL(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.APIBaseURL != "" {
+		t.Errorf("default API base URL = %q, want the public API", cfg.APIBaseURL)
+	}
+
+	t.Setenv("DO_API_BASE_URL", "http://127.0.0.1:19213/")
+	cfg, err = config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.APIBaseURL != "http://127.0.0.1:19213/" {
+		t.Errorf("API base URL from the environment = %q", cfg.APIBaseURL)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--do.api-base-url", "http://stub/"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.APIBaseURL != "http://stub/" {
+		t.Errorf("API base URL from the flag = %q", cfg.APIBaseURL)
+	}
+}

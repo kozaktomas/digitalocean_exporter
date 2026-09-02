@@ -97,6 +97,9 @@ type Config struct {
 	WebConfigFile string
 	// Token is the resolved DigitalOcean API token.
 	Token string
+	// APIBaseURL overrides the public DigitalOcean API endpoint when it is not
+	// empty. Empty is the default and means the public API.
+	APIBaseURL string
 	// Timeout bounds a single collector refresh unless the collector sets its
 	// own.
 	Timeout time.Duration
@@ -127,14 +130,15 @@ type collectorFlags struct {
 
 // flags holds every bound flag before validation turns them into a Config.
 type flags struct {
-	listen    *string
-	webConfig *string
-	token     *string
-	tokenFile *string
-	timeout   *time.Duration
-	rateLimit *float64
-	logLevel  *string
-	logFormat *string
+	listen     *string
+	webConfig  *string
+	token      *string
+	tokenFile  *string
+	apiBaseURL *string
+	timeout    *time.Duration
+	rateLimit  *float64
+	logLevel   *string
+	logFormat  *string
 	// simple holds the collectors configured by nothing but an enable switch
 	// and an interval, keyed by collector name.
 	simple           map[string]*collectorFlags
@@ -229,6 +233,14 @@ func bind(app *kingpin.Application) *flags {
 		Envar("DIGITALOCEAN_TOKEN").Default("").String()
 	f.tokenFile = app.Flag("do.token-file", "File holding the DigitalOcean API token.").
 		Envar("DIGITALOCEAN_TOKEN_FILE").Default("").String()
+	// Hidden because pointing the exporter at something other than the public
+	// API is a development and smoke-test affair, not an operational one. It is
+	// a flag rather than a bare os.Getenv so that it is parsed, validated and
+	// logged like every other setting: an endpoint that quietly redirects every
+	// request is otherwise invisible in a running exporter.
+	f.apiBaseURL = app.Flag("do.api-base-url",
+		"DigitalOcean API base URL. Empty means the public API.").
+		Envar("DO_API_BASE_URL").Default("").Hidden().String()
 	f.timeout = app.Flag("do.timeout", "Timeout of a single collector refresh.").
 		Envar("DO_TIMEOUT").Default("30s").Duration()
 	f.rateLimit = app.Flag("do.rate-limit",
@@ -360,6 +372,7 @@ func (f *flags) config() (*Config, error) {
 		ListenAddress:                  *f.listen,
 		WebConfigFile:                  *f.webConfig,
 		Token:                          token,
+		APIBaseURL:                     *f.apiBaseURL,
 		Timeout:                        *f.timeout,
 		RateLimit:                      *f.rateLimit,
 		LogLevel:                       *f.logLevel,

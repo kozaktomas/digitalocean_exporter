@@ -62,6 +62,36 @@ collectors:
 --collector.droplets --collector.droplets.interval=10m
 ```
 
+## Probes
+
+The two probes point at different endpoints because they answer different questions.
+
+```yaml
+livenessProbe:
+  httpGet: {path: /healthz, port: metrics}
+readinessProbe:
+  httpGet: {path: /readyz, port: metrics}
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  failureThreshold: 45
+```
+
+`/healthz` answers without consulting a collector, which is what liveness wants: a refresh
+that cannot reach the DigitalOcean API is not fixed by killing the pod, and killing it throws
+away the snapshots every other collector holds.
+
+`/readyz` answers 503 until every enabled collector has refreshed successfully at least once.
+That is the honest readiness condition, because a collector emits nothing before its first
+success — a pod that went Ready earlier would join the Service and serve scrapes missing
+whole metrics. Afterwards it stays 200 even while a collector is failing, so a later API
+outage does not take the exporter out of the Service and stop the scrape that reports it.
+
+The failure threshold is generous on purpose: `10s × 45` plus the initial delay is 7m40s,
+which covers the default `5m` collector interval plus a slow first refresh. A pod still
+unready after that has a collector that cannot succeed rather than one that is slow — most
+often `balance` on a token without the billing scope. [Operations](../operations.md#the-pod-never-becomes-ready)
+covers what to do about it.
+
 ## Security posture
 
 The pod runs as UID 65532, non-root, with `seccompProfile: RuntimeDefault`. The token is

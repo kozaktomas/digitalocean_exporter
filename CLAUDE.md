@@ -61,7 +61,12 @@ failure never reaches the scheduler. It must not cost the ones that succeeded.
 drop metrics on error: a gap in a graph reads as DigitalOcean itself going away, which is a
 different incident from "the exporter cannot reach the API".
 
-Before its first successful refresh a collector emits nothing, rather than zeros.
+Before its first successful refresh a collector emits nothing, rather than zeros. That is
+what readiness is made of: `/readyz` answers 503, naming the collectors still waiting,
+until every enabled one has refreshed successfully once, and 200 from then on even if one
+later fails — by then the pod has values worth serving, and dropping it out of the Service
+would stop the scrape that reports the failure. `/healthz` is the liveness probe and never
+consults a collector.
 
 **A panic in a `Refresh` is a failed refresh, not a dead process.** The scheduler recovers
 it, logs the value and the stack, and records it exactly like any other failure — sixteen

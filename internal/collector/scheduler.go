@@ -43,6 +43,13 @@ type Scheduler struct {
 	success  *prometheus.GaugeVec
 	duration *prometheus.GaugeVec
 	lastOK   *prometheus.GaugeVec
+
+	// mu guards ready, which is written from every collector's loop and read
+	// from the readiness handler on the HTTP server's goroutines.
+	mu sync.Mutex
+	// ready holds the collectors that have completed at least one successful
+	// refresh, by name. Names are unique: a collector is registered once.
+	ready map[string]bool
 }
 
 // entry pairs a collector with the interval it refreshes on and the timeout
@@ -59,6 +66,7 @@ func NewScheduler(timeout time.Duration, logger *slog.Logger, reg prometheus.Reg
 	s := &Scheduler{
 		timeout: timeout,
 		logger:  logger,
+		ready:   make(map[string]bool),
 		success: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "digitalocean_exporter_collector_success",
 			Help: "Whether the collector's last refresh succeeded.",
@@ -96,6 +104,38 @@ func (s *Scheduler) Register(c Collector, interval, timeout time.Duration) {
 		interval = defaultInterval
 	}
 	s.entries = append(s.entries, entry{collector: c, interval: interval, timeout: timeout})
+}
+
+// Pending returns the registered collectors that have not yet completed a
+// successful refresh, in registration order. It is empty once every one of
+// them holds a snapshot, and empty from the start when nothing is registered.
+//
+// This is what readiness is made of. A collector emits nothing at all before
+// its first success — not zeros — so a scrape taken earlier is silently
+// missing whole metrics rather than reporting them as unknown, and a pod that
+// answers it is not yet serving what it was rolled out for.
+//
+// Register is called before Run, so entries is only read here.
+func (s *Scheduler) Pending() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	pending := make([]string, 0, len(s.entries))
+	for _, e := range s.entries {
+		if name := e.collector.Name(); !s.ready[name] {
+			pending = append(pending, name)
+		}
+	}
+	return pending
+}
+
+// markReady records that a collector has produced its first snapshot. Later
+// successes cost a map write that changes nothing, which is cheaper than the
+// bookkeeping needed to avoid it.
+func (s *Scheduler) markReady(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ready[name] = true
 }
 
 // Names returns the names of the registered collectors, in registration order.
@@ -230,6 +270,7 @@ func (s *Scheduler) refresh(runCtx context.Context, c Collector, timeout time.Du
 
 	s.success.WithLabelValues(name).Set(1)
 	s.lastOK.WithLabelValues(name).Set(float64(time.Now().Unix()))
+	s.markReady(name)
 }
 
 // guardedRefresh calls the collector's Refresh and turns a panic into an error.

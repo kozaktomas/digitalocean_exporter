@@ -668,3 +668,67 @@ digitalocean_exporter_api_requests_total{collector="account",resource="account",
 		t.Errorf("request counter: %v", err)
 	}
 }
+
+// Readiness is what a collector's first successful refresh buys: before it,
+// the collector emits nothing at all, so a pod answering scrapes is quietly
+// serving an incomplete account of DigitalOcean. Pending is how the readiness
+// endpoint learns which collectors are still in that state.
+func TestSchedulerPendingClearsAsCollectorsFirstSucceed(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		reg := prometheus.NewRegistry()
+		scheduler := collector.NewScheduler(time.Second, discardLogger(), reg)
+		ok, failing := newNamedFake("ok"), newNamedFake("failing")
+		failing.setErr(errors.New("api unreachable"))
+		scheduler.Register(ok, time.Minute, 0)
+		scheduler.Register(failing, time.Minute, 0)
+		reg.MustRegister(scheduler)
+
+		if got := scheduler.Pending(); len(got) != 2 {
+			t.Fatalf("pending before Run = %v, want both collectors", got)
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go scheduler.Run(ctx)
+
+		// Past the stagger, so both collectors have had their first refresh.
+		time.Sleep(time.Second)
+		synctest.Wait()
+
+		want := []string{"failing"}
+		if got := scheduler.Pending(); len(got) != 1 || got[0] != want[0] {
+			t.Fatalf("pending after the first round = %v, want %v", got, want)
+		}
+
+		// A collector that comes good late still counts, and nothing else has
+		// to happen for readiness to notice.
+		failing.setErr(nil)
+		time.Sleep(time.Minute)
+		synctest.Wait()
+
+		if got := scheduler.Pending(); len(got) != 0 {
+			t.Fatalf("pending after every collector succeeded = %v, want none", got)
+		}
+
+		// A later failure does not undo it: the snapshot is still there, and
+		// dropping the pod out of the Service would stop the scrape that
+		// reports the failure.
+		failing.setErr(errors.New("api unreachable again"))
+		time.Sleep(time.Minute)
+		synctest.Wait()
+
+		if got := scheduler.Pending(); len(got) != 0 {
+			t.Fatalf("pending after a later failure = %v, want none", got)
+		}
+	})
+}
+
+// A scheduler with nothing registered has nothing to wait for. Answering 503
+// forever would leave an exporter with every collector switched off
+// permanently unready.
+func TestSchedulerPendingIsEmptyWithoutCollectors(t *testing.T) {
+	scheduler := collector.NewScheduler(time.Second, discardLogger(), prometheus.NewRegistry())
+	if got := scheduler.Pending(); len(got) != 0 {
+		t.Fatalf("pending = %v, want none", got)
+	}
+}

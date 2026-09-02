@@ -192,6 +192,18 @@ if [ "$succeeded" -ne "$EXPECTED_COLLECTORS" ]; then
   exit 1
 fi
 
+# Readiness is a claim about exactly that state, so assert it against it: with
+# every collector refreshed, /readyz must be 200. It answers 503 until then,
+# which is why the startup wait above uses /healthz instead.
+ready_status="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/readyz")"
+if [ "$ready_status" = "200" ]; then
+  echo "ok   /readyz is 200 once every collector has refreshed"
+else
+  echo "FAIL /readyz returned ${ready_status} with every collector refreshed"
+  curl -s "http://127.0.0.1:${PORT}/readyz"
+  exit 1
+fi
+
 # Every API request is attributed to the collector whose refresh made it, which
 # only works if the scheduler's context reaches the transport. A counter with
 # nothing but collector="none" would still look fine metric by metric.

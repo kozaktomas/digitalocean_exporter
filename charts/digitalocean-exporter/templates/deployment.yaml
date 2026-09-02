@@ -173,14 +173,37 @@ spec:
           ports:
             - name: metrics
               containerPort: {{ .Values.service.port }}
+          {{- /*
+          Liveness asks whether the process is worth killing, so it stays on
+          /healthz, which answers without consulting a collector: a refresh that
+          cannot reach the DigitalOcean API is not fixed by a restart, and a
+          restart throws away every snapshot the other collectors hold.
+          */}}
           livenessProbe:
             httpGet:
               path: /healthz
               port: metrics
+          {{- /*
+          Readiness is the opposite question, and /readyz answers it honestly:
+          503 until every enabled collector has refreshed once. A collector
+          emits nothing before its first success, so a pod that goes Ready
+          earlier joins the Service and serves scrapes that are missing whole
+          metrics.
+
+          The budget is generous on purpose. Every collector defaults to a 5m
+          interval and the two that fan out allow themselves 2m for one refresh,
+          so a pod can legitimately take past seven minutes to have everything;
+          10s * 45 plus the initial delay is 7m40s. A pod that has not made it
+          by then has a collector that is failing rather than slow, which is
+          what the failure is meant to report.
+          */}}
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /readyz
               port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 45
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

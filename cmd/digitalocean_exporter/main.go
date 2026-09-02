@@ -5,10 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -74,16 +76,19 @@ func run(args []string) error {
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
 
-	apiMetrics := doclient.NewMetrics(reg)
-	userAgent := "digitalocean_exporter/" + version.Version
+	// A redirected API endpoint exists so the smoke test can run offline, and
+	// in production it is unset. Say so when it is not: every metric then
+	// describes something other than DigitalOcean, and nothing else in the
+	// exporter's output gives that away.
+	if cfg.APIBaseURL != "" {
+		logger.Info("using a non-default DigitalOcean API base URL", "url", cfg.APIBaseURL)
+	}
 
-	// DO_API_BASE_URL points the client at a stub API. It exists so the smoke
-	// test can run offline; in production it is unset and the public endpoint
-	// is used.
+	apiMetrics := doclient.NewMetrics(reg)
 	client, err := doclient.New(doclient.Config{
 		Token:     cfg.Token,
-		BaseURL:   os.Getenv("DO_API_BASE_URL"),
-		UserAgent: userAgent,
+		BaseURL:   cfg.APIBaseURL,
+		UserAgent: "digitalocean_exporter/" + version.Version,
 		Timeout:   cfg.Timeout,
 		RateLimit: cfg.RateLimit,
 		Metrics:   apiMetrics,
@@ -96,11 +101,16 @@ func run(args []string) error {
 	registerCollectors(scheduler, cfg, client, logger)
 	reg.MustRegister(scheduler)
 
+	handler, err := newHandler(reg, scheduler, logger)
+	if err != nil {
+		return err
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go scheduler.Run(ctx)
 
-	return serve(ctx, cfg, reg, logger)
+	return serve(ctx, cfg, handler, logger)
 }
 
 // registerCollectors enables the collectors the configuration asks for.
@@ -172,27 +182,95 @@ func newLogger(cfg *config.Config) *slog.Logger {
 	return promslog.New(&promslog.Config{Level: level, Format: format})
 }
 
-// serve runs the metrics HTTP server until ctx is cancelled.
-func serve(ctx context.Context, cfg *config.Config, reg *prometheus.Registry, logger *slog.Logger) error {
+// readinessReporter names the collectors that have not yet produced a
+// snapshot. The scheduler is the only implementation; the interface is here so
+// the HTTP routes can be tested without one.
+type readinessReporter interface {
+	Pending() []string
+}
+
+// newHandler builds the exporter's HTTP routes: metrics, the two probes and
+// the landing page that lists them.
+func newHandler(reg *prometheus.Registry, ready readinessReporter, logger *slog.Logger) (http.Handler, error) {
 	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}))
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok\n"))
-	})
+	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{
+		Registry: reg,
+		// One collector emitting a duplicate label set or a metric it never
+		// described must not take the scrape down with it. The default is a
+		// 500 with no body at all, which drops every other collector's metrics
+		// too and reads exactly like the exporter going away — the gap that
+		// looks like an outage. Continuing serves what could be gathered, logs
+		// what could not, and still counts the failure in
+		// promhttp_metric_handler_errors_total.
+		ErrorHandling: promhttp.ContinueOnError,
+		ErrorLog:      slog.NewLogLogger(logger.Handler(), slog.LevelError),
+	}))
+	mux.HandleFunc("/healthz", handleHealthz)
+	mux.HandleFunc("/readyz", handleReadyz(ready))
 
 	landing, err := web.NewLandingPage(web.LandingConfig{
 		Name:        "DigitalOcean Exporter",
 		Description: "Prometheus exporter for DigitalOcean.",
 		Version:     version.Version,
-		Links:       []web.LandingLinks{{Address: "/metrics", Text: "Metrics"}},
+		Links: []web.LandingLinks{
+			{Address: "/metrics", Text: "Metrics", Description: "The exposition the collectors feed."},
+			{Address: "/healthz", Text: "Health", Description: "Liveness: the process is running."},
+			{Address: "/readyz", Text: "Readiness",
+				Description: "Readiness: every enabled collector has a snapshot."},
+		},
 	})
 	if err != nil {
-		return fmt.Errorf("build landing page: %w", err)
+		return nil, fmt.Errorf("build landing page: %w", err)
 	}
 	mux.Handle("/", landing)
 
-	server := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	return mux, nil
+}
+
+// handleHealthz answers the liveness probe, and answers it unconditionally on
+// purpose. Liveness asks whether the process is worth killing, and a collector
+// that cannot reach DigitalOcean is not a question a restart answers: the next
+// refresh happens anyway, while a restart throws away the snapshots every
+// other collector does hold. That question belongs to readiness.
+func handleHealthz(w http.ResponseWriter, _ *http.Request) {
+	writePlain(w, http.StatusOK, "ok\n")
+}
+
+// handleReadyz answers the readiness probe: 200 once every enabled collector
+// has completed one successful refresh, and 503 naming the ones still waiting
+// until then. With no collectors enabled there is nothing to wait for and it
+// is 200 from the start.
+//
+// It stays 200 afterwards even while a collector is failing, because by then
+// the pod has metrics to serve and its previous values are the best available
+// account of DigitalOcean. Taking it out of the Service at that point would
+// stop the scrape that reports the failure.
+func handleReadyz(ready readinessReporter) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		pending := ready.Pending()
+		if len(pending) == 0 {
+			writePlain(w, http.StatusOK, "ok\n")
+			return
+		}
+		writePlain(w, http.StatusServiceUnavailable,
+			"waiting for the first successful refresh of:\n"+strings.Join(pending, "\n")+"\n")
+	}
+}
+
+// writePlain writes a plain-text body under the given status. The probes are
+// read by kubelet and by whoever is curling them during an incident, so the
+// body is a few lines meant for a person and the content type says as much.
+func writePlain(w http.ResponseWriter, status int, body string) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(status)
+	// The body is assembled here from constants and the exporter's own
+	// collector names, and is served as text/plain.
+	_, _ = io.WriteString(w, body) //nolint:gosec // no request data reaches the response.
+}
+
+// serve runs the metrics HTTP server until ctx is cancelled.
+func serve(ctx context.Context, cfg *config.Config, handler http.Handler, logger *slog.Logger) error {
+	server := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second}
 
 	go func() {
 		<-ctx.Done()

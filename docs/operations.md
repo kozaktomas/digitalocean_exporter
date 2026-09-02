@@ -2,6 +2,45 @@
 
 Running it, scraping it, and working out what is wrong when a number stops moving.
 
+## Endpoints
+
+Everything is served on the port `--web.listen-address` binds, `:9212` by default.
+
+| Path | What it is for |
+|---|---|
+| `/metrics` | The exposition Prometheus scrapes |
+| `/healthz` | Liveness: 200 for as long as the process is running |
+| `/readyz` | Readiness: 200 once every enabled collector has refreshed successfully at least once, 503 naming the ones still waiting until then |
+| `/` | A landing page linking to the other three |
+
+The two probes answer deliberately different questions, and the Helm chart wires each one to
+the question it answers — see [probes](helm/index.md#probes).
+
+`/healthz` never consults a collector. Liveness asks whether the process is worth killing,
+and a collector that cannot reach the DigitalOcean API is not a question a restart answers:
+the next refresh happens anyway, while a restart throws away the snapshots every other
+collector is still holding.
+
+`/readyz` is the one a collector can hold down, and only before its first success. A
+collector emits nothing at all until it has refreshed once — not zeros — so a pod that
+reports itself Ready any earlier joins the Service and serves scrapes that are quietly
+missing whole metrics:
+
+```console
+$ curl -sS -i localhost:9212/readyz
+HTTP/1.1 503 Service Unavailable
+Content-Type: text/plain; charset=utf-8
+
+waiting for the first successful refresh of:
+balance
+dropletmetrics
+```
+
+Once every collector has a snapshot it stays 200, even while one of them is failing. By then
+the pod has values worth serving, and dropping it out of the Service would stop the very
+scrape that reports the failure. With every collector disabled there is nothing to wait for
+and `/readyz` is 200 from the start.
+
 ## Scraping
 
 ```yaml
@@ -22,6 +61,23 @@ To learn how stale a value is, use the collector's own timestamp:
 ```promql
 time() - digitalocean_exporter_collector_last_success_timestamp_seconds
 ```
+
+### One bad series does not fail the scrape
+
+Building the exposition can fail: a collector that derives labels from an API response can
+meet two resources that produce the same label set, or emit a metric it never described. The
+exporter serves everything it could gather anyway, logs the failure at error level naming the
+metric behind it, and leaves it countable:
+
+```promql
+rate(promhttp_metric_handler_errors_total[5m])
+```
+
+The alternative — and the default of the library that serves `/metrics` — is an empty HTTP
+500. One collector's bug would then take every other collector's metrics with it, which on a
+dashboard is indistinguishable from the exporter going away: the gap that reads as an
+outage. A `promhttp_metric_handler_errors_total` that is not flat is a bug in the exporter
+worth reporting, and the log line says which metric caused it.
 
 ## Health metrics
 
@@ -84,6 +140,27 @@ before a restart are therefore not the ones to read as an outage.
 The most common answer by far is `balance`: `403 Forbidden` from
 `/v2/customers/my/balance` because the token has no billing scope. Turn that collector off —
 see [balance](configuration/collectors.md#balance).
+
+### The pod never becomes Ready
+
+`/readyz` stays 503 while any enabled collector has never once refreshed successfully, and
+its body names them:
+
+```bash
+kubectl port-forward deploy/digitalocean-exporter 9212:9212 &
+curl -s localhost:9212/readyz
+kubectl logs deploy/digitalocean-exporter | grep 'collector refresh failed'
+```
+
+The answer is almost always `balance` on a token without the billing scope: that collector
+can never succeed, so it holds readiness down for good. Turn it off — see
+[balance](configuration/collectors.md#balance).
+
+A collector that merely failed its *first* attempt is the other case. It retries on its own
+interval and nothing else, so a collector deliberately slowed to an hour stays pending for an
+hour after one bad response. The chart's readiness probe allows a little over seven minutes,
+which covers the default `5m` interval plus a slow first refresh; past that, the pod is
+reporting a collector that is failing rather than one that is slow.
 
 ### The exporter exits at startup
 
