@@ -1589,7 +1589,13 @@ refresh interval.</p>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>digitalocean-exporter<span class="w"> </span>-n<span class="w"> </span><span class="m">50</span><span class="w">        </span><span class="c1"># or: kubectl logs deploy/digitalocean-exporter</span>
 </code></pre></div>
 <p>The refresh failure is logged with its reason each time it happens, because that failure
-never reaches Prometheus as anything but a <code>0</code>.</p>
+never reaches Prometheus as anything but a <code>0</code>. A collector that hit a bug rather than an
+API error logs <code>collector refresh panicked</code> with the panic value and a stack trace; the
+exporter keeps running and keeps refreshing that collector, so the <code>0</code> is the symptom and
+the stack trace is the report worth filing.</p>
+<p>Shutdown is not a failure: a refresh still in flight when the exporter is stopped is
+abandoned quietly, at debug level, without touching <code>collector_success</code>. The last lines
+before a restart are therefore not the ones to read as an outage.</p>
 <p>The most common answer by far is <code>balance</code>: <code>403 Forbidden</code> from
 <code>/v2/customers/my/balance</code> because the token has no billing scope. Turn that collector off —
 see <a href="../configuration/collectors/#balance">balance</a>.</p>

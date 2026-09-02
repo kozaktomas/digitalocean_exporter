@@ -1645,10 +1645,12 @@ of it. Retries do not cover <code>4xx</code> responses other than <code>429</cod
 <code>403</code> a missing scope, and neither improves on a second attempt.</p>
 <p><strong>Staggered refreshes.</strong> Collectors all default to a <code>5m</code> interval and all start together, so
 without help they would fire as one burst every five minutes. Each one's first refresh is
-therefore held back by an even share of a window — its own interval, or <strong>three seconds</strong>,
-whichever is shorter — and every later refresh keeps that phase. The ceiling is what keeps
-<code>/metrics</code> worth scraping moments after startup; the order is the order the collectors are
-registered in, so it is the same on every run.</p>
+therefore held back by an even share of a window — the <strong>shortest interval</strong> any enabled
+collector is configured with, or <strong>three seconds</strong>, whichever is smaller — and every later
+refresh keeps that phase. One window for the whole set is what makes the offsets distinct
+even when the intervals differ; the ceiling is what keeps <code>/metrics</code> worth scraping moments
+after startup; and the order is the order the collectors are registered in, so it is the
+same on every run.</p>
 <h2 id="serving-metrics">Serving metrics<a class="headerlink" href="#serving-metrics" title="Permanent link">&para;</a></h2>
 <p><code>--web.listen-address</code> defaults to <code>:9212</code>, the port
 <a href="https://github.com/prometheus/prometheus/wiki/Default-port-allocations">allocated to this exporter</a>.</p>

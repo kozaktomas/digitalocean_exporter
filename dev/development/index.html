@@ -1492,6 +1492,10 @@ that calls the API from <code>Collect</code>.</p>
   Never drop metrics on error.</li>
 <li><strong>Build the whole new snapshot before swapping it in</strong>, behind a mutex, so a partial
   failure changes nothing.</li>
+<li><strong>A panic is just a failed refresh.</strong> The scheduler recovers panics raised by <code>Refresh</code>,
+  logs the value and the stack, and records <code>collector_success 0</code>; the collector keeps its
+  previous snapshot and is refreshed again on schedule. One unexpected API response must
+  not take the other collectors down with it.</li>
 </ul>
 <p>A collector that measures many things at once — buckets, droplets — isolates them: one that
 fails keeps its own previous values, reports its own <code>_up 0</code>, and logs why, since that
