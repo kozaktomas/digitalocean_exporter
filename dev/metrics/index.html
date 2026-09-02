@@ -2630,7 +2630,10 @@ with credentials of its own; that is a separate exporter's job, not this one's.<
 <p><code>storage_bytes</code> is the storage the plan allocates, again not the storage in use.</p>
 <p>godo does not expose the pagination links of this endpoint, so the collector treats a full
 page as the signal that another may follow. An account whose cluster count divides exactly
-by the page size costs one extra empty request per refresh.</p>
+by the page size costs one extra empty request per refresh. The walk also stops at the first
+cluster it has already seen: the endpoint documents no paging at all, and one that ignores
+the page parameter would otherwise be asked for page 2, 3 and so on until the refresh died
+on its deadline.</p>
 <h2 id="container-registry">Container registry<a class="headerlink" href="#container-registry" title="Permanent link">&para;</a></h2>
 <p>Collected by <code>registry</code> from <code>/v2/registries</code>, <code>/v2/registries/subscription</code> and
 <code>/v2/registries/{name}/repositoriesV2</code>: two GETs per refresh plus one per registry, and one
