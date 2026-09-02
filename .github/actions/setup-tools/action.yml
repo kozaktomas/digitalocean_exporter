@@ -1,0 +1,60 @@
+name: Set up tools
+description: >
+  Installs the toolchain the quality gate runs on, at one pinned set of versions.
+  CI and the release gate both come through here, so a release can never be checked
+  with a different toolchain than the one that went green on main.
+
+inputs:
+  tools:
+    description: >
+      Space-separated subset of `go`, `golangci-lint`, `helm`, `promtool` and
+      `helm-docs`. A job installs only what it runs, so nothing waits on a download
+      it has no use for. `golangci-lint` needs `go` named alongside it: it installs
+      into the GOPATH.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # The list is matched with spaces around it so that `go` does not also select
+    # `golangci-lint`.
+    - name: Install Go
+      if: contains(format(' {0} ', inputs.tools), ' go ')
+      uses: actions/setup-go@v7
+      with:
+        go-version: "1.26"
+        cache: true
+
+    - name: Install golangci-lint
+      if: contains(format(' {0} ', inputs.tools), ' golangci-lint ')
+      shell: bash
+      run: |
+        set -euo pipefail
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
+          | sh -s -- -b "$(go env GOPATH)/bin" v2.11.4
+        echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+    - name: Install Helm
+      if: contains(format(' {0} ', inputs.tools), ' helm ')
+      uses: azure/setup-helm@v5
+
+    # promtool is the only thing that catches a malformed rule expression before
+    # Prometheus refuses to load the whole group. Taken from the release tarball
+    # rather than go install, which would compile all of Prometheus.
+    - name: Install promtool
+      if: contains(format(' {0} ', inputs.tools), ' promtool ')
+      shell: bash
+      run: |
+        set -euo pipefail
+        version=3.7.3
+        curl -sSfL "https://github.com/prometheus/prometheus/releases/download/v${version}/prometheus-${version}.linux-amd64.tar.gz" \
+          | tar -xz -C /usr/local/bin --strip-components=1 "prometheus-${version}.linux-amd64/promtool"
+
+    - name: Install helm-docs
+      if: contains(format(' {0} ', inputs.tools), ' helm-docs ')
+      shell: bash
+      run: |
+        set -euo pipefail
+        version=1.14.2
+        curl -sSfL "https://github.com/norwoodj/helm-docs/releases/download/v${version}/helm-docs_${version}_Linux_x86_64.tar.gz" \
+          | tar -xz -C /usr/local/bin helm-docs

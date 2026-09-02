@@ -15,7 +15,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The documented release order is "push the tag, then the branch", so CI on `main` has
+  # not started — let alone finished — when this workflow runs. Without this job the
+  # binaries, the deb package, the chart and the documentation would all ship from a
+  # commit nothing had checked. It is the same gate CI runs, on the same toolchain,
+  # through the same composite action.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          tools: go golangci-lint helm promtool
+
+      - name: Quality gate
+        run: make check
+
+      - name: Check the alerting rules
+        run: make alerts-lint
+
+      - name: Lint and render the chart
+        run: make chart-lint
+
+      - name: Smoke test
+        run: make smoke
+
   release:
+    needs: check
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -41,11 +68,16 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "minor=${version%.*}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-go@v7
+      - uses: ./.github/actions/setup-tools
         with:
-          go-version: "1.26"
+          tools: go helm
 
-      - uses: azure/setup-helm@v5
+      # The chart version, the appVersion and every pinned version in the documentation
+      # are text: nothing else in this workflow notices when the tag disagrees with them,
+      # and the result is a published chart that contradicts its own install
+      # instructions. Checked before packaging, so a mismatch costs nothing.
+      - name: Check the tree matches the tag
+        run: ./scripts/release-version-check.sh "${{ steps.version.outputs.version }}"
 
       - name: Package the Helm chart
         run: |
@@ -62,7 +94,9 @@ jobs:
       - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
-          version: latest
+          # Pinned to the major version: `latest` would move the release tooling under
+          # a tag that was never built with it.
+          version: "~> v2"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

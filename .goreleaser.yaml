@@ -2,9 +2,9 @@ version: 2
 
 project_name: digitalocean_exporter
 
-before:
-  hooks:
-    - go mod tidy
+# No before-hooks on purpose. `go mod tidy` here would rewrite go.mod and go.sum on
+# the release runner, after every check has passed, and build a module graph nobody
+# reviewed. CI checks that the commit is already tidy instead.
 
 builds:
   - id: digitalocean_exporter

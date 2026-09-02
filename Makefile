@@ -67,9 +67,11 @@ snapshot:
 alerts-lint:
 	promtool check rules charts/digitalocean-exporter/alerts/*.yaml
 
-## chart-lint: Lint and render the Helm chart.
+## chart-lint: Lint and render the Helm chart in every configuration that has a branch.
 chart-lint:
-	helm lint charts/digitalocean-exporter --set digitalocean.token=dummy
+# --strict, so a warning about the chart metadata fails here rather than surfacing
+# on somebody's `helm install`.
+	helm lint charts/digitalocean-exporter --strict --set digitalocean.token=dummy
 	helm template charts/digitalocean-exporter --set digitalocean.token=dummy >/dev/null
 # The dashboards are off by default, so the branch that renders them would never
 # be exercised without a second run that switches them on.
@@ -82,7 +84,24 @@ chart-lint:
 	helm template charts/digitalocean-exporter --set digitalocean.token=dummy \
 		--set 'imagePullSecrets[0].name=registry' --set podAnnotations.example=1 \
 		--set priorityClassName=low --set 'extraArgs[0]=--do.timeout=20s' >/dev/null
-# Name collisions and an unstable pod-template checksum both render without error.
+# The spaces collector is the one with credentials of its own, a region and a bucket
+# list; `name@region` is the form the region-scoped bucket flag takes.
+	helm template charts/digitalocean-exporter --set digitalocean.token=dummy \
+		--set collectors.spaces.enabled=true \
+		--set spaces.accessKey=key --set spaces.secretKey=secret \
+		--set collectors.spaces.region=fra1 \
+		--set 'collectors.spaces.buckets[0]=backups' \
+		--set 'collectors.spaces.buckets[1]=media@ams3' >/dev/null
+# An externally managed Secret with a key name of its own: the branch that renders no
+# Secret at all, and mounts a key the chart did not choose.
+	helm template charts/digitalocean-exporter \
+		--set digitalocean.existingSecret=digitalocean-token \
+		--set digitalocean.existingSecretKey=api-token >/dev/null
+	helm template charts/digitalocean-exporter --set digitalocean.token=dummy \
+		--set serviceMonitor.enabled=true \
+		--set serviceMonitor.labels.release=kube-prometheus-stack >/dev/null
+# Name collisions, an unstable pod-template checksum and the disabled branch of every
+# collector: three things that render without error and are still wrong.
 	./scripts/chart-invariants.sh
 
 ## chart-docs: Regenerate the chart README from the comments in values.yaml.

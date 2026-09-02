@@ -11,11 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: "1.26"
-  GOLANGCI_LINT_VERSION: "v2.11.4"
-  HELM_DOCS_VERSION: "1.14.2"
   PYTHON_VERSION: "3.13"
-  PROMETHEUS_VERSION: "3.7.3"
 
 jobs:
   check:
@@ -23,16 +19,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v7
+      - uses: ./.github/actions/setup-tools
         with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
+          tools: go golangci-lint
 
-      - name: Install golangci-lint
+      # goreleaser no longer runs `go mod tidy` of its own accord: a release build that
+      # rewrites go.mod does it after every gate has passed, and ships something nobody
+      # checked. Tidiness is a property of the commit instead, checked here.
+      - name: Check go.mod and go.sum are tidy
         run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
-            | sh -s -- -b "$(go env GOPATH)/bin" "${GOLANGCI_LINT_VERSION}"
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
 
       # `make check` is gofmt (reporting, never rewriting), go vet, golangci-lint,
       # the tests and then the race detector. The race detector is the slowest part
@@ -47,28 +44,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: azure/setup-helm@v5
 
-      # promtool is the only thing that catches a malformed rule expression before
-      # Prometheus refuses to load the whole group. Taken from the release tarball
-      # rather than go install, which would compile all of Prometheus.
-      - name: Install promtool
-        run: |
-          set -euo pipefail
-          curl -sSfL "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz" \
-            | tar -xz -C /usr/local/bin --strip-components=1 "prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool"
+      - uses: ./.github/actions/setup-tools
+        with:
+          tools: helm promtool helm-docs
 
       - name: Check the alerting rules
         run: make alerts-lint
 
       - name: Lint and render the chart
         run: make chart-lint
-
-      - name: Install helm-docs
-        run: |
-          set -euo pipefail
-          curl -sSfL "https://github.com/norwoodj/helm-docs/releases/download/v${HELM_DOCS_VERSION}/helm-docs_${HELM_DOCS_VERSION}_Linux_x86_64.tar.gz" \
-            | tar -xz -C /usr/local/bin helm-docs
 
       # The values reference on the documentation site is this generated file. If the two
       # are allowed to diverge, the site quietly documents a chart that no longer exists.
