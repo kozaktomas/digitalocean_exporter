@@ -60,6 +60,15 @@ load balancers at `5m` is 12 × 70 = 840 requests an hour, which is affordable.
     it changes little; raising it only piles more requests up behind the limiter. Leave it
     at `4` unless you have turned the rate limit off.
 
+    **A refresh that runs out of time is a failed refresh, not a partial one.** The droplets
+    it did reach keep their fresh readings, but the collector reports
+    `digitalocean_exporter_collector_success 0` and logs how many of how many it measured —
+    an account whose fleet no longer fits in its timeout says so instead of quietly
+    publishing two thirds of itself. The next refresh then **starts where that one stopped**,
+    so a fleet slightly too large for its timeout is covered over a few refreshes rather than
+    measuring the head of the list forever while the tail is never measured at all. Both
+    collectors do this.
+
     A burst rejection that does get through comes back with a `retry-after` header, and the
     exporter honours it: the request is retried, up to three attempts, and only then does the
     refresh fail and keep its previous snapshot. Every attempt is counted by
@@ -96,8 +105,27 @@ requests and get the same readings back. `5m` is the default; going below `2m` i
 
 **Droplets without DigitalOcean's monitoring agent report no readings.** The agent is what
 produces this data; a droplet created without it, or one where it stopped, simply has none.
-That is not an exporter failure — the droplet reports `digitalocean_droplet_metrics_up 0`
-and the collector carries on.
+That is not an exporter failure — the request succeeds and returns no series, so the droplet
+reports `digitalocean_droplet_metrics_up 1` with no readings under it, and the collector
+carries on.
+
+Those ten requests per refresh are spent all the same. `--collector.dropletmetrics.agent-only`
+(default off) skips them: the droplet listing the collector already makes says whether a
+droplet has the monitoring agent, and with the flag set only droplets that do are queried.
+On an account where most droplets have no agent, that is most of the collector's cost gone.
+
+!!! warning "The feature is what the droplet was *created* with"
+
+    `agent-only` reads the `monitoring` feature from the droplet listing, and DigitalOcean
+    sets that when the droplet is created with monitoring enabled. **An agent installed
+    afterwards does not set it**, and neither do some droplets that answer the monitoring API
+    anyway — managed Kubernetes nodes, for instance, list `droplet_agent` rather than
+    `monitoring` and still return readings. Such a droplet disappears from the exposition
+    entirely with this flag on: it is not measured, so it reports nothing at all, not even
+    `digitalocean_droplet_metrics_up`.
+
+    Run without the flag first and compare: if a droplet you care about is reporting readings
+    now and vanishes with it on, leave it off.
 
 `--collector.dropletmetrics.concurrency` (default `4`) sets how many droplets are queried
 at once, and `--collector.dropletmetrics.timeout` (default `2m`) bounds one full refresh.
@@ -133,5 +161,7 @@ there are, not which one is sick.
 
 Same knobs, same meanings: `--collector.loadbalancermetrics.interval` (`5m`),
 `--collector.loadbalancermetrics.timeout` (`2m`),
-`--collector.loadbalancermetrics.concurrency` (`4`). A load balancer with no readings
-reports `digitalocean_loadbalancer_metrics_up 0`.
+`--collector.loadbalancermetrics.concurrency` (`4`). A load balancer whose fetch failed
+reports `digitalocean_loadbalancer_metrics_up 0` and keeps its previous readings; one that
+answered with no series at all — a network load balancer has no HTTP metrics ever — is up
+with nothing under it.

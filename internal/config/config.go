@@ -117,6 +117,9 @@ type Config struct {
 	// DropletMetricsConcurrency caps how many droplets the droplet metrics
 	// collector measures at once.
 	DropletMetricsConcurrency int
+	// DropletMetricsAgentOnly limits the droplet metrics collector to the
+	// droplets whose listing reports DigitalOcean's monitoring agent.
+	DropletMetricsAgentOnly bool
 	// LoadBalancerMetricsConcurrency caps how many load balancers the load
 	// balancer metrics collector measures at once.
 	LoadBalancerMetricsConcurrency int
@@ -146,6 +149,7 @@ type flags struct {
 	dmInterval       *time.Duration
 	dmTimeout        *time.Duration
 	dmConcurrency    *int
+	dmAgentOnly      *bool
 	lbMetrics        *bool
 	lbmInterval      *time.Duration
 	lbmTimeout       *time.Duration
@@ -295,6 +299,10 @@ func bindMonitoring(app *kingpin.Application, f *flags) {
 	f.dmConcurrency = app.Flag("collector.dropletmetrics.concurrency",
 		"How many droplets to measure at once.").
 		Envar("COLLECTOR_DROPLETMETRICS_CONCURRENCY").Default("4").Int()
+	f.dmAgentOnly = app.Flag("collector.dropletmetrics.agent-only",
+		"Measure only droplets whose listing reports the monitoring agent. "+
+			"An agent installed after the droplet was created does not set that feature.").
+		Envar("COLLECTOR_DROPLETMETRICS_AGENT_ONLY").Default("false").Bool()
 	f.lbMetrics = app.Flag("collector.loadbalancermetrics",
 		"Enable the load balancer metrics collector. Costs 7 API requests per load balancer.").
 		Envar("COLLECTOR_LOADBALANCERMETRICS").Default("false").Bool()
@@ -380,6 +388,7 @@ func (f *flags) config() (*Config, error) {
 		Collectors:                     collectors,
 		Spaces:                         spaces,
 		DropletMetricsConcurrency:      *f.dmConcurrency,
+		DropletMetricsAgentOnly:        *f.dmAgentOnly,
 		LoadBalancerMetricsConcurrency: *f.lbmConcurrency,
 	}, nil
 }

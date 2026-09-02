@@ -173,6 +173,12 @@ collectors:
     timeout: 2m
     # -- How many droplets are queried at once.
     concurrency: 4
+    # -- Measure only droplets whose listing reports DigitalOcean's monitoring
+    # agent, saving the 10 requests a droplet without it costs for no readings.
+    # Off by default: the feature is set on droplets created with the agent, so
+    # one installed later — or a managed Kubernetes node, which reports
+    # readings without it — would go unmeasured and disappear from the metrics.
+    agentOnly: false
   loadbalancermetrics:
     # -- Report traffic and per-backend health per load balancer, at 7 monitoring
     # API requests per load balancer per refresh. Off by default, but an account

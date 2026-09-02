@@ -140,7 +140,11 @@ func registerCollectors(
 		{"firewalls", func() collector.Collector { return firewalls.New(client) }},
 		{"certificates", func() collector.Collector { return certificates.New(client) }},
 		{"dropletmetrics", func() collector.Collector {
-			return dropletmetrics.New(client, cfg.DropletMetricsConcurrency, logger)
+			return dropletmetrics.New(client, dropletmetrics.Config{
+				Concurrency: cfg.DropletMetricsConcurrency,
+				AgentOnly:   cfg.DropletMetricsAgentOnly,
+				Logger:      logger,
+			})
 		}},
 		{"loadbalancermetrics", func() collector.Collector {
 			return loadbalancermetrics.New(client, cfg.LoadBalancerMetricsConcurrency, logger)

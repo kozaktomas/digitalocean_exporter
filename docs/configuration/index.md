@@ -307,6 +307,7 @@ Off by default because of what they cost. Do the arithmetic on
 | `--collector.dropletmetrics.interval` | `COLLECTOR_DROPLETMETRICS_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.dropletmetrics.timeout` | `COLLECTOR_DROPLETMETRICS_TIMEOUT` | `2m` | Timeout of one full refresh |
 | `--collector.dropletmetrics.concurrency` | `COLLECTOR_DROPLETMETRICS_CONCURRENCY` | `4` | Droplets queried at once |
+| `--collector.dropletmetrics.agent-only` | `COLLECTOR_DROPLETMETRICS_AGENT_ONLY` | `false` | [Skip droplets whose listing reports no monitoring agent](monitoring-api.md#dropletmetrics) |
 | `--collector.loadbalancermetrics` | `COLLECTOR_LOADBALANCERMETRICS` | `false` | [Traffic and backend health](monitoring-api.md#loadbalancermetrics) |
 | `--collector.loadbalancermetrics.interval` | `COLLECTOR_LOADBALANCERMETRICS_INTERVAL` | `5m` | Its refresh interval |
 | `--collector.loadbalancermetrics.timeout` | `COLLECTOR_LOADBALANCERMETRICS_TIMEOUT` | `2m` | Timeout of one full refresh |

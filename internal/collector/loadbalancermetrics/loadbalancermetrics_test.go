@@ -2,12 +2,16 @@ package loadbalancermetrics_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -379,5 +383,181 @@ func TestDescribeCoversEveryMetric(t *testing.T) {
 	}
 	if want := 9; count != want {
 		t.Errorf("Describe sent %d descriptors, want %d", count, want)
+	}
+}
+
+// fleetJSON lists count load balancers named lb-N, so a test can build a set
+// larger than one refresh can measure.
+func fleetJSON(count int) string {
+	entries := make([]string, 0, count)
+	for i := 1; i <= count; i++ {
+		entries = append(entries, fmt.Sprintf(`{"id":"lb-%d","name":"lb-%d"}`, i, i))
+	}
+	return fmt.Sprintf(`{"load_balancers":[%s],"meta":{"total":%d}}`,
+		strings.Join(entries, ","), count)
+}
+
+// cutShortHandler serves a set of load balancers and cancels the refresh once
+// measure requests for `after` of them have been answered, which is what a
+// timeout does to a set too large to fit in it. The cancellation lands on the
+// first request of the next one, so those before it are measured in full.
+//
+// It records the load balancer each measure request was for, in the order the
+// requests were made, which is the order the fan-out worked through.
+type cutShortHandler struct {
+	fleet  string
+	after  int
+	cancel context.CancelFunc
+
+	mu       sync.Mutex
+	requests int
+	asked    []string
+}
+
+func (h *cutShortHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.URL.Path == "/v2/load_balancers" {
+		_, _ = w.Write([]byte(h.fleet))
+		return
+	}
+
+	// Parsed and rebuilt rather than echoed: the reply is derived from the
+	// number in the request, not from the request's own text.
+	number, err := strconv.Atoi(strings.TrimPrefix(r.URL.Query().Get("lb_id"), "lb-"))
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	id := fmt.Sprintf("lb-%d", number)
+
+	h.mu.Lock()
+	h.requests++
+	over := h.requests > h.after*len(bodies)
+	if len(h.asked) == 0 || h.asked[len(h.asked)-1] != id {
+		h.asked = append(h.asked, id)
+	}
+	h.mu.Unlock()
+
+	if over {
+		// Cancel and then hold the response until the client has torn the
+		// request down, so this request fails with the context's error rather
+		// than racing the cancellation to a reply the collector would count as
+		// a measurement.
+		h.cancel()
+		<-r.Context().Done()
+		return
+	}
+	if body, ok := bodies[r.URL.Path]; ok {
+		_, _ = w.Write([]byte(strings.ReplaceAll(body, `"lb_id":"lb-1"`,
+			fmt.Sprintf(`"lb_id":"lb-%d"`, number))))
+		return
+	}
+	w.WriteHeader(http.StatusNotFound)
+}
+
+// measured returns the load balancers the fan-out asked about, in order.
+func (h *cutShortHandler) measured() []string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return append([]string(nil), h.asked...)
+}
+
+// A refresh the context cuts short is a failed refresh even though the first
+// load balancers answered: the ones still queued were never measured, and
+// reporting success would claim a snapshot of the whole account. The ones that
+// did answer keep their fresh readings all the same.
+func TestCutShortRefreshFailsAndKeepsThePartialMerge(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	handler := &cutShortHandler{fleet: fleetJSON(3), after: 1, cancel: cancel}
+	c := newTestCollector(t, 1, handler.ServeHTTP)
+
+	err := c.Refresh(ctx)
+	if !errors.Is(err, loadbalancermetrics.ErrRefreshCutShort) {
+		t.Fatalf("refresh error = %v, want ErrRefreshCutShort", err)
+	}
+	if !strings.Contains(err.Error(), "measured 1 of 3 load balancers") {
+		t.Errorf("refresh error = %q, want it to count the load balancers measured", err)
+	}
+
+	const want = `
+# HELP digitalocean_loadbalancer_frontend_connections_current Active connections to the load balancer's frontend.
+# TYPE digitalocean_loadbalancer_frontend_connections_current gauge
+digitalocean_loadbalancer_frontend_connections_current{id="lb-1",name="lb-1"} 132
+# HELP digitalocean_loadbalancer_metrics_up Whether the load balancer's last metrics fetch succeeded.
+# TYPE digitalocean_loadbalancer_metrics_up gauge
+digitalocean_loadbalancer_metrics_up{id="lb-1",name="lb-1"} 1
+digitalocean_loadbalancer_metrics_up{id="lb-2",name="lb-2"} 0
+digitalocean_loadbalancer_metrics_up{id="lb-3",name="lb-3"} 0
+`
+	err = testutil.CollectAndCompare(c, strings.NewReader(want),
+		"digitalocean_loadbalancer_frontend_connections_current",
+		"digitalocean_loadbalancer_metrics_up")
+	if err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+}
+
+// A set that never fits in one refresh must not measure the same head of the
+// list forever: each refresh starts where the last one stopped, so every load
+// balancer is measured within a few of them.
+func TestRotationCoversEveryLoadBalancerAcrossRefreshes(t *testing.T) {
+	const fleet = 4
+	first := make([]string, 0, fleet)
+
+	var (
+		mu      sync.Mutex
+		cancel  context.CancelFunc
+		handler *cutShortHandler
+	)
+	c := newTestCollector(t, 1, func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		h := handler
+		mu.Unlock()
+		h.ServeHTTP(w, r)
+	})
+
+	for refresh := range fleet {
+		var ctx context.Context
+		ctx, cancel = context.WithCancel(context.Background())
+		mu.Lock()
+		handler = &cutShortHandler{fleet: fleetJSON(fleet), after: 1, cancel: cancel}
+		mu.Unlock()
+
+		if err := c.Refresh(ctx); !errors.Is(err, loadbalancermetrics.ErrRefreshCutShort) {
+			t.Fatalf("refresh %d error = %v, want ErrRefreshCutShort", refresh, err)
+		}
+		cancel()
+
+		asked := handler.measured()
+		if len(asked) == 0 {
+			t.Fatalf("refresh %d measured nothing at all", refresh)
+		}
+		first = append(first, asked[0])
+	}
+
+	want := []string{"lb-1", "lb-2", "lb-3", "lb-4"}
+	if !slices.Equal(first, want) {
+		t.Errorf("first load balancer of each refresh = %v, want %v", first, want)
+	}
+}
+
+// A refresh that gets through the whole set leaves the order alone: rotation
+// is what a cut-short refresh causes, not a cost every refresh pays.
+func TestAFullRefreshKeepsTheListingOrder(t *testing.T) {
+	var handler *cutShortHandler
+	c := newTestCollector(t, 1, func(w http.ResponseWriter, r *http.Request) {
+		handler.ServeHTTP(w, r)
+	})
+
+	for refresh := range 2 {
+		handler = &cutShortHandler{fleet: fleetJSON(3), after: 3, cancel: func() {}}
+		if err := c.Refresh(context.Background()); err != nil {
+			t.Fatalf("refresh %d: %v", refresh, err)
+		}
+		want := []string{"lb-1", "lb-2", "lb-3"}
+		if got := handler.measured(); !slices.Equal(got, want) {
+			t.Errorf("refresh %d measured %v, want %v", refresh, got, want)
+		}
 	}
 }

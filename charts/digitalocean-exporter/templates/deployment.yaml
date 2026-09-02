@@ -151,6 +151,11 @@ spec:
             - --collector.dropletmetrics.interval={{ .Values.collectors.dropletmetrics.interval }}
             - --collector.dropletmetrics.timeout={{ .Values.collectors.dropletmetrics.timeout }}
             - --collector.dropletmetrics.concurrency={{ .Values.collectors.dropletmetrics.concurrency }}
+            {{- if .Values.collectors.dropletmetrics.agentOnly }}
+            - --collector.dropletmetrics.agent-only
+            {{- else }}
+            - --no-collector.dropletmetrics.agent-only
+            {{- end }}
             {{- else }}
             - --no-collector.dropletmetrics
             {{- end }}

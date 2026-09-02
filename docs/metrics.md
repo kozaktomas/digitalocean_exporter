@@ -277,6 +277,12 @@ somebody's API usage. Work the number out before enabling it on a large account,
 `--collector.dropletmetrics.interval` rather than accepting rate limiting, which would take
 every other collector down with it.
 
+`--collector.dropletmetrics.agent-only` takes the droplets that have no monitoring agent out
+of that arithmetic altogether, at the price of their series disappearing — a droplet it
+skips emits nothing, not even `digitalocean_droplet_metrics_up`. Read the caveat on
+[the monitoring API page](configuration/monitoring-api.md#dropletmetrics) before turning it
+on: the feature it filters by is only set on droplets created with the agent.
+
 **Do not refresh faster than two minutes.** The API samples every 120 seconds, so a shorter
 interval spends requests re-reading a sample that has not changed. That cadence also bounds
 freshness: the newest sample is between zero and 120 seconds old depending on where the

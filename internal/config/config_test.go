@@ -528,6 +528,28 @@ func TestDropletMetricsCollectorDefaultsOff(t *testing.T) {
 	}
 }
 
+// Skipping droplets that do not report the monitoring agent saves ten requests
+// each, but the feature is only set on droplets created with the agent, so a
+// droplet with one installed later would go unmeasured. That makes it opt-in.
+func TestDropletMetricsAgentOnlyDefaultsOff(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.DropletMetricsAgentOnly {
+		t.Error("DropletMetricsAgentOnly = true by default, want false")
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--collector.dropletmetrics",
+		"--collector.dropletmetrics.agent-only"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !cfg.DropletMetricsAgentOnly {
+		t.Error("DropletMetricsAgentOnly = false with the flag given, want true")
+	}
+}
+
 // The load balancer metrics collector also costs API requests per resource, so
 // it is off until it is asked for.
 func TestLoadBalancerMetricsCollectorDefaultsOff(t *testing.T) {

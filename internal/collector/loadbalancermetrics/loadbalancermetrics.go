@@ -15,6 +15,13 @@
 // An empty result is normal here rather than exceptional: a load balancer with
 // no traffic has no HTTP response series at all, and a network load balancer
 // has none of the HTTP metrics ever.
+//
+// A set of load balancers whose refresh does not fit in the collector's
+// timeout is a failure and says so, rather than reporting the ones it reached
+// and leaving the rest silently unmeasured. The starting point of the fan-out
+// moves on from one refresh to the next, so a set slightly too large for its
+// timeout covers every load balancer over a few refreshes instead of measuring
+// the head of the list forever.
 package loadbalancermetrics
 
 import (
@@ -43,6 +50,13 @@ const window = 10 * time.Minute
 // ErrNoLoadBalancerMeasured reports that every load balancer's fetch failed,
 // which points at the API rather than at any one load balancer.
 var ErrNoLoadBalancerMeasured = errors.New("no load balancer could be measured")
+
+// ErrRefreshCutShort reports that the refresh ran out of time before it had
+// been through every load balancer. The ones it did reach keep their fresh
+// readings, but the refresh is a failure: part of the account is unmeasured,
+// and a snapshot that covers some of it must not be reported as a complete
+// one.
+var ErrRefreshCutShort = errors.New("refresh cut short")
 
 // point is one sample ready to be emitted, kept in the form Collect needs so
 // that Collect does no work beyond replaying it.
@@ -86,6 +100,10 @@ type Collector struct {
 
 	mu   sync.RWMutex
 	snap []loadBalancer
+	// cursor is where the next fan-out starts, as an index into the load
+	// balancer listing. It only moves when a refresh could not get through
+	// the whole list, and then by exactly what it did get through.
+	cursor int
 }
 
 // New returns a load balancer metrics collector backed by client. Concurrency
@@ -110,30 +128,92 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 // Refresh implements collector.Collector. A load balancer that cannot be
-// measured keeps whatever it last reported and is marked down; only a failure
-// to list them, or the failure of every one, fails the refresh as a whole.
+// measured keeps whatever it last reported and is marked down; a failure to
+// list them, the failure of every one, or a refresh that ran out of time
+// before reaching them all fails the refresh as a whole.
 func (c *Collector) Refresh(ctx context.Context) error {
 	refs, err := c.listLoadBalancers(ctx)
 	if err != nil {
 		return err
 	}
 
-	results := c.measureAll(ctx, refs)
+	results := c.measureAll(ctx, c.rotate(refs))
 	c.merge(results)
+	return c.report(ctx, results)
+}
 
-	failed := 0
+// report logs every load balancer that could not be measured, moves the
+// rotation past the ones this refresh got through, and returns the failures
+// the scheduler has to hear about.
+//
+// A refresh whose context is done is one of them however many answered: the
+// rest are unmeasured, which is what
+// digitalocean_exporter_collector_success 0 is for. Only a refresh that got
+// through the whole list is a success.
+func (c *Collector) report(ctx context.Context, results []result) error {
+	measured, reached := 0, 0
 	for _, r := range results {
-		if r.err != nil {
-			failed++
-			c.logger.Warn("measuring a load balancer failed",
-				"loadbalancer", r.ref.name, "id", r.ref.id, "error", r.err)
+		if r.err == nil {
+			measured++
+			reached++
+			continue
 		}
+		if !starved(r.err) {
+			reached++
+		}
+		c.logger.Warn("measuring a load balancer failed",
+			"loadbalancer", r.ref.name, "id", r.ref.id, "error", r.err)
 	}
-	if failed > 0 && failed == len(results) {
+	c.advance(reached, len(results))
+
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("%w: measured %d of %d load balancers: %w",
+			ErrRefreshCutShort, measured, len(results), err)
+	}
+	if measured == 0 && len(results) > 0 {
 		return fmt.Errorf("%w: %d attempted, last error: %w",
-			ErrNoLoadBalancerMeasured, failed, results[len(results)-1].err)
+			ErrNoLoadBalancerMeasured, len(results), results[len(results)-1].err)
 	}
 	return nil
+}
+
+// starved reports whether err is nothing but the refresh running out of time
+// before this load balancer had its turn. Such a one was never measured, so
+// the rotation must not move past it; one that failed on its own — a 500, a
+// response that would not parse — was, and gains nothing from being tried
+// first next time.
+func starved(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+}
+
+// rotate returns refs starting at the cursor, so the load balancers a
+// cut-short refresh never reached are the ones the next refresh measures
+// first. A refresh that gets through the whole list leaves the cursor where it
+// was and so keeps the listing's own order.
+func (c *Collector) rotate(refs []reference) []reference {
+	if len(refs) == 0 {
+		return refs
+	}
+
+	c.mu.RLock()
+	from := c.cursor % len(refs)
+	c.mu.RUnlock()
+
+	rotated := make([]reference, 0, len(refs))
+	rotated = append(rotated, refs[from:]...)
+	return append(rotated, refs[:from]...)
+}
+
+// advance moves the cursor past the load balancers this refresh reached, so
+// the next one continues where this one stopped. The listing can have changed
+// size in between, which the modulo in rotate absorbs.
+func (c *Collector) advance(by, total int) {
+	if total == 0 {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cursor = (c.cursor + by) % total
 }
 
 // listLoadBalancers names every load balancer in the account.
@@ -161,27 +241,53 @@ func (c *Collector) listLoadBalancers(ctx context.Context) ([]reference, error) 
 	}
 }
 
-// measureAll measures every load balancer, at most Concurrency of them at
-// once. The requests of one load balancer are sequential.
+// measureAll measures the load balancers in the order given, at most
+// Concurrency of them at once. The requests of one load balancer are
+// sequential.
+//
+// The work goes to a fixed set of workers through a queue rather than to one
+// goroutine per load balancer, so the order refs are in is the order they are
+// measured in. That is what makes rotating the starting point mean anything:
+// with a goroutine each, which of them a refresh gets through before its
+// deadline would be the Go scheduler's decision.
+//
+// Once the context is done nothing more is handed out: one that never got its
+// turn reports that rather than spending a request on a call that could only
+// fail.
 func (c *Collector) measureAll(ctx context.Context, refs []reference) []result {
 	results := make([]result, len(refs))
-	sem := make(chan struct{}, c.concurrency)
 	end := time.Now()
 	start := end.Add(-window)
 
+	queue := make(chan int)
 	var wg sync.WaitGroup
-	for i, ref := range refs {
+	for range min(c.concurrency, len(refs)) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			measured, err := c.measure(ctx, ref, start, end)
-			results[i] = result{measured: measured, ref: ref, err: err}
+			for i := range queue {
+				measured, err := c.measure(ctx, refs[i], start, end)
+				results[i] = result{measured: measured, ref: refs[i], err: err}
+			}
 		}()
 	}
+
+	queued := len(refs)
+dispatch:
+	for i := range refs {
+		select {
+		case queue <- i:
+		case <-ctx.Done():
+			queued = i
+			break dispatch
+		}
+	}
+	close(queue)
 	wg.Wait()
+
+	for i := queued; i < len(refs); i++ {
+		results[i] = result{ref: refs[i], err: fmt.Errorf("not measured: %w", ctx.Err())}
+	}
 	return results
 }
 

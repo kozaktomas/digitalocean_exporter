@@ -2,11 +2,15 @@ package dropletmetrics_test
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -110,6 +114,15 @@ digitalocean_droplet_metrics_up{id="1",name="web-1"} 1
 // newTestCollector wires a collector to a fake DigitalOcean API.
 func newTestCollector(t *testing.T, concurrency int, handler http.HandlerFunc) *dropletmetrics.Collector {
 	t.Helper()
+	return newConfiguredCollector(t, dropletmetrics.Config{Concurrency: concurrency}, handler)
+}
+
+// newConfiguredCollector is newTestCollector for a test that sets more of the
+// collector's configuration than its concurrency.
+func newConfiguredCollector(
+	t *testing.T, cfg dropletmetrics.Config, handler http.HandlerFunc,
+) *dropletmetrics.Collector {
+	t.Helper()
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 
@@ -122,8 +135,8 @@ func newTestCollector(t *testing.T, concurrency int, handler http.HandlerFunc) *
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return dropletmetrics.New(client, concurrency, logger)
+	cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	return dropletmetrics.New(client, cfg)
 }
 
 // okHandler serves one droplet and a full set of readings for it.
@@ -431,5 +444,266 @@ func TestDescribeCoversEveryMetric(t *testing.T) {
 	}
 	if want := 12; count != want {
 		t.Errorf("Describe sent %d descriptors, want %d", count, want)
+	}
+}
+
+// fleetJSON lists count droplets named web-N, each carrying the features
+// given, so a test can build a fleet larger than one refresh can measure.
+func fleetJSON(count int, features ...string) string {
+	feature, _ := json.Marshal(features)
+	entries := make([]string, 0, count)
+	for i := 1; i <= count; i++ {
+		entries = append(entries, fmt.Sprintf(`{"id":%d,"name":"web-%d","features":%s}`,
+			i, i, feature))
+	}
+	return fmt.Sprintf(`{"droplets":[%s],"meta":{"total":%d}}`,
+		strings.Join(entries, ","), count)
+}
+
+// cutShortHandler serves a fleet and cancels the refresh once measure requests
+// for `after` droplets have been answered, which is what a timeout does to a
+// fleet too large to fit in it. The cancellation lands on the first request of
+// the next droplet, so the droplets before it are measured in full.
+//
+// It records the droplet each measure request was for, in the order the
+// requests were made, which is the order the fan-out worked through.
+type cutShortHandler struct {
+	fleet  string
+	after  int
+	cancel context.CancelFunc
+
+	mu       sync.Mutex
+	requests int
+	asked    []string
+}
+
+func (h *cutShortHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.URL.Path == "/v2/droplets" {
+		_, _ = w.Write([]byte(h.fleet))
+		return
+	}
+
+	// Parsed and rebuilt rather than echoed: the reply is derived from the
+	// number in the request, not from the request's own text.
+	number, err := strconv.Atoi(r.URL.Query().Get("host_id"))
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	host := strconv.Itoa(number)
+
+	h.mu.Lock()
+	h.requests++
+	over := h.requests > h.after*len(bodies)
+	if len(h.asked) == 0 || h.asked[len(h.asked)-1] != host {
+		h.asked = append(h.asked, host)
+	}
+	h.mu.Unlock()
+
+	if over {
+		// Cancel and then hold the response until the client has torn the
+		// request down, so this request fails with the context's error rather
+		// than racing the cancellation to a reply the collector would count as
+		// a measurement.
+		h.cancel()
+		<-r.Context().Done()
+		return
+	}
+	if body, ok := bodies[r.URL.Path]; ok {
+		_, _ = w.Write([]byte(strings.ReplaceAll(body, `"host_id":"1"`,
+			fmt.Sprintf(`"host_id":"%d"`, number))))
+		return
+	}
+	w.WriteHeader(http.StatusNotFound)
+}
+
+// measured returns the droplets the fan-out asked about, in order.
+func (h *cutShortHandler) measured() []string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return append([]string(nil), h.asked...)
+}
+
+// A refresh the context cuts short is a failed refresh even though most of the
+// fleet answered: the droplets still queued were never measured, and reporting
+// success would claim a snapshot of the whole account. The droplets that did
+// answer keep their fresh readings all the same.
+func TestCutShortRefreshFailsAndKeepsThePartialMerge(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	handler := &cutShortHandler{fleet: fleetJSON(3), after: 1, cancel: cancel}
+	c := newTestCollector(t, 1, handler.ServeHTTP)
+
+	err := c.Refresh(ctx)
+	if !errors.Is(err, dropletmetrics.ErrRefreshCutShort) {
+		t.Fatalf("refresh error = %v, want ErrRefreshCutShort", err)
+	}
+	if !strings.Contains(err.Error(), "measured 1 of 3 droplets") {
+		t.Errorf("refresh error = %q, want it to count the droplets measured", err)
+	}
+
+	// The droplet that answered keeps its reading; the two that never had
+	// their turn are reported down with none.
+	const want = `
+# HELP digitalocean_droplet_load1 Load average over the last minute.
+# TYPE digitalocean_droplet_load1 gauge
+digitalocean_droplet_load1{id="1",name="web-1"} 4.01
+# HELP digitalocean_droplet_metrics_up Whether the droplet's last metrics fetch succeeded.
+# TYPE digitalocean_droplet_metrics_up gauge
+digitalocean_droplet_metrics_up{id="1",name="web-1"} 1
+digitalocean_droplet_metrics_up{id="2",name="web-2"} 0
+digitalocean_droplet_metrics_up{id="3",name="web-3"} 0
+`
+	err = testutil.CollectAndCompare(c, strings.NewReader(want),
+		"digitalocean_droplet_load1", "digitalocean_droplet_metrics_up")
+	if err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+}
+
+// A fleet that never fits in one refresh must not measure the same head of the
+// list forever: each refresh starts where the last one stopped, so every
+// droplet is measured within a few of them.
+func TestRotationCoversEveryDropletAcrossRefreshes(t *testing.T) {
+	const fleet = 4
+	first := make([]string, 0, fleet)
+	covered := make(map[string]bool, fleet)
+
+	// One collector across every refresh — a new one would start from the head
+	// of the list each time — against a stub that cuts each refresh short
+	// after a single droplet.
+	var (
+		mu      sync.Mutex
+		cancel  context.CancelFunc
+		handler *cutShortHandler
+	)
+	c := newTestCollector(t, 1, func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		h := handler
+		mu.Unlock()
+		h.ServeHTTP(w, r)
+	})
+
+	for refresh := range fleet {
+		var ctx context.Context
+		ctx, cancel = context.WithCancel(context.Background())
+		mu.Lock()
+		handler = &cutShortHandler{fleet: fleetJSON(fleet), after: 1, cancel: cancel}
+		mu.Unlock()
+
+		if err := c.Refresh(ctx); !errors.Is(err, dropletmetrics.ErrRefreshCutShort) {
+			t.Fatalf("refresh %d error = %v, want ErrRefreshCutShort", refresh, err)
+		}
+		cancel()
+
+		asked := handler.measured()
+		if len(asked) == 0 {
+			t.Fatalf("refresh %d measured no droplet at all", refresh)
+		}
+		first = append(first, asked[0])
+		covered[asked[0]] = true
+	}
+
+	if len(covered) != fleet {
+		t.Errorf("droplets measured first across %d refreshes = %v, want all %d of them",
+			fleet, first, fleet)
+	}
+	if want := []string{"1", "2", "3", "4"}; !slices.Equal(first, want) {
+		t.Errorf("first droplet of each refresh = %v, want %v", first, want)
+	}
+}
+
+// A refresh that gets through the whole fleet leaves the order alone: rotation
+// is what a cut-short refresh causes, not a cost every refresh pays.
+func TestAFullRefreshKeepsTheListingOrder(t *testing.T) {
+	var handler *cutShortHandler
+	c := newTestCollector(t, 1, func(w http.ResponseWriter, r *http.Request) {
+		handler.ServeHTTP(w, r)
+	})
+
+	for refresh := range 2 {
+		handler = &cutShortHandler{fleet: fleetJSON(3), after: 3, cancel: func() {}}
+		if err := c.Refresh(context.Background()); err != nil {
+			t.Fatalf("refresh %d: %v", refresh, err)
+		}
+		if got, want := handler.measured(), []string{"1", "2", "3"}; !slices.Equal(got, want) {
+			t.Errorf("refresh %d measured %v, want %v", refresh, got, want)
+		}
+	}
+}
+
+// With agent-only set, a droplet whose listing does not report the monitoring
+// agent is not queried at all: it costs no requests and reports nothing, since
+// there is no reading to report and no failure to describe.
+func TestAgentOnlySkipsDropletsWithoutTheFeature(t *testing.T) {
+	const mixed = `{"droplets":[` +
+		`{"id":1,"name":"web-1","features":["monitoring","private_networking"]},` +
+		`{"id":2,"name":"web-2","features":["private_networking"]}],"meta":{"total":2}}`
+
+	var asked []string
+	var mu sync.Mutex
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/v2/droplets" {
+			_, _ = w.Write([]byte(mixed))
+			return
+		}
+		mu.Lock()
+		asked = append(asked, r.URL.Query().Get("host_id"))
+		mu.Unlock()
+		_, _ = w.Write([]byte(bodies[r.URL.Path]))
+	}
+
+	c := newConfiguredCollector(t, dropletmetrics.Config{Concurrency: 1, AgentOnly: true}, handler)
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_droplet_metrics_up Whether the droplet's last metrics fetch succeeded.
+# TYPE digitalocean_droplet_metrics_up gauge
+digitalocean_droplet_metrics_up{id="1",name="web-1"} 1
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want),
+		"digitalocean_droplet_metrics_up"); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	for _, host := range asked {
+		if host != "1" {
+			t.Fatalf("measured droplet %q, want only the one reporting the agent", host)
+		}
+	}
+	if len(asked) != len(bodies) {
+		t.Errorf("measure requests = %d, want %d, one per metric of the one droplet",
+			len(asked), len(bodies))
+	}
+}
+
+// Without the flag every droplet is measured, agent or not: the feature only
+// says the droplet was created with the agent, and one installed afterwards
+// reports readings without ever setting it.
+func TestWithoutAgentOnlyEveryDropletIsMeasured(t *testing.T) {
+	handler := &cutShortHandler{
+		fleet: fleetJSON(2, "private_networking"), after: 2, cancel: func() {},
+	}
+	c := newTestCollector(t, 2, handler.ServeHTTP)
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_droplet_metrics_up Whether the droplet's last metrics fetch succeeded.
+# TYPE digitalocean_droplet_metrics_up gauge
+digitalocean_droplet_metrics_up{id="1",name="web-1"} 1
+digitalocean_droplet_metrics_up{id="2",name="web-2"} 1
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want),
+		"digitalocean_droplet_metrics_up"); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
 	}
 }
