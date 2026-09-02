@@ -1005,6 +1005,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Endpoints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#scraping" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1012,6 +1023,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Scraping">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#one-bad-series-does-not-fail-the-scrape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One bad series does not fail the scrape
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1054,6 +1082,17 @@
     <span class="md-ellipsis">
       
         One collector reports collector_success 0 forever
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-pod-never-becomes-ready" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The pod never becomes Ready
       
     </span>
   </a>
@@ -1364,6 +1403,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Endpoints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#scraping" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1371,6 +1421,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Scraping">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#one-bad-series-does-not-fail-the-scrape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One bad series does not fail the scrape
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1413,6 +1480,17 @@
     <span class="md-ellipsis">
       
         One collector reports collector_success 0 forever
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-pod-never-becomes-ready" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The pod never becomes Ready
       
     </span>
   </a>
@@ -1517,11 +1595,61 @@
 
 <h1 id="operations">Operations<a class="headerlink" href="#operations" title="Permanent link">&para;</a></h1>
 <p>Running it, scraping it, and working out what is wrong when a number stops moving.</p>
+<h2 id="endpoints">Endpoints<a class="headerlink" href="#endpoints" title="Permanent link">&para;</a></h2>
+<p>Everything is served on the port <code>--web.listen-address</code> binds, <code>:9212</code> by default.</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>What it is for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/metrics</code></td>
+<td>The exposition Prometheus scrapes</td>
+</tr>
+<tr>
+<td><code>/healthz</code></td>
+<td>Liveness: 200 for as long as the process is running</td>
+</tr>
+<tr>
+<td><code>/readyz</code></td>
+<td>Readiness: 200 once every enabled collector has refreshed successfully at least once, 503 naming the ones still waiting until then</td>
+</tr>
+<tr>
+<td><code>/</code></td>
+<td>A landing page linking to the other three</td>
+</tr>
+</tbody>
+</table>
+<p>The two probes answer deliberately different questions, and the Helm chart wires each one to
+the question it answers — see <a href="../helm/#probes">probes</a>.</p>
+<p><code>/healthz</code> never consults a collector. Liveness asks whether the process is worth killing,
+and a collector that cannot reach the DigitalOcean API is not a question a restart answers:
+the next refresh happens anyway, while a restart throws away the snapshots every other
+collector is still holding.</p>
+<p><code>/readyz</code> is the one a collector can hold down, and only before its first success. A
+collector emits nothing at all until it has refreshed once — not zeros — so a pod that
+reports itself Ready any earlier joins the Service and serves scrapes that are quietly
+missing whole metrics:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">$ </span>curl<span class="w"> </span>-sS<span class="w"> </span>-i<span class="w"> </span>localhost:9212/readyz
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="go">HTTP/1.1 503 Service Unavailable</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="go">Content-Type: text/plain; charset=utf-8</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="go">waiting for the first successful refresh of:</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="go">balance</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="go">dropletmetrics</span>
+</code></pre></div>
+<p>Once every collector has a snapshot it stays 200, even while one of them is failing. By then
+the pod has values worth serving, and dropping it out of the Service would stop the very
+scrape that reports the failure. With every collector disabled there is nothing to wait for
+and <code>/readyz</code> is 200 from the start.</p>
 <h2 id="scraping">Scraping<a class="headerlink" href="#scraping" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">scrape_configs</span><span class="p">:</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">job_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">digitalocean</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">static_configs</span><span class="p">:</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">targets</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"localhost:9212"</span><span class="p p-Indicator">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">scrape_configs</span><span class="p">:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">job_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">digitalocean</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">static_configs</span><span class="p">:</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">targets</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"localhost:9212"</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 <p>Scrape as often as you like. Serving <code>/metrics</code> reads an in-memory snapshot and performs no
 I/O, so the scrape interval is unrelated to how often DigitalOcean is called — that is set
@@ -1529,8 +1657,20 @@ by the collector intervals alone.</p>
 <p>The corollary: <strong>a short scrape interval does not give you fresher data.</strong> If a collector
 refreshes every 5 minutes, scraping every 15 seconds records the same value twenty times.
 To learn how stale a value is, use the collector's own timestamp:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kr">time</span><span class="o">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">digitalocean_exporter_collector_last_success_timestamp_seconds</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kr">time</span><span class="o">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">digitalocean_exporter_collector_last_success_timestamp_seconds</span>
 </code></pre></div>
+<h3 id="one-bad-series-does-not-fail-the-scrape">One bad series does not fail the scrape<a class="headerlink" href="#one-bad-series-does-not-fail-the-scrape" title="Permanent link">&para;</a></h3>
+<p>Building the exposition can fail: a collector that derives labels from an API response can
+meet two resources that produce the same label set, or emit a metric it never described. The
+exporter serves everything it could gather anyway, logs the failure at error level naming the
+metric behind it, and leaves it countable:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kr">rate</span><span class="o">(</span><span class="nv">promhttp_metric_handler_errors_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">)</span>
+</code></pre></div>
+<p>The alternative — and the default of the library that serves <code>/metrics</code> — is an empty HTTP
+500. One collector's bug would then take every other collector's metrics with it, which on a
+dashboard is indistinguishable from the exporter going away: the gap that reads as an
+outage. A <code>promhttp_metric_handler_errors_total</code> that is not flat is a bug in the exporter
+worth reporting, and the log line says which metric caused it.</p>
 <h2 id="health-metrics">Health metrics<a class="headerlink" href="#health-metrics" title="Permanent link">&para;</a></h2>
 <p>The exporter reports on itself. These are the series to build a "is the exporter fine"
 panel from:</p>
@@ -1597,8 +1737,8 @@ refresh interval.</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="one-collector-reports-collector_success-0-forever">One collector reports <code>collector_success 0</code> forever<a class="headerlink" href="#one-collector-reports-collector_success-0-forever" title="Permanent link">&para;</a></h3>
 <p>Look at which one, then at the logs:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>curl<span class="w"> </span>-s<span class="w"> </span>localhost:9212/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">'collector_success{.*} 0'</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>digitalocean-exporter<span class="w"> </span>-n<span class="w"> </span><span class="m">50</span><span class="w">        </span><span class="c1"># or: kubectl logs deploy/digitalocean-exporter</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>curl<span class="w"> </span>-s<span class="w"> </span>localhost:9212/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">'collector_success{.*} 0'</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>journalctl<span class="w"> </span>-u<span class="w"> </span>digitalocean-exporter<span class="w"> </span>-n<span class="w"> </span><span class="m">50</span><span class="w">        </span><span class="c1"># or: kubectl logs deploy/digitalocean-exporter</span>
 </code></pre></div>
 <p>The refresh failure is logged with its reason each time it happens, because that failure
 never reaches Prometheus as anything but a <code>0</code>. A collector that hit a bug rather than an
@@ -1611,6 +1751,21 @@ before a restart are therefore not the ones to read as an outage.</p>
 <p>The most common answer by far is <code>balance</code>: <code>403 Forbidden</code> from
 <code>/v2/customers/my/balance</code> because the token has no billing scope. Turn that collector off —
 see <a href="../configuration/collectors/#balance">balance</a>.</p>
+<h3 id="the-pod-never-becomes-ready">The pod never becomes Ready<a class="headerlink" href="#the-pod-never-becomes-ready" title="Permanent link">&para;</a></h3>
+<p><code>/readyz</code> stays 503 while any enabled collector has never once refreshed successfully, and
+its body names them:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kubectl<span class="w"> </span>port-forward<span class="w"> </span>deploy/digitalocean-exporter<span class="w"> </span><span class="m">9212</span>:9212<span class="w"> </span><span class="p">&amp;</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>curl<span class="w"> </span>-s<span class="w"> </span>localhost:9212/readyz
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>kubectl<span class="w"> </span>logs<span class="w"> </span>deploy/digitalocean-exporter<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">'collector refresh failed'</span>
+</code></pre></div>
+<p>The answer is almost always <code>balance</code> on a token without the billing scope: that collector
+can never succeed, so it holds readiness down for good. Turn it off — see
+<a href="../configuration/collectors/#balance">balance</a>.</p>
+<p>A collector that merely failed its <em>first</em> attempt is the other case. It retries on its own
+interval and nothing else, so a collector deliberately slowed to an hour stays pending for an
+hour after one bad response. The chart's readiness probe allows a little over seven minutes,
+which covers the default <code>5m</code> interval plus a slow first refresh; past that, the pod is
+reporting a collector that is failing rather than one that is slow.</p>
 <h3 id="the-exporter-exits-at-startup">The exporter exits at startup<a class="headerlink" href="#the-exporter-exits-at-startup" title="Permanent link">&para;</a></h3>
 <p>A configuration error is fatal on purpose, rather than running half-configured. The usual
 causes:</p>
@@ -1626,11 +1781,11 @@ causes:</p>
 <h3 id="the-api-budget-is-falling-towards-zero">The API budget is falling towards zero<a class="headerlink" href="#the-api-budget-is-falling-towards-zero" title="Permanent link">&para;</a></h3>
 <p>Read it as a share of the account's own ceiling rather than as a count, because the hourly
 allowance varies by account:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nv">digitalocean_exporter_api_rate_limit_remaining</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_exporter_api_rate_limit</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nv">digitalocean_exporter_api_rate_limit_remaining</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">digitalocean_exporter_api_rate_limit</span>
 </code></pre></div>
 <p>Something is spending that budget faster than it can be replenished, and the request counter
 names it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">collector</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3600</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">sum</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">collector</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">digitalocean_exporter_api_requests_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3600</span>
 </code></pre></div>
 <p>Almost always <code>dropletmetrics</code> on an account with more droplets than the arithmetic allows —
 see <a href="../configuration/monitoring-api/#the-budget">the monitoring API</a>. Lengthen that

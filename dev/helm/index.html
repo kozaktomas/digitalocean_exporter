@@ -857,6 +857,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#probes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Probes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#security-posture" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1338,6 +1349,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#probes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Probes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#security-posture" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1494,6 +1516,29 @@ partly to keep you out of it.</p>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>--collector.droplets --collector.droplets.interval=10m
 </code></pre></div>
+<h2 id="probes">Probes<a class="headerlink" href="#probes" title="Permanent link">&para;</a></h2>
+<p>The two probes point at different endpoints because they answer different questions.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">livenessProbe</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">httpGet</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="nv">/healthz</span><span class="p p-Indicator">,</span><span class="nt"> port</span><span class="p">:</span><span class="w"> </span><span class="nv">metrics</span><span class="p p-Indicator">}</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nt">readinessProbe</span><span class="p">:</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nt">httpGet</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="nv">/readyz</span><span class="p p-Indicator">,</span><span class="nt"> port</span><span class="p">:</span><span class="w"> </span><span class="nv">metrics</span><span class="p p-Indicator">}</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nt">initialDelaySeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">periodSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="nt">failureThreshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">45</span>
+</code></pre></div>
+<p><code>/healthz</code> answers without consulting a collector, which is what liveness wants: a refresh
+that cannot reach the DigitalOcean API is not fixed by killing the pod, and killing it throws
+away the snapshots every other collector holds.</p>
+<p><code>/readyz</code> answers 503 until every enabled collector has refreshed successfully at least once.
+That is the honest readiness condition, because a collector emits nothing before its first
+success — a pod that went Ready earlier would join the Service and serve scrapes missing
+whole metrics. Afterwards it stays 200 even while a collector is failing, so a later API
+outage does not take the exporter out of the Service and stop the scrape that reports it.</p>
+<p>The failure threshold is generous on purpose: <code>10s × 45</code> plus the initial delay is 7m40s,
+which covers the default <code>5m</code> collector interval plus a slow first refresh. A pod still
+unready after that has a collector that cannot succeed rather than one that is slow — most
+often <code>balance</code> on a token without the billing scope. <a href="../operations/#the-pod-never-becomes-ready">Operations</a>
+covers what to do about it.</p>
 <h2 id="security-posture">Security posture<a class="headerlink" href="#security-posture" title="Permanent link">&para;</a></h2>
 <p>The pod runs as UID 65532, non-root, with <code>seccompProfile: RuntimeDefault</code>. The token is
 mounted at <code>/etc/digitalocean-exporter/token</code> and passed with <code>--do.token-file</code>, never as
