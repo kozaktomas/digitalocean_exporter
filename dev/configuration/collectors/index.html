@@ -1627,6 +1627,12 @@ they are droplets. Expect a node pool to appear here as well as under
 <a href="#kubernetes"><code>kubernetes</code></a>; the labels tell them apart.</p>
 <p>Price is what the size costs, which makes a simple <code>sum by (region)</code> a decent
 cost-per-region panel without touching the billing API.</p>
+<p>Whether backups are on, whether the droplet carries DigitalOcean's monitoring agent, when it
+was created, which VPC it is in and what it is tagged with all arrive in the same list
+response as the rest. Reporting them costs no extra request, which is why they are on rather
+than behind a flag. The agent one is worth knowing before enabling
+<a href="../monitoring-api/#dropletmetrics"><code>dropletmetrics</code></a>: a droplet without the agent is one that
+collector will spend ten requests a refresh on and get no readings back for.</p>
 <p><strong>Cost:</strong> one request per refresh, plus one per additional page for accounts with many
 droplets.</p>
 <hr />

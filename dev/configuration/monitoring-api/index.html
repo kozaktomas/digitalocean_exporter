@@ -1452,16 +1452,21 @@ produces this data; a droplet created without it, or one where it stopped, simpl
 That is not an exporter failure — the request succeeds and returns no series, so the droplet
 reports <code>digitalocean_droplet_metrics_up 1</code> with no readings under it, and the collector
 carries on.</p>
+<p>The same droplet listing exports that feature as <code>digitalocean_droplet_monitoring_agent</code>, so
+how many droplets this collector would report nothing for is answerable <strong>before</strong> enabling
+it, from the <code>droplets</code> collector an untouched install already runs:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">count</span><span class="o">(</span><span class="nv">digitalocean_droplet_monitoring_agent</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="o">)</span>
+</code></pre></div>
 <p>Those ten requests per refresh are spent all the same. <code>--collector.dropletmetrics.agent-only</code>
 (default off) skips them: the droplet listing the collector already makes says whether a
 droplet has the monitoring agent, and with the flag set only droplets that do are queried.
 On an account where most droplets have no agent, that is most of the collector's cost gone.</p>
 <div class="admonition warning">
 <p class="admonition-title">The feature is what the droplet was <em>created</em> with</p>
-<p><code>agent-only</code> reads the <code>monitoring</code> feature from the droplet listing, and DigitalOcean
-sets that when the droplet is created with monitoring enabled. <strong>An agent installed
-afterwards does not set it</strong>, and neither do some droplets that answer the monitoring API
-anyway — managed Kubernetes nodes, for instance, list <code>droplet_agent</code> rather than
+<p><code>agent-only</code> reads the <code>monitoring</code> feature from the droplet listing — the same feature
+<code>digitalocean_droplet_monitoring_agent</code> reports — and DigitalOcean sets it when the
+droplet is created with monitoring enabled. <strong>An agent installed afterwards does not set
+it</strong>, and neither do some droplets that answer the monitoring API anyway — managed Kubernetes nodes, for instance, list <code>droplet_agent</code> rather than
 <code>monitoring</code> and still return readings. Such a droplet disappears from the exposition
 entirely with this flag on: it is not measured, so it reports nothing at all, not even
 <code>digitalocean_droplet_metrics_up</code>.</p>
@@ -1486,7 +1491,7 @@ someone else's, an appliance image, a managed Kubernetes node.</p>
 <code>digitalocean_loadbalancer_frontend_connections_current</code>,
 <code>digitalocean_loadbalancer_frontend_http_responses_per_second</code>,
 <code>digitalocean_loadbalancer_droplets_health_checks</code>, and others.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>digitalocean_exporter<span class="w"> </span>--collector.loadbalancermetrics
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>digitalocean_exporter<span class="w"> </span>--collector.loadbalancermetrics
 </code></pre></div>
 <p>The case for enabling this one is stronger than for <code>dropletmetrics</code>, and it is not about
 cost. <strong>A load balancer cannot run <code>node_exporter</code>.</strong> There is no other way to learn how

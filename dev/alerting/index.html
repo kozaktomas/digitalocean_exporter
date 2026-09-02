@@ -1528,6 +1528,12 @@ spending it.</p>
 </thead>
 <tbody>
 <tr>
+<td><code>DigitalOceanAccountNotActive</code></td>
+<td>critical</td>
+<td>15m</td>
+<td>The account is in a status other than <code>active</code></td>
+</tr>
+<tr>
 <td><code>DigitalOceanAccountNearDropletLimit</code></td>
 <td>warning</td>
 <td>1h</td>
@@ -1550,6 +1556,12 @@ spending it.</p>
 <p>These are the alerts that turn a confusing failure into an expected one: a node pool that
 will not scale up, or a PersistentVolumeClaim that leaves a pod pending, is often nothing but
 an account limit.</p>
+<p><code>DigitalOceanAccountNotActive</code> is the exception among them, and the reason it is critical:
+the limits above merely stop something being created, while a <code>warning</code> status is an unpaid
+invoice that ends with resources being destroyed, and <code>locked</code> means that has already begun.
+It reads <code>digitalocean_account_status{status!="active"}</code> rather than
+<code>digitalocean_account_active</code>, so the status itself is in the summary — the two are handled
+very differently and neither clears itself.</p>
 <h2 id="resources">Resources<a class="headerlink" href="#resources" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
