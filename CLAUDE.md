@@ -53,6 +53,17 @@ intervals differ, the set never fires as one burst, and every later refresh keep
 phase. Neither needs anything from a collector, and
 neither belongs inside one.
 
+**Every page-numbered list is walked by `internal/paging`.** `paging.All` asks for 200 items
+a page, follows the links until the last one, and — this is why it exists rather than the ten
+hand-written loops it replaced — drops any item whose key it has already seen. A list shifts
+between two page requests whenever something is created or destroyed, the same resource then
+arrives on two pages, and two snapshot entries become two series with identical labels, which
+fails the entire scrape rather than one metric. Its collector's logger records what it
+dropped. The registry's repository list is paged by token instead and keeps a loop of its own;
+the database list is paged by neither and stops on a short page or on a cluster it has already
+seen, because the endpoint documents no paging and one that ignores the page parameter would
+be asked for pages until the refresh died on its deadline.
+
 A collector that measures many things at once — buckets, say — isolates them: one that
 fails keeps its own previous values and reports its own `_up 0`, and logs why, since that
 failure never reaches the scheduler. It must not cost the ones that succeeded.
@@ -79,7 +90,8 @@ lines before a restart do not read as an API outage.
 
 1. New package under `internal/collector/<name>/`.
 2. Implement the four methods. Keep the snapshot behind a mutex; build the whole new
-   snapshot before swapping it in, so a partial failure changes nothing.
+   snapshot before swapping it in, so a partial failure changes nothing. A page-numbered
+   list is walked with `paging.All`, never a loop of its own.
 3. Add `--collector.<name>` and `--collector.<name>.interval` in `internal/config`.
 4. Register it in `cmd/digitalocean_exporter/main.go`. `Register` takes a per-collector
    timeout; pass 0 unless the refresh fans out over many resources, as the monitoring-API

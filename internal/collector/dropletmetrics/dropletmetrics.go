@@ -39,12 +39,9 @@ import (
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
 	"github.com/kozaktomas/digitalocean_exporter/internal/timeseries"
 )
-
-// dropletsPerPage is how many droplets one page request asks for, which is the
-// most the API allows.
-const dropletsPerPage = 200
 
 // window is how far back a metrics query reaches. The API samples every two
 // minutes, so a window of several of them tolerates a late or skipped sample
@@ -249,30 +246,20 @@ func (c *Collector) advance(by, total int) {
 // listDroplets names every droplet in the account, or, with AgentOnly set,
 // only those whose listing reports the monitoring agent.
 func (c *Collector) listDroplets(ctx context.Context) ([]reference, error) {
-	opts := &godo.ListOptions{PerPage: dropletsPerPage}
-	var refs []reference
-
-	for {
-		page, resp, err := c.client.Droplets.List(ctx, opts)
-		if err != nil {
-			return nil, fmt.Errorf("list droplets: %w", err)
-		}
-		for _, d := range page {
-			if c.agentOnly && !slices.Contains(d.Features, monitoringFeature) {
-				continue
-			}
-			refs = append(refs, reference{id: fmt.Sprint(d.ID), name: d.Name})
-		}
-
-		if resp == nil || resp.Links == nil || resp.Links.IsLastPage() {
-			return refs, nil
-		}
-		current, err := resp.Links.CurrentPage()
-		if err != nil {
-			return nil, fmt.Errorf("next page of droplets: %w", err)
-		}
-		opts.Page = current + 1
+	droplets, err := paging.All(ctx, c.logger, "droplets",
+		func(d godo.Droplet) int { return d.ID }, c.client.Droplets.List)
+	if err != nil {
+		return nil, err
 	}
+
+	refs := make([]reference, 0, len(droplets))
+	for _, d := range droplets {
+		if c.agentOnly && !slices.Contains(d.Features, monitoringFeature) {
+			continue
+		}
+		refs = append(refs, reference{id: fmt.Sprint(d.ID), name: d.Name})
+	}
+	return refs, nil
 }
 
 // measureAll measures the droplets in the order given, at most Concurrency of

@@ -12,16 +12,14 @@ package cdn
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
-)
 
-// endpointsPerPage is how many endpoints one page request asks for, which is
-// the most the API allows.
-const endpointsPerPage = 200
+	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
+)
 
 // Metric descriptors.
 var (
@@ -50,14 +48,20 @@ type endpoint struct {
 // Collector reports the CDN endpoints of the account.
 type Collector struct {
 	client *godo.Client
+	logger *slog.Logger
 
 	mu   sync.RWMutex
 	snap []endpoint
 }
 
-// New returns a CDN collector backed by client.
-func New(client *godo.Client) *Collector {
-	return &Collector{client: client}
+// New returns a CDN collector backed by client. The logger records what the
+// scheduler never sees: a duplicate endpoint dropped from a list that shifted
+// between two page requests. A nil logger discards it.
+func New(client *godo.Client, logger *slog.Logger) *Collector {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+	return &Collector{client: client, logger: logger}
 }
 
 // Name implements collector.Collector.
@@ -74,26 +78,15 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 // snapshot is replaced, so a failure halfway through the list leaves the
 // previous endpoints in place rather than reporting half an account.
 func (c *Collector) Refresh(ctx context.Context) error {
-	opts := &godo.ListOptions{PerPage: endpointsPerPage}
-	var next []endpoint
+	endpoints, err := paging.All(ctx, c.logger, "CDN endpoints",
+		func(e godo.CDN) string { return e.ID }, c.client.CDNs.List)
+	if err != nil {
+		return err
+	}
 
-	for {
-		page, resp, err := c.client.CDNs.List(ctx, opts)
-		if err != nil {
-			return fmt.Errorf("list CDN endpoints: %w", err)
-		}
-		for i := range page {
-			next = append(next, newEndpoint(&page[i]))
-		}
-
-		if resp == nil || resp.Links == nil || resp.Links.IsLastPage() {
-			break
-		}
-		current, err := resp.Links.CurrentPage()
-		if err != nil {
-			return fmt.Errorf("next page of CDN endpoints: %w", err)
-		}
-		opts.Page = current + 1
+	next := make([]endpoint, 0, len(endpoints))
+	for i := range endpoints {
+		next = append(next, newEndpoint(&endpoints[i]))
 	}
 
 	c.mu.Lock()

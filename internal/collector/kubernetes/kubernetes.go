@@ -8,15 +8,14 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
-)
 
-// clustersPerPage is how many clusters one page request asks for.
-const clustersPerPage = 200
+	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
+)
 
 // runningState is the cluster and node state that counts as up.
 const runningState = "running"
@@ -94,14 +93,20 @@ type cluster struct {
 // Collector reports the managed Kubernetes clusters of the account.
 type Collector struct {
 	client *godo.Client
+	logger *slog.Logger
 
 	mu   sync.RWMutex
 	snap []cluster
 }
 
-// New returns a Kubernetes collector backed by client.
-func New(client *godo.Client) *Collector {
-	return &Collector{client: client}
+// New returns a Kubernetes collector backed by client. The logger records what
+// the scheduler never sees: a duplicate cluster dropped from a list that
+// shifted between two page requests. A nil logger discards it.
+func New(client *godo.Client, logger *slog.Logger) *Collector {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+	return &Collector{client: client, logger: logger}
 }
 
 // Name implements collector.Collector.
@@ -118,26 +123,15 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 // snapshot is replaced, so a failure halfway through leaves the previous
 // clusters in place.
 func (c *Collector) Refresh(ctx context.Context) error {
-	opts := &godo.ListOptions{PerPage: clustersPerPage}
-	var next []cluster
+	clusters, err := paging.All(ctx, c.logger, "kubernetes clusters",
+		func(kc *godo.KubernetesCluster) string { return kc.ID }, c.client.Kubernetes.List)
+	if err != nil {
+		return err
+	}
 
-	for {
-		page, resp, err := c.client.Kubernetes.List(ctx, opts)
-		if err != nil {
-			return fmt.Errorf("list kubernetes clusters: %w", err)
-		}
-		for _, kc := range page {
-			next = append(next, newCluster(kc))
-		}
-
-		if resp == nil || resp.Links == nil || resp.Links.IsLastPage() {
-			break
-		}
-		current, err := resp.Links.CurrentPage()
-		if err != nil {
-			return fmt.Errorf("next page of kubernetes clusters: %w", err)
-		}
-		opts.Page = current + 1
+	next := make([]cluster, 0, len(clusters))
+	for _, kc := range clusters {
+		next = append(next, newCluster(kc))
 	}
 
 	c.mu.Lock()

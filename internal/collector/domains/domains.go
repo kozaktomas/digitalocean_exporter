@@ -18,16 +18,14 @@ package domains
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
-)
 
-// domainsPerPage is how many domains one page request asks for, which is the
-// most the API allows.
-const domainsPerPage = 200
+	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
+)
 
 // ttlDesc is the only metric the collector emits.
 var ttlDesc = prometheus.NewDesc("digitalocean_domain_ttl_seconds",
@@ -46,14 +44,20 @@ type domain struct {
 // Collector reports the DNS zones of the account.
 type Collector struct {
 	client *godo.Client
+	logger *slog.Logger
 
 	mu   sync.RWMutex
 	snap []domain
 }
 
-// New returns a domains collector backed by client.
-func New(client *godo.Client) *Collector {
-	return &Collector{client: client}
+// New returns a domains collector backed by client. The logger records what
+// the scheduler never sees: a duplicate domain dropped from a list that
+// shifted between two page requests. A nil logger discards it.
+func New(client *godo.Client, logger *slog.Logger) *Collector {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+	return &Collector{client: client, logger: logger}
 }
 
 // Name implements collector.Collector.
@@ -70,26 +74,15 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 // snapshot is replaced, so a failure halfway through the list leaves the
 // previous zones in place rather than reporting half an account.
 func (c *Collector) Refresh(ctx context.Context) error {
-	opts := &godo.ListOptions{PerPage: domainsPerPage}
-	var next []domain
+	zones, err := paging.All(ctx, c.logger, "domains",
+		func(d godo.Domain) string { return d.Name }, c.client.Domains.List)
+	if err != nil {
+		return err
+	}
 
-	for {
-		page, resp, err := c.client.Domains.List(ctx, opts)
-		if err != nil {
-			return fmt.Errorf("list domains: %w", err)
-		}
-		for i := range page {
-			next = append(next, domain{name: page[i].Name, ttl: float64(page[i].TTL)})
-		}
-
-		if resp == nil || resp.Links == nil || resp.Links.IsLastPage() {
-			break
-		}
-		current, err := resp.Links.CurrentPage()
-		if err != nil {
-			return fmt.Errorf("next page of domains: %w", err)
-		}
-		opts.Page = current + 1
+	next := make([]domain, 0, len(zones))
+	for i := range zones {
+		next = append(next, domain{name: zones[i].Name, ttl: float64(zones[i].TTL)})
 	}
 
 	c.mu.Lock()

@@ -55,7 +55,7 @@ func newTestCollector(t *testing.T, handler http.HandlerFunc) *volumes.Collector
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	return volumes.New(client)
+	return volumes.New(client, nil)
 }
 
 // okHandler serves the two-volume account.
@@ -182,5 +182,39 @@ func TestDescribeCoversEveryMetric(t *testing.T) {
 	}
 	if want := 3; count != want {
 		t.Errorf("Describe sent %d descriptors, want %d", count, want)
+	}
+}
+
+// The list can shift between two page requests — a resource created or
+// destroyed while the pages are being read — and the same volume then arrives
+// on both. It has to reach the snapshot once: two entries would be two series
+// with identical labels, which fails the whole scrape rather than one metric.
+func TestRefreshDropsADuplicateVolumeOnTwoPages(t *testing.T) {
+	page := func(next bool) string {
+		links := `"links":{}`
+		if next {
+			links = `"links":{"pages":{"next":"https://api.digitalocean.com/v2/volumes?page=2"}}`
+		}
+		return fmt.Sprintf(`{"volumes":[{"id":"vol-1","name":"first","region":{"slug":"fra1"},`+
+			`"size_gigabytes":1,"droplet_ids":[]}],%s,"meta":{"total":1}}`, links)
+	}
+
+	c := newTestCollector(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(page(r.URL.Query().Get("page") != "2")))
+	})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_volume_size_bytes Size of the volume in bytes.
+# TYPE digitalocean_volume_size_bytes gauge
+digitalocean_volume_size_bytes{id="vol-1",name="first",region="fra1"} 1.073741824e+09
+`
+	const metric = "digitalocean_volume_size_bytes"
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want), metric); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
 	}
 }

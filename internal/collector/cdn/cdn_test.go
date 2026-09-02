@@ -59,7 +59,7 @@ func newTestCollector(t *testing.T, handler http.HandlerFunc) *cdn.Collector {
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	return cdn.New(client)
+	return cdn.New(client, nil)
 }
 
 // okHandler serves the two-endpoint account.
@@ -187,5 +187,39 @@ func TestDescribeCoversEveryMetric(t *testing.T) {
 	}
 	if want := 2; count != want {
 		t.Errorf("Describe sent %d descriptors, want %d", count, want)
+	}
+}
+
+// The list can shift between two page requests — a resource created or
+// destroyed while the pages are being read — and the same endpoint then arrives
+// on both. It has to reach the snapshot once: two entries would be two series
+// with identical labels, which fails the whole scrape rather than one metric.
+func TestRefreshDropsADuplicateEndpointOnTwoPages(t *testing.T) {
+	page := func(next bool) string {
+		links := `"links":{}`
+		if next {
+			links = `"links":{"pages":{"next":"https://api.digitalocean.com/v2/cdn/endpoints?page=2"}}`
+		}
+		return fmt.Sprintf(`{"endpoints":[{"id":"cdn-1","origin":"o","endpoint":"e","ttl":3600}],`+
+			`%s,"meta":{"total":1}}`, links)
+	}
+
+	c := newTestCollector(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(page(r.URL.Query().Get("page") != "2")))
+	})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_cdn_endpoint_ttl_seconds Cache time-to-live of the CDN endpoint in seconds.
+# TYPE digitalocean_cdn_endpoint_ttl_seconds gauge
+digitalocean_cdn_endpoint_ttl_seconds{endpoint="e",id="cdn-1",origin="o"} 3600
+`
+	const metric = "digitalocean_cdn_endpoint_ttl_seconds"
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want), metric); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
 	}
 }

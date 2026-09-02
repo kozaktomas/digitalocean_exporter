@@ -707,3 +707,33 @@ digitalocean_droplet_metrics_up{id="2",name="web-2"} 1
 		t.Errorf("unexpected metrics: %v", err)
 	}
 }
+
+// The droplet list can shift between two page requests, and the same droplet
+// then arrives on both. Measuring it twice would report every one of its
+// readings twice, under identical labels, and fail the whole scrape.
+func TestListDropsADuplicateDropletOnTwoPages(t *testing.T) {
+	page := func(next bool) string {
+		links := `"links":{}`
+		if next {
+			links = `"links":{"pages":{"next":"https://api.digitalocean.com/v2/droplets?page=2"}}`
+		}
+		return fmt.Sprintf(`{"droplets":[{"id":1,"name":"web-1"}],%s,"meta":{"total":1}}`, links)
+	}
+
+	c := newTestCollector(t, 4, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/droplets" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(page(r.URL.Query().Get("page") != "2")))
+			return
+		}
+		okHandler(w, r)
+	})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	if err := testutil.CollectAndCompare(c, strings.NewReader(wantMetrics)); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+}

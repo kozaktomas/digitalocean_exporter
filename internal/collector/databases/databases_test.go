@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -61,7 +62,7 @@ func newTestCollector(t *testing.T, handler http.HandlerFunc) *databases.Collect
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	return databases.New(client)
+	return databases.New(client, nil)
 }
 
 func okHandler(w http.ResponseWriter, r *http.Request) {
@@ -207,5 +208,46 @@ func TestDescribeCoversEveryMetric(t *testing.T) {
 	}
 	if want := 4; count != want {
 		t.Errorf("Describe sent %d descriptors, want %d", count, want)
+	}
+}
+
+// The list endpoint does not document paging and godo drops its links, so an
+// implementation that ignores the page parameter answers page 2, 3 and every
+// page after it with the same full list. The refresh stops at the first cluster
+// it has already seen rather than paging until its deadline, which would fail
+// every refresh on an account holding a full page of clusters.
+func TestRefreshStopsWhenTheListIgnoresThePage(t *testing.T) {
+	const perPage = 200
+	var requests atomic.Int64
+
+	clusters := make([]string, 0, perPage)
+	for i := 1; i <= perPage; i++ {
+		clusters = append(clusters, fmt.Sprintf(`{"id":"%d","name":"db-%d","engine":"mysql","version":"8",`+
+			`"num_nodes":1,"size":"db-2vcpu-4gb","region":"fra1","status":"online"}`, i, i))
+	}
+	body := `{"databases":[` + strings.Join(clusters, ",") + `],"meta":{"total":200}}`
+
+	c := newTestCollector(t, func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+	})
+
+	// A deadline of its own, so a loop that does not terminate fails this test
+	// instead of hanging it until the package times out.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := c.Refresh(ctx); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	if got := testutil.CollectAndCount(c, "digitalocean_database_nodes"); got != perPage {
+		t.Errorf("clusters collected = %d, want %d", got, perPage)
+	}
+	// The full first page asks for a second one; the repeat it answers with is
+	// where the walk ends.
+	if got := requests.Load(); got != 2 {
+		t.Errorf("list requests = %d, want 2", got)
 	}
 }

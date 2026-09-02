@@ -9,17 +9,15 @@ package droplets
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"strconv"
 	"sync"
 
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
-)
 
-// dropletsPerPage is how many droplets one page request asks for, which is the
-// most the API allows.
-const dropletsPerPage = 200
+	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
+)
 
 // The API reports memory in mebibytes and disk in gibibytes.
 const (
@@ -76,14 +74,20 @@ type droplet struct {
 // Collector reports the droplets of the account.
 type Collector struct {
 	client *godo.Client
+	logger *slog.Logger
 
 	mu   sync.RWMutex
 	snap []droplet
 }
 
-// New returns a droplet collector backed by client.
-func New(client *godo.Client) *Collector {
-	return &Collector{client: client}
+// New returns a droplet collector backed by client. The logger records what
+// the scheduler never sees: a duplicate droplet dropped from a list that
+// shifted between two page requests. A nil logger discards it.
+func New(client *godo.Client, logger *slog.Logger) *Collector {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+	return &Collector{client: client, logger: logger}
 }
 
 // Name implements collector.Collector.
@@ -100,26 +104,15 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 // snapshot is replaced, so a failure halfway through the list leaves the
 // previous droplets in place rather than reporting half an account.
 func (c *Collector) Refresh(ctx context.Context) error {
-	opts := &godo.ListOptions{PerPage: dropletsPerPage}
-	var next []droplet
+	droplets, err := paging.All(ctx, c.logger, "droplets",
+		func(d godo.Droplet) int { return d.ID }, c.client.Droplets.List)
+	if err != nil {
+		return err
+	}
 
-	for {
-		page, resp, err := c.client.Droplets.List(ctx, opts)
-		if err != nil {
-			return fmt.Errorf("list droplets: %w", err)
-		}
-		for i := range page {
-			next = append(next, newDroplet(&page[i]))
-		}
-
-		if resp == nil || resp.Links == nil || resp.Links.IsLastPage() {
-			break
-		}
-		current, err := resp.Links.CurrentPage()
-		if err != nil {
-			return fmt.Errorf("next page of droplets: %w", err)
-		}
-		opts.Page = current + 1
+	next := make([]droplet, 0, len(droplets))
+	for i := range droplets {
+		next = append(next, newDroplet(&droplets[i]))
 	}
 
 	c.mu.Lock()

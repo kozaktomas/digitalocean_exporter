@@ -77,7 +77,7 @@ func newTestCollector(t *testing.T, handler http.HandlerFunc) *kubernetes.Collec
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	return kubernetes.New(client)
+	return kubernetes.New(client, nil)
 }
 
 func okHandler(w http.ResponseWriter, r *http.Request) {
@@ -225,5 +225,39 @@ func TestDescribeCoversEveryMetric(t *testing.T) {
 	}
 	if want := 9; count != want {
 		t.Errorf("Describe sent %d descriptors, want %d", count, want)
+	}
+}
+
+// The list can shift between two page requests — a resource created or
+// destroyed while the pages are being read — and the same cluster then arrives
+// on both. It has to reach the snapshot once: two entries would be two series
+// with identical labels, which fails the whole scrape rather than one metric.
+func TestRefreshDropsADuplicateClusterOnTwoPages(t *testing.T) {
+	page := func(next bool) string {
+		links := `"links":{}`
+		if next {
+			links = `"links":{"pages":{"next":"https://api.digitalocean.com/v2/kubernetes/clusters?page=2"}}`
+		}
+		return fmt.Sprintf(`{"kubernetes_clusters":[{"id":"c1","name":"first","region":"fra1","version":"1.35.5-do.1",`+
+			`"status":{"state":"running"},"node_pools":[]}],%s,"meta":{"total":1}}`, links)
+	}
+
+	c := newTestCollector(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(page(r.URL.Query().Get("page") != "2")))
+	})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_kubernetes_cluster_up Whether the cluster state is running.
+# TYPE digitalocean_kubernetes_cluster_up gauge
+digitalocean_kubernetes_cluster_up{id="c1",name="first",region="fra1",version="1.35.5-do.1"} 1
+`
+	const metric = "digitalocean_kubernetes_cluster_up"
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want), metric); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
 	}
 }

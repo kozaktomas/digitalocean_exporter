@@ -487,7 +487,10 @@ with credentials of its own; that is a separate exporter's job, not this one's.
 
 godo does not expose the pagination links of this endpoint, so the collector treats a full
 page as the signal that another may follow. An account whose cluster count divides exactly
-by the page size costs one extra empty request per refresh.
+by the page size costs one extra empty request per refresh. The walk also stops at the first
+cluster it has already seen: the endpoint documents no paging at all, and one that ignores
+the page parameter would otherwise be asked for page 2, 3 and so on until the refresh died
+on its deadline.
 
 ## Container registry
 

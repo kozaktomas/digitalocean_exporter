@@ -46,7 +46,7 @@ func newTestCollector(t *testing.T, handler http.HandlerFunc) *domains.Collector
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	return domains.New(client)
+	return domains.New(client, nil)
 }
 
 // okHandler serves the two-zone account.
@@ -172,5 +172,38 @@ func TestDescribeCoversEveryMetric(t *testing.T) {
 	}
 	if want := 1; count != want {
 		t.Errorf("Describe sent %d descriptors, want %d", count, want)
+	}
+}
+
+// The list can shift between two page requests — a resource created or
+// destroyed while the pages are being read — and the same domain then arrives
+// on both. It has to reach the snapshot once: two entries would be two series
+// with identical labels, which fails the whole scrape rather than one metric.
+func TestRefreshDropsADuplicateDomainOnTwoPages(t *testing.T) {
+	page := func(next bool) string {
+		links := `"links":{}`
+		if next {
+			links = `"links":{"pages":{"next":"https://api.digitalocean.com/v2/domains?page=2"}}`
+		}
+		return fmt.Sprintf(`{"domains":[{"name":"first.example","ttl":1800}],%s,"meta":{"total":1}}`, links)
+	}
+
+	c := newTestCollector(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(page(r.URL.Query().Get("page") != "2")))
+	})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_domain_ttl_seconds Default time-to-live of the DNS zone in seconds.
+# TYPE digitalocean_domain_ttl_seconds gauge
+digitalocean_domain_ttl_seconds{domain="first.example"} 1800
+`
+	const metric = "digitalocean_domain_ttl_seconds"
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want), metric); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
 	}
 }

@@ -13,16 +13,14 @@ package volumes
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
-)
 
-// volumesPerPage is how many volumes one page request asks for, which is the
-// most the API allows.
-const volumesPerPage = 200
+	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
+)
 
 // The API reports volume size in gigabytes, read here as binary.
 const bytesPerGibibyte = 1024 * 1024 * 1024
@@ -59,14 +57,20 @@ type volume struct {
 // Collector reports the block storage volumes of the account.
 type Collector struct {
 	client *godo.Client
+	logger *slog.Logger
 
 	mu   sync.RWMutex
 	snap []volume
 }
 
-// New returns a volume collector backed by client.
-func New(client *godo.Client) *Collector {
-	return &Collector{client: client}
+// New returns a volume collector backed by client. The logger records what the
+// scheduler never sees: a duplicate volume dropped from a list that shifted
+// between two page requests. A nil logger discards it.
+func New(client *godo.Client, logger *slog.Logger) *Collector {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+	return &Collector{client: client, logger: logger}
 }
 
 // Name implements collector.Collector.
@@ -83,26 +87,20 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 // snapshot is replaced, so a failure halfway through the list leaves the
 // previous volumes in place rather than reporting half an account.
 func (c *Collector) Refresh(ctx context.Context) error {
-	params := &godo.ListVolumeParams{ListOptions: &godo.ListOptions{PerPage: volumesPerPage}}
-	var next []volume
+	// The volume list takes its paging inside a struct of its own, which the
+	// closure fills in from the options the helper walks with.
+	list := func(ctx context.Context, opts *godo.ListOptions) ([]godo.Volume, *godo.Response, error) {
+		return c.client.Storage.ListVolumes(ctx, &godo.ListVolumeParams{ListOptions: opts})
+	}
 
-	for {
-		page, resp, err := c.client.Storage.ListVolumes(ctx, params)
-		if err != nil {
-			return fmt.Errorf("list volumes: %w", err)
-		}
-		for i := range page {
-			next = append(next, newVolume(&page[i]))
-		}
+	volumes, err := paging.All(ctx, c.logger, "volumes", func(v godo.Volume) string { return v.ID }, list)
+	if err != nil {
+		return err
+	}
 
-		if resp == nil || resp.Links == nil || resp.Links.IsLastPage() {
-			break
-		}
-		current, err := resp.Links.CurrentPage()
-		if err != nil {
-			return fmt.Errorf("next page of volumes: %w", err)
-		}
-		params.ListOptions.Page = current + 1
+	next := make([]volume, 0, len(volumes))
+	for i := range volumes {
+		next = append(next, newVolume(&volumes[i]))
 	}
 
 	c.mu.Lock()

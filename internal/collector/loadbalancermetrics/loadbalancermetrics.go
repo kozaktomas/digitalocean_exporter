@@ -35,12 +35,9 @@ import (
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
 	"github.com/kozaktomas/digitalocean_exporter/internal/timeseries"
 )
-
-// loadBalancersPerPage is how many load balancers one page request asks for,
-// which is the most the API allows.
-const loadBalancersPerPage = 200
 
 // window is how far back a metrics query reaches. The API samples every two
 // minutes, so a window of several of them tolerates a late or skipped sample
@@ -218,27 +215,17 @@ func (c *Collector) advance(by, total int) {
 
 // listLoadBalancers names every load balancer in the account.
 func (c *Collector) listLoadBalancers(ctx context.Context) ([]reference, error) {
-	opts := &godo.ListOptions{PerPage: loadBalancersPerPage}
-	var refs []reference
-
-	for {
-		page, resp, err := c.client.LoadBalancers.List(ctx, opts)
-		if err != nil {
-			return nil, fmt.Errorf("list load balancers: %w", err)
-		}
-		for _, lb := range page {
-			refs = append(refs, reference{id: lb.ID, name: lb.Name})
-		}
-
-		if resp == nil || resp.Links == nil || resp.Links.IsLastPage() {
-			return refs, nil
-		}
-		current, err := resp.Links.CurrentPage()
-		if err != nil {
-			return nil, fmt.Errorf("next page of load balancers: %w", err)
-		}
-		opts.Page = current + 1
+	balancers, err := paging.All(ctx, c.logger, "load balancers",
+		func(lb godo.LoadBalancer) string { return lb.ID }, c.client.LoadBalancers.List)
+	if err != nil {
+		return nil, err
 	}
+
+	refs := make([]reference, 0, len(balancers))
+	for _, lb := range balancers {
+		refs = append(refs, reference{id: lb.ID, name: lb.Name})
+	}
+	return refs, nil
 }
 
 // measureAll measures the load balancers in the order given, at most

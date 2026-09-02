@@ -16,16 +16,14 @@ package firewalls
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
-)
 
-// firewallsPerPage is how many firewalls one page request asks for, which is
-// the most the API allows.
-const firewallsPerPage = 200
+	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
+)
 
 // anywhereV4 and anywhereV6 are the source addresses that mean "the whole
 // internet". A rule listing either is reachable from anywhere.
@@ -81,14 +79,20 @@ type firewall struct {
 // Collector reports the cloud firewalls of the account.
 type Collector struct {
 	client *godo.Client
+	logger *slog.Logger
 
 	mu   sync.RWMutex
 	snap []firewall
 }
 
-// New returns a firewalls collector backed by client.
-func New(client *godo.Client) *Collector {
-	return &Collector{client: client}
+// New returns a firewalls collector backed by client. The logger records what
+// the scheduler never sees: a duplicate firewall dropped from a list that
+// shifted between two page requests. A nil logger discards it.
+func New(client *godo.Client, logger *slog.Logger) *Collector {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+	return &Collector{client: client, logger: logger}
 }
 
 // Name implements collector.Collector.
@@ -105,26 +109,15 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 // snapshot is replaced, so a failure halfway through the list leaves the
 // previous firewalls in place rather than reporting half an account.
 func (c *Collector) Refresh(ctx context.Context) error {
-	opts := &godo.ListOptions{PerPage: firewallsPerPage}
-	var next []firewall
+	firewalls, err := paging.All(ctx, c.logger, "firewalls",
+		func(f godo.Firewall) string { return f.ID }, c.client.Firewalls.List)
+	if err != nil {
+		return err
+	}
 
-	for {
-		page, resp, err := c.client.Firewalls.List(ctx, opts)
-		if err != nil {
-			return fmt.Errorf("list firewalls: %w", err)
-		}
-		for i := range page {
-			next = append(next, newFirewall(&page[i]))
-		}
-
-		if resp == nil || resp.Links == nil || resp.Links.IsLastPage() {
-			break
-		}
-		current, err := resp.Links.CurrentPage()
-		if err != nil {
-			return fmt.Errorf("next page of firewalls: %w", err)
-		}
-		opts.Page = current + 1
+	next := make([]firewall, 0, len(firewalls))
+	for i := range firewalls {
+		next = append(next, newFirewall(&firewalls[i]))
 	}
 
 	c.mu.Lock()

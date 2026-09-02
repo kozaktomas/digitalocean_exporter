@@ -14,17 +14,15 @@ package certificates
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
-)
 
-// certificatesPerPage is how many certificates one page request asks for,
-// which is the most the API allows.
-const certificatesPerPage = 200
+	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
+)
 
 // Metric descriptors.
 var (
@@ -62,14 +60,20 @@ type certificate struct {
 // Collector reports the TLS certificates of the account.
 type Collector struct {
 	client *godo.Client
+	logger *slog.Logger
 
 	mu   sync.RWMutex
 	snap []certificate
 }
 
-// New returns a certificates collector backed by client.
-func New(client *godo.Client) *Collector {
-	return &Collector{client: client}
+// New returns a certificates collector backed by client. The logger records
+// what the scheduler never sees: a duplicate certificate dropped from a list
+// that shifted between two page requests. A nil logger discards it.
+func New(client *godo.Client, logger *slog.Logger) *Collector {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+	return &Collector{client: client, logger: logger}
 }
 
 // Name implements collector.Collector.
@@ -86,26 +90,15 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 // snapshot is replaced, so a failure halfway through the list leaves the
 // previous certificates in place rather than reporting half an account.
 func (c *Collector) Refresh(ctx context.Context) error {
-	opts := &godo.ListOptions{PerPage: certificatesPerPage}
-	var next []certificate
+	certs, err := paging.All(ctx, c.logger, "certificates",
+		func(cert godo.Certificate) string { return cert.ID }, c.client.Certificates.List)
+	if err != nil {
+		return err
+	}
 
-	for {
-		page, resp, err := c.client.Certificates.List(ctx, opts)
-		if err != nil {
-			return fmt.Errorf("list certificates: %w", err)
-		}
-		for i := range page {
-			next = append(next, newCertificate(&page[i]))
-		}
-
-		if resp == nil || resp.Links == nil || resp.Links.IsLastPage() {
-			break
-		}
-		current, err := resp.Links.CurrentPage()
-		if err != nil {
-			return fmt.Errorf("next page of certificates: %w", err)
-		}
-		opts.Page = current + 1
+	next := make([]certificate, 0, len(certs))
+	for i := range certs {
+		next = append(next, newCertificate(&certs[i]))
 	}
 
 	c.mu.Lock()

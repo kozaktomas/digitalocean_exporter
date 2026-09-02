@@ -10,6 +10,7 @@ package databases
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 
@@ -64,14 +65,20 @@ type cluster struct {
 // Collector reports the managed database clusters of the account.
 type Collector struct {
 	client *godo.Client
+	logger *slog.Logger
 
 	mu   sync.RWMutex
 	snap []cluster
 }
 
-// New returns a database collector backed by client.
-func New(client *godo.Client) *Collector {
-	return &Collector{client: client}
+// New returns a database collector backed by client. The logger records what
+// the scheduler never sees: a list the endpoint served again because it
+// ignored the page it was asked for. A nil logger discards it.
+func New(client *godo.Client, logger *slog.Logger) *Collector {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+	return &Collector{client: client, logger: logger}
 }
 
 // Name implements collector.Collector.
@@ -90,14 +97,32 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 func (c *Collector) Refresh(ctx context.Context) error {
 	opts := &godo.ListOptions{Page: 1, PerPage: databasesPerPage}
 	var next []cluster
+	seen := make(map[string]struct{})
 
 	for {
 		page, _, err := c.client.Databases.List(ctx, opts)
 		if err != nil {
 			return fmt.Errorf("list databases: %w", err)
 		}
+
+		// A cluster that was already on an earlier page means the endpoint
+		// served the same list again: it documents no paging, and an
+		// implementation that ignores the page parameter would otherwise be
+		// asked for page 2, 3 and so on until the refresh died on its
+		// deadline. The repeat is where the list ends.
+		repeated := false
 		for i := range page {
+			if _, dup := seen[page[i].ID]; dup {
+				repeated = true
+				break
+			}
+			seen[page[i].ID] = struct{}{}
 			next = append(next, newCluster(&page[i]))
+		}
+		if repeated {
+			c.logger.Debug("stopped listing databases at a repeated cluster",
+				"page", opts.Page, "clusters", len(next))
+			break
 		}
 
 		// godo drops the pagination links of this endpoint, so a full page is

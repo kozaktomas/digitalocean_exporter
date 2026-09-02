@@ -75,7 +75,7 @@ func newTestCollector(t *testing.T, handler http.HandlerFunc) *droplets.Collecto
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	return droplets.New(client)
+	return droplets.New(client, nil)
 }
 
 func okHandler(w http.ResponseWriter, r *http.Request) {
@@ -202,5 +202,40 @@ func TestDescribeCoversEveryMetric(t *testing.T) {
 	}
 	if want := 7; count != want {
 		t.Errorf("Describe sent %d descriptors, want %d", count, want)
+	}
+}
+
+// The list can shift between two page requests — a resource created or
+// destroyed while the pages are being read — and the same droplet then arrives
+// on both. It has to reach the snapshot once: two entries would be two series
+// with identical labels, which fails the whole scrape rather than one metric.
+func TestRefreshDropsADuplicateDropletOnTwoPages(t *testing.T) {
+	page := func(next bool) string {
+		links := `"links":{}`
+		if next {
+			links = `"links":{"pages":{"next":"https://api.digitalocean.com/v2/droplets?page=2"}}`
+		}
+		return fmt.Sprintf(`{"droplets":[{"id":1,"name":"first","status":"active","vcpus":1,"memory":1024,`+
+			`"disk":25,"region":{"slug":"fra1"},"size":{"slug":"s-1vcpu-1gb"},"image":{"slug":"debian-12"}}],`+
+			`%s,"meta":{"total":1}}`, links)
+	}
+
+	c := newTestCollector(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(page(r.URL.Query().Get("page") != "2")))
+	})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_droplet_up Whether the droplet is active.
+# TYPE digitalocean_droplet_up gauge
+digitalocean_droplet_up{id="1",name="first",region="fra1"} 1
+`
+	const metric = "digitalocean_droplet_up"
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want), metric); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
 	}
 }

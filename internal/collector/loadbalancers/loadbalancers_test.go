@@ -71,7 +71,7 @@ func newTestCollector(t *testing.T, handler http.HandlerFunc) *loadbalancers.Col
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	return loadbalancers.New(client)
+	return loadbalancers.New(client, nil)
 }
 
 // okHandler serves the two-load-balancer account.
@@ -200,5 +200,39 @@ func TestDescribeCoversEveryMetric(t *testing.T) {
 	}
 	if want := 5; count != want {
 		t.Errorf("Describe sent %d descriptors, want %d", count, want)
+	}
+}
+
+// The list can shift between two page requests — a resource created or
+// destroyed while the pages are being read — and the same load balancer then arrives
+// on both. It has to reach the snapshot once: two entries would be two series
+// with identical labels, which fails the whole scrape rather than one metric.
+func TestRefreshDropsADuplicateLoadBalancerOnTwoPages(t *testing.T) {
+	page := func(next bool) string {
+		links := `"links":{}`
+		if next {
+			links = `"links":{"pages":{"next":"https://api.digitalocean.com/v2/load_balancers?page=2"}}`
+		}
+		return fmt.Sprintf(`{"load_balancers":[{"id":"lb-1","name":"first","ip":"10.0.0.9",`+
+			`"status":"active","region":{"slug":"fra1"},"droplet_ids":[]}],%s,"meta":{"total":1}}`, links)
+	}
+
+	c := newTestCollector(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(page(r.URL.Query().Get("page") != "2")))
+	})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_loadbalancer_status The status of the load balancer, 1 if active.
+# TYPE digitalocean_loadbalancer_status gauge
+digitalocean_loadbalancer_status{id="lb-1",ip="10.0.0.9",name="first"} 1
+`
+	const metric = "digitalocean_loadbalancer_status"
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want), metric); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
 	}
 }

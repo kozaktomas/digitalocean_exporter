@@ -15,16 +15,14 @@ package loadbalancers
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
-)
 
-// loadBalancersPerPage is how many load balancers one page request asks for,
-// which is the most the API allows.
-const loadBalancersPerPage = 200
+	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
+)
 
 // activeStatus is the load balancer status that counts as up.
 const activeStatus = "active"
@@ -74,14 +72,20 @@ type loadBalancer struct {
 // Collector reports the load balancers of the account.
 type Collector struct {
 	client *godo.Client
+	logger *slog.Logger
 
 	mu   sync.RWMutex
 	snap []loadBalancer
 }
 
-// New returns a load balancer collector backed by client.
-func New(client *godo.Client) *Collector {
-	return &Collector{client: client}
+// New returns a load balancer collector backed by client. The logger records
+// what the scheduler never sees: a duplicate load balancer dropped from a list
+// that shifted between two page requests. A nil logger discards it.
+func New(client *godo.Client, logger *slog.Logger) *Collector {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+	return &Collector{client: client, logger: logger}
 }
 
 // Name implements collector.Collector.
@@ -98,26 +102,15 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 // snapshot is replaced, so a failure halfway through the list leaves the
 // previous load balancers in place rather than reporting half an account.
 func (c *Collector) Refresh(ctx context.Context) error {
-	opts := &godo.ListOptions{PerPage: loadBalancersPerPage}
-	var next []loadBalancer
+	balancers, err := paging.All(ctx, c.logger, "load balancers",
+		func(lb godo.LoadBalancer) string { return lb.ID }, c.client.LoadBalancers.List)
+	if err != nil {
+		return err
+	}
 
-	for {
-		page, resp, err := c.client.LoadBalancers.List(ctx, opts)
-		if err != nil {
-			return fmt.Errorf("list load balancers: %w", err)
-		}
-		for i := range page {
-			next = append(next, newLoadBalancer(&page[i]))
-		}
-
-		if resp == nil || resp.Links == nil || resp.Links.IsLastPage() {
-			break
-		}
-		current, err := resp.Links.CurrentPage()
-		if err != nil {
-			return fmt.Errorf("next page of load balancers: %w", err)
-		}
-		opts.Page = current + 1
+	next := make([]loadBalancer, 0, len(balancers))
+	for i := range balancers {
+		next = append(next, newLoadBalancer(&balancers[i]))
 	}
 
 	c.mu.Lock()
