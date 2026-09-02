@@ -1443,7 +1443,7 @@ exporter against a stub API, so you do not need a DigitalOcean token to work on 
 </tr>
 <tr>
 <td><code>make chart-lint</code></td>
-<td><code>helm lint</code> and <code>helm template</code> the chart</td>
+<td><code>helm lint --strict</code> and render the chart in every configuration that has a branch</td>
 </tr>
 <tr>
 <td><code>make chart-docs</code></td>
@@ -1567,6 +1567,27 @@ reporting success over an unchanged site. The workflow enforces the order rather
 trusting it: a push to a branch whose commit already carries a <code>vX.Y.Z</code> tag stands down and
 leaves the publishing to the release. The tag must be plain <code>vMAJOR.MINOR.PATCH</code>; anything
 else is rejected.</p>
+<p><strong>Nothing ships from an unchecked commit.</strong> The release workflow starts with a <code>check</code> job —
+<code>make check</code>, <code>make alerts-lint</code>, <code>make chart-lint</code> and <code>make smoke</code> — and every job that
+builds or publishes anything waits on it. This is not belt and braces: the order above pushes
+the tag <em>before</em> the branch, so CI on <code>main</code> has not started when the release runs, and
+without this job the binaries, the deb package, the chart and the documentation would all
+ship from a commit nothing had checked. Both workflows install their tools through
+<code>.github/actions/setup-tools</code>, so the gate a release passes cannot drift from the gate CI
+passes.</p>
+<p>Then, before the chart is packaged, the workflow checks that the tree agrees with the tag:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>scripts/release-version-check.sh<span class="w"> </span><span class="m">0</span>.3.0<span class="w">     </span><span class="c1"># the tag without its v</span>
+</code></pre></div>
+<p><code>charts/digitalocean-exporter/Chart.yaml</code> must have <code>version</code> and <code>appVersion</code> equal to the
+tag, and every page that pins a version to install — the README, the install pages, the
+values reference — must name it. All of that is text, so nothing else in the release notices
+when it is stale, and the result is a published chart that contradicts its own install
+instructions. Run the script before tagging and it tells you which file to bump; the failure
+names each one.</p>
+<p><code>.goreleaser.yaml</code> deliberately has no before-hooks. A <code>go mod tidy</code> there would rewrite
+<code>go.mod</code> on the release runner after every check had passed; CI checks that the commit is
+already tidy instead. The goreleaser action is pinned to <code>~&gt; v2</code> for the same reason —
+<code>latest</code> would build a tag with tooling that tag was never tested against.</p>
 <p>Semantic versioning, with one number for everything: exporter, chart, <code>appVersion</code> and the
 documentation directory. While the project is <code>0.x</code>, a minor bump is allowed to break
 compatibility.</p>
