@@ -1853,6 +1853,12 @@ limit scales with the load balancer's size units, and resizing is applied withou
 <td>A certificate's state is <code>error</code> — a failed issuance or renewal, weeks before expiry would say so</td>
 </tr>
 <tr>
+<td><code>DigitalOceanLoadBalancerCertificateExpiring</code></td>
+<td>warning</td>
+<td>1h</td>
+<td>A certificate a load balancer's forwarding rule terminates TLS with has under 14 days left (needs <code>certificates</code>, off by default)</td>
+</tr>
+<tr>
 <td><code>DigitalOceanFirewallChangesPending</code></td>
 <td>warning</td>
 <td>15m</td>
@@ -1877,6 +1883,14 @@ turns to <code>error</code>, which is why both alert on time remaining rather th
 three: a renewal fails weeks before the old certificate runs out, usually because DNS no
 longer points where the domain validation expects. Fixed while this is the only alert
 firing, it costs nothing; left alone, it matures into the two expiry alerts above.</p>
+<p><code>DigitalOceanLoadBalancerCertificateExpiring</code> narrows the fourteen-day warning to the
+certificates actually serving traffic: it joins the expiry series to
+<code>digitalocean_loadbalancer_forwarding_rule_info</code> through its <code>certificate_id</code> label, so it
+only fires for a certificate some load balancer terminates TLS with. When it fires, expiry
+means TLS errors on a live frontend rather than an unused certificate lapsing quietly. The
+forwarding-rule side comes from the always-on <code>loadbalancers</code> collector, but the expiry side
+needs the <code>certificates</code> collector, which is off by default — without it this alert never
+fires.</p>
 <p><code>DigitalOceanFirewallOpenRulesChanged</code> has no <code>for</code> and is deliberately <code>info</code>. The count of
 rules open to the internet is not a fault — a public web server needs one — so the alert is on
 the change, as something to read rather than to act on.</p>

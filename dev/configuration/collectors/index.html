@@ -1786,7 +1786,10 @@ reading the list twice as often would only spend requests.</p>
 with fewer than 200 images — which is nearly all of them — therefore costs exactly one.</p>
 <hr />
 <h2 id="loadbalancers">loadbalancers<a class="headerlink" href="#loadbalancers" title="Permanent link">&para;</a></h2>
-<p>Every load balancer: state, region, the number of droplets behind it, and its billed size.</p>
+<p>Every load balancer: state, region, the number of droplets behind it, and its billed size —
+plus its configuration: each forwarding rule with its certificate, the health check
+settings, and the rule counts of the load balancer's own firewall. The configuration series
+come out of the same list response as the rest, so they add nothing to the collector's cost.</p>
 <p>The backend count is worth an alert of its own — a load balancer with zero backends is
 usually a deploy that went wrong rather than a deliberate configuration.</p>
 <p>Traffic <em>through</em> a load balancer, and which individual backend is failing its health
