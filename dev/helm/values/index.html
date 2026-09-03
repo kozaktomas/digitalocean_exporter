@@ -1405,6 +1405,18 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>How often the domains collector refreshes.</td>
 </tr>
 <tr>
+<td>collectors.dropletautoscale.enabled</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Report every droplet autoscale pool: how many droplets it runs against its minimum, maximum or fixed target, and the current CPU and memory utilisation against the targets it scales on. One paged list request covers the whole account.</td>
+</tr>
+<tr>
+<td>collectors.dropletautoscale.interval</td>
+<td>string</td>
+<td><code>"2m"</code></td>
+<td>How often the dropletautoscale collector refreshes. Two minutes rather than five because the utilisation the pool scales on moves on that cadence, and a scaling event is exactly what this collector is watching for.</td>
+</tr>
+<tr>
 <td>collectors.dropletmetrics.agentOnly</td>
 <td>bool</td>
 <td><code>false</code></td>

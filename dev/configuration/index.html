@@ -1597,17 +1597,19 @@ carries <code>collector="none"</code>.</p>
 trap worth knowing about — see <a href="monitoring-api/#the-budget">the monitoring API</a>. The
 exporter defends it by <a href="#staying-under-the-burst-limit">rate-limiting itself</a>, which is on
 by default.</p>
-<p>The sixteen collectors that are on by default cost one to three requests each per refresh.
+<p>The seventeen collectors that are on by default cost one to three requests each per refresh.
 On a real account with droplets, volumes, a load balancer, a Kubernetes cluster, a database,
 a registry, a DNS zone, a snapshot, a reserved IP, an App Platform app, a few tags and one
-project, one full refresh comes to <strong>24 requests</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>account 1 · apps 1 · balance 1 · cdn 1 · databases 1 · domains 1 · droplets 2 · images 1
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>kubernetes 2 · load_balancers 1 · projects 2 · registry 3 · reserved_ips 2 · reserved_ipv6 1
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>tags 1 · volumes 2
+project, one full refresh comes to <strong>25 requests</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>account 1 · apps 1 · balance 1 · cdn 1 · databases 1 · domains 1 · droplet_autoscale 1
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>droplets 2 · images 1 · kubernetes 2 · load_balancers 1 · projects 2 · registry 3
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>reserved_ips 2 · reserved_ipv6 1 · tags 1 · volumes 2
 </code></pre></div>
-<p>At the default <code>5m</code> that is 12 refreshes an hour — <strong>288 requests, 5.8% of the hourly
-budget</strong>, and 24 in a burst, 9.6% of the per-minute one. Slightly less in practice, since
-<code>images</code>, <code>tags</code> and <code>projects</code> default to a <code>10m</code> interval and spend half that often.
+<p>At the default <code>5m</code> that is 12 refreshes an hour — <strong>300 requests, 6% of the hourly
+budget</strong>, and 25 in a burst, 10% of the per-minute one. Slightly less in practice, since
+<code>images</code>, <code>tags</code> and <code>projects</code> default to a <code>10m</code> interval and spend half that often;
+slightly more from <a href="collectors/#dropletautoscale"><code>dropletautoscale</code></a>, which defaults to
+<code>2m</code> and spends its one request thirty times an hour instead of twelve.
 Comfortable, and it scales with how much you own rather than with how often Prometheus
 scrapes.</p>
 <p><code>kubernetes</code> is the one that counts twice for a single cluster: the list, and then the
@@ -1619,7 +1621,7 @@ for the account-wide count and <a href="collectors/#reservedips"><code>reservedi
 themselves.</p>
 <p>Enabling <a href="collectors/#firewalls"><code>firewalls</code></a> and
 <a href="collectors/#certificates"><code>certificates</code></a> adds one request each, so the same account costs
-26. The other three are off for reasons of their own: <a href="spaces/"><code>spaces</code></a> needs a second
+27. The other three are off for reasons of their own: <a href="spaces/"><code>spaces</code></a> needs a second
 credential, and the two <a href="monitoring-api/">monitoring API</a> collectors cost a multiple of
 everything above.</p>
 <div class="admonition note">

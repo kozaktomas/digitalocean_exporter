@@ -1618,6 +1618,12 @@ very differently and neither clears itself.</p>
 <td>A droplet is in a status other than <code>active</code>, <code>off</code> or <code>archive</code></td>
 </tr>
 <tr>
+<td><code>DigitalOceanDropletAutoscalePoolAtMaximum</code></td>
+<td>warning</td>
+<td>30m</td>
+<td>An autoscale pool sits at its maximum instance count with utilisation above its target</td>
+</tr>
+<tr>
 <td><code>DigitalOceanKubernetesClusterDown</code></td>
 <td>critical</td>
 <td>15m</td>
@@ -1703,6 +1709,15 @@ the phase on its way to being retried does not fire it. It reads
 <code>digitalocean_app_deployment_phase{phase="ERROR"}</code>, which is reported for the <em>active</em>
 deployment only — a failed deployment that was never promoted leaves the phase of the one
 still being served alone.</p>
+<p><code>DigitalOceanDropletAutoscalePoolAtMaximum</code> is the droplet counterpart of
+<code>DigitalOceanKubernetesNodePoolAtMaximum</code>: a pool that has run at its configured maximum for
+half an hour while its current CPU or memory utilisation stays above the target it scales on.
+The autoscaler wants more droplets than it is allowed, so the ones running are working harder
+than intended and nothing else says why. Half an hour separates a pool that has settled there
+from one riding out a spike a cooldown would absorb. Either raise the pool's maximum or treat
+the ceiling as a deliberate budget — in which case the alert is the reminder that scaling has
+stopped there. A pool with a fixed target has no maximum and no utilisation target, so it
+cannot fire this.</p>
 <p><code>DigitalOceanKubernetesNodeNotRunning</code> is the per-node half of
 <code>DigitalOceanNodePoolUnderProvisioned</code>. The pool alert says a pool is short; this one names
 the node and the state it is stuck in, and <code>digitalocean_kubernetes_node_info</code> carries the

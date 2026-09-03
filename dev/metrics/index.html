@@ -946,6 +946,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#droplet-autoscale-pools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Droplet autoscale pools
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#volumes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1624,6 +1635,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#droplet-autoscale-pools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Droplet autoscale pools
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#volumes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2159,6 +2181,80 @@ since a Prometheus label matcher is anchored at both ends — and the label is o
 metric alone. Neither <code>tags</code> nor <code>vpc_uuid</code> is on the up or the status series: retagging a
 droplet, or moving it between VPCs, must not break the continuity of the series an alert
 watches.</p>
+<h2 id="droplet-autoscale-pools">Droplet autoscale pools<a class="headerlink" href="#droplet-autoscale-pools" title="Permanent link">&para;</a></h2>
+<p>Collected by <code>dropletautoscale</code> from <code>/v2/droplets/autoscale</code>, one set of metrics per
+autoscale pool.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>digitalocean_droplet_autoscale_pool_info</code></td>
+<td><code>id</code>, <code>name</code>, <code>region</code>, <code>size</code>, <code>status</code></td>
+<td>Always 1</td>
+</tr>
+<tr>
+<td><code>digitalocean_droplet_autoscale_pool_active_instances</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>Active droplets in the pool</td>
+</tr>
+<tr>
+<td><code>digitalocean_droplet_autoscale_pool_min_instances</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>Minimum droplets the pool keeps</td>
+</tr>
+<tr>
+<td><code>digitalocean_droplet_autoscale_pool_max_instances</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>Maximum droplets the pool may grow to</td>
+</tr>
+<tr>
+<td><code>digitalocean_droplet_autoscale_pool_target_instances</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>Fixed droplet count the pool is configured to run</td>
+</tr>
+<tr>
+<td><code>digitalocean_droplet_autoscale_pool_target_cpu_utilization_ratio</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>CPU utilisation the pool scales towards, 0 to 1</td>
+</tr>
+<tr>
+<td><code>digitalocean_droplet_autoscale_pool_target_memory_utilization_ratio</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>Memory utilisation the pool scales towards, 0 to 1</td>
+</tr>
+<tr>
+<td><code>digitalocean_droplet_autoscale_pool_current_cpu_utilization_ratio</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>Average CPU utilisation across the pool's droplets, 0 to 1</td>
+</tr>
+<tr>
+<td><code>digitalocean_droplet_autoscale_pool_current_memory_utilization_ratio</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>Average memory utilisation across the pool's droplets, 0 to 1</td>
+</tr>
+</tbody>
+</table>
+<p>A pool is configured one of two ways, and the metrics follow the split. A pool that scales
+on utilisation carries <code>min_instances</code>, <code>max_instances</code> and at least one of the two target
+ratios; a pool with a fixed target carries <code>target_instances</code> and none of those. The metrics
+of the shape not in use are absent rather than zero — a fixed-target pool reporting
+<code>max_instances 0</code> would read as a pool forbidden to run anything.</p>
+<p>The utilisation ratios are the API's own decimals between 0 and 1, passed through
+unchanged, so <code>current &gt; target</code> is directly the condition the autoscaler acts on. A pool
+whose listing reports no current utilisation emits neither <code>current_</code> series rather than
+zeros.</p>
+<p>The droplets a pool runs are ordinary droplets and appear in the <a href="#droplets">droplets</a>
+metrics like any other; nothing here duplicates them. What this collector adds is the
+pool's own view — the bounds, the targets and the aggregate utilisation the scaling
+decisions are made from. <code>DigitalOceanDropletAutoscalePoolAtMaximum</code> in the bundled
+<a href="../alerting/">alerting rules</a> reads exactly these series.</p>
+<p><code>status</code> on the info metric is <code>active</code>, <code>deleting</code> or <code>error</code>, as the API reports it.</p>
 <h2 id="volumes">Volumes<a class="headerlink" href="#volumes" title="Permanent link">&para;</a></h2>
 <p>Collected by <code>volumes</code> from <code>/v2/volumes</code>, one set of metrics per block storage volume.</p>
 <table>
