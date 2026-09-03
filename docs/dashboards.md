@@ -114,3 +114,11 @@ go test ./cmd/digitalocean_exporter -run TestDashboardsAreNormalised -update.das
 
 This strips the instance's `id` and `version`, clears the variables' remembered selections and
 rewrites the file with sorted keys. Commit the result.
+
+One rule nothing enforces, and so worth remembering: **do not rate a metric of this exporter
+over `$__rate_interval`.** That variable is derived from the scrape interval, while every
+counter here only moves when its collector refreshes — once every
+`--collector.<name>.interval`, five minutes by default. A window shorter than that usually
+spans no step at all, which reads as a rate of zero, or, inside a ratio or a
+`histogram_quantile`, as no data at all. The panels that rate a counter use a fixed window
+covering at least two refreshes and say so in their description.

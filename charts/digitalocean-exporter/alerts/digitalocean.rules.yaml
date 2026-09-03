@@ -66,7 +66,7 @@ groups:
             fail before then keep their previous snapshot. Lengthen the interval of the
             expensive collectors — dropletmetrics costs 10 requests per droplet per
             refresh — and check
-            `sum by (collector) (rate(digitalocean_exporter_api_requests_total[5m]))` for
+            `sum by (collector) (rate(digitalocean_exporter_api_requests_total[30m]))` for
             which one is spending it.
           runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#the-exporter-itself
 

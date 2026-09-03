@@ -266,7 +266,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Requests each collector's refreshes make, which is where the hourly budget goes. The resource label cannot answer this: limits and droplets both read /v2/droplets, and both monitoring collectors read /v2/monitoring.",
+      "description": "Requests each collector's refreshes make, which is where the hourly budget goes. The resource label cannot answer this: limits and droplets both read /v2/droplets, and both monitoring collectors read /v2/monitoring. The rate window is a fixed 30m rather than $__rate_interval, which follows the scrape interval: a collector spends its requests in one burst per refresh -- every two, five or ten minutes, depending on the collector -- so a scrape-sized window reads zero between the bursts and a spike on top of one.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -329,7 +329,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (collector) (rate(digitalocean_exporter_api_requests_total{job=~\"$job\"}[$__rate_interval]))",
+          "expr": "sum by (collector) (rate(digitalocean_exporter_api_requests_total{job=~\"$job\"}[30m]))",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{collector}}",
@@ -429,7 +429,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "95th percentile of one API request, by collector. The wait behind the exporter's own rate limiter is not included -- that is in the refresh duration above, and telling the two apart is the point: a slow refresh is either the API or the queue.",
+      "description": "95th percentile of one API request, by collector, over a fixed 30m window: the buckets only move when that collector refreshes, and $__rate_interval follows the scrape interval, which is shorter than the refresh interval of every collector here -- a window spanning no refresh makes every bucket rate zero and the quantile undefined. The wait behind the exporter's own rate limiter is not included -- that is in the refresh duration above, and telling the two apart is the point: a slow refresh is either the API or the queue.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -492,7 +492,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le, collector) (rate(digitalocean_exporter_api_request_duration_seconds_bucket{job=~\"$job\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, collector) (rate(digitalocean_exporter_api_request_duration_seconds_bucket{job=~\"$job\"}[30m])))",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{collector}}",

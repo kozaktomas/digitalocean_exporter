@@ -1335,12 +1335,13 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Per-backend health check result: 100 means the droplet passes the check and receives traffic. Anything below 100 means the load balancer has taken it out of rotation.",
+      "description": "Per-backend health check status as DigitalOcean reports it: 100 when the droplet passes the check and receives traffic, anything below that means the load balancer has taken it out of rotation. It is a status rather than a percentage -- the API claims no unit for it and neither does the metrics reference -- so it is shown as a plain number, green at 100 and red below. Needs --collector.loadbalancermetrics.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
+          "decimals": 0,
           "max": 100,
           "min": 0,
           "thresholds": {
@@ -1356,7 +1357,7 @@
               }
             ]
           },
-          "unit": "percent"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1579,7 +1580,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Rate of new TLS connections against the rate limit the load balancer's size allows. Both series come from the extended metric set (--collector.loadbalancermetrics.extended) and stay empty without that flag.",
+      "description": "Rate of new TLS connections against the rate limit the load balancer's size allows. Both are per-second rates DigitalOcean samples, not counters, so neither is wrapped in rate(). Both series come from the extended metric set (--collector.loadbalancermetrics.extended) and stay empty without that flag.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1612,7 +1613,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "cps"
         },
         "overrides": []
       },

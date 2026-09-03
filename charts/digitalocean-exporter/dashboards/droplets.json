@@ -554,7 +554,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Share of CPU time not spent idle, derived from the cumulative per-mode CPU counters the DigitalOcean monitoring API reports. 1 means every vCPU is busy. Needs --collector.dropletmetrics.",
+      "description": "Share of CPU time not spent idle, derived from the cumulative per-mode CPU counters the DigitalOcean monitoring API reports. 1 means every vCPU is busy. The rate window is a fixed 15m rather than $__rate_interval, which follows the scrape interval: these counters only move when the collector refreshes, once every --collector.dropletmetrics.interval (5m by default), so a scrape-sized window usually spans no step at all -- both rates are then zero, the ratio undefined, and the panel is left bridging the gaps between the one point per refresh that does resolve. Widen the window if you raise that interval. Needs --collector.dropletmetrics.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -619,7 +619,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "1 - sum by (name) (rate(digitalocean_droplet_cpu_seconds_total{job=~\"$job\",name=~\"$droplet\",mode=\"idle\"}[$__rate_interval])) / sum by (name) (rate(digitalocean_droplet_cpu_seconds_total{job=~\"$job\",name=~\"$droplet\"}[$__rate_interval]))",
+          "expr": "1 - sum by (name) (rate(digitalocean_droplet_cpu_seconds_total{job=~\"$job\",name=~\"$droplet\",mode=\"idle\"}[15m])) / sum by (name) (rate(digitalocean_droplet_cpu_seconds_total{job=~\"$job\",name=~\"$droplet\"}[15m]))",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{name}}",
