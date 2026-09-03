@@ -58,7 +58,7 @@ Ten Grafana dashboards ship with it, covering every collector. Import the JSON f
 the Grafana sidecar — see the
 [dashboards page](https://kozaktomas.github.io/digitalocean_exporter/latest/dashboards/).
 
-Twenty-eight alerting rules ship alongside them, as a plain Prometheus rule file the chart can
+A set of alerting rules ships alongside them, as a plain Prometheus rule file the chart can
 install as a `PrometheusRule` — see the
 [alerting page](https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/).
 

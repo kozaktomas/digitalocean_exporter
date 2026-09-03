@@ -19,6 +19,7 @@ groups:
           description: >-
             Prometheus has had no digitalocean_exporter_build_info sample for 15 minutes.
             Nothing about the DigitalOcean account is being observed.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#the-exporter-itself
 
       - alert: DigitalOceanExporterCollectorFailing
         expr: digitalocean_exporter_collector_success == 0
@@ -32,6 +33,7 @@ groups:
             rather than missing. Check the exporter's logs for the refresh error. A
             `balance` collector failing this way is usually a token without the billing
             scope.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#the-exporter-itself
 
       - alert: DigitalOceanExporterCollectorStale
         expr: time() - digitalocean_exporter_collector_last_success_timestamp_seconds > 3600
@@ -45,6 +47,7 @@ groups:
             collector_success at 1 while the data ages. The threshold is an hour, so
             raise it if this collector is deliberately run at an interval longer than
             that.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#the-exporter-itself
 
       - alert: DigitalOceanExporterRateLimitLow
         expr: >-
@@ -65,6 +68,30 @@ groups:
             refresh — and check
             `sum by (collector) (rate(digitalocean_exporter_api_requests_total[5m]))` for
             which one is spending it.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#the-exporter-itself
+
+      - alert: DigitalOceanExporterAPIErrors
+        expr: >-
+          sum by (collector, status) (
+            rate(digitalocean_exporter_api_requests_total{status=~"429|5..|error"}[15m])
+          ) > 0.01
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            Collector {{ $labels.collector }} keeps getting {{ $labels.status }} from
+            the DigitalOcean API
+          description: >-
+            More than an occasional request from this collector is being answered with a
+            429, a 5xx or no response at all, sustained over fifteen minutes. Retries are
+            counted too, because each one spends from the budget. A rising 429 rate means
+            `--do.rate-limit` is set past what the account's hourly allowance covers, or
+            something else is spending the same token; a steady 5xx or transport-error
+            rate is DigitalOcean or the network between here and it. Refreshes that fail
+            outright keep their previous snapshot and show up in
+            digitalocean_exporter_collector_success.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#the-exporter-itself
 
   - name: digitalocean-account
     rules:
@@ -82,6 +109,7 @@ groups:
             already begun and the API will refuse to create anything. Neither clears
             itself: settle the balance or contact DigitalOcean support. Every resource on
             the account is at stake, which is why this is critical rather than a warning.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#account-limits
 
       - alert: DigitalOceanAccountNearDropletLimit
         expr: digitalocean_account_droplets / digitalocean_account_droplet_limit > 0.8
@@ -93,6 +121,7 @@ groups:
           description: >-
             Creating a droplet past the limit fails, which surfaces as a failed deploy or
             a Kubernetes node pool that will not scale up.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#account-limits
 
       - alert: DigitalOceanAccountNearVolumeLimit
         expr: digitalocean_account_volumes / digitalocean_account_volume_limit > 0.8
@@ -104,6 +133,7 @@ groups:
           description: >-
             A PersistentVolumeClaim that cannot be provisioned leaves a pod pending with
             no obvious cause.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#account-limits
 
       - alert: DigitalOceanAccountNearReservedIPLimit
         expr: digitalocean_account_reserved_ips / digitalocean_account_reserved_ip_limit > 0.8
@@ -113,6 +143,7 @@ groups:
         annotations:
           summary: The account uses over 80% of its reserved IP limit
           description: Reserving another IP address will fail once the limit is reached.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#account-limits
 
   - name: digitalocean-resources
     rules:
@@ -134,6 +165,7 @@ groups:
             droplet DigitalOcean itself stopped, or one stuck in new — both worth waking
             somebody for. A droplet left off is still billed, which
             DigitalOceanDropletOff reports at info.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#resources
 
       - alert: DigitalOceanKubernetesClusterDown
         expr: digitalocean_kubernetes_cluster_up == 0
@@ -145,6 +177,7 @@ groups:
           description: >-
             The managed control plane is in a status other than running. This says
             nothing about the workloads inside it, which kube-state-metrics reports.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#resources
 
       - alert: DigitalOceanNodePoolUnderProvisioned
         expr: >-
@@ -158,6 +191,7 @@ groups:
           description: >-
             Fewer nodes are running than the pool is sized for. Half an hour of it means
             a node failed to come back rather than a rolling replacement in progress.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#resources
 
       - alert: DigitalOceanKubernetesNodeNotRunning
         expr: digitalocean_kubernetes_node_state{state="running"} == 0
@@ -173,6 +207,7 @@ groups:
             an hour of it is a node that failed to come up rather than one being replaced,
             and the pool is short of the capacity it is billed for. The droplet underneath
             it is named by digitalocean_kubernetes_node_info.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#resources
 
       - alert: DigitalOceanKubernetesUpgradeAvailable
         expr: >-
@@ -192,6 +227,28 @@ groups:
             before anyone would act on it, and it stays quiet for a cluster with
             auto-upgrade on, which installs it in its own maintenance window.
             digitalocean_kubernetes_cluster_available_version_info names the versions.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#resources
+
+      - alert: DigitalOceanKubernetesNodePoolAtMaximum
+        expr: >-
+          (digitalocean_kubernetes_node_pool_nodes
+             >= digitalocean_kubernetes_node_pool_max_nodes)
+            and (digitalocean_kubernetes_node_pool_auto_scale == 1)
+        for: 1h
+        labels:
+          severity: info
+        annotations:
+          summary: Pool {{ $labels.pool }} of cluster {{ $labels.cluster }} sits at its maximum size
+          description: >-
+            The pool autoscales and has been at its configured ceiling for an hour, so
+            the autoscaler has no headroom left: pods that need another node will stay
+            pending, and nothing else says why. An hour distinguishes a pool that has
+            settled at the top from one passing through a spike. Raise
+            the pool's maximum, or treat the ceiling as a deliberate budget and leave it —
+            but then this alert is the reminder that scaling has stopped there. The
+            account droplet limit can impose the same ceiling from outside, which
+            DigitalOceanAccountNearDropletLimit reports.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#resources
 
       - alert: DigitalOceanLoadBalancerDown
         expr: digitalocean_loadbalancer_status == 0
@@ -201,6 +258,7 @@ groups:
         annotations:
           summary: Load balancer {{ $labels.name }} is not active
           description: The load balancer is in a status other than active.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#resources
 
       - alert: DigitalOceanLoadBalancerWithoutBackends
         expr: digitalocean_loadbalancer_status == 1 and digitalocean_loadbalancer_droplets == 0
@@ -213,6 +271,7 @@ groups:
             An active load balancer proxying to nothing answers every request with an
             error. A load balancer that selects its backends by tag reports zero until
             something carries the tag.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#resources
 
       - alert: DigitalOceanDatabaseUnhealthy
         expr: digitalocean_database_status == 0
@@ -224,6 +283,23 @@ groups:
           description: >-
             The managed cluster is in a status other than online. Load and query metrics
             come from DigitalOcean's per-cluster endpoint, not from this exporter.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#resources
+
+      - alert: DigitalOceanDatabaseMaintenancePending
+        expr: digitalocean_database_maintenance_pending == 1
+        for: 1h
+        labels:
+          severity: info
+        annotations:
+          summary: Database cluster {{ $labels.name }} has maintenance pending
+          description: >-
+            DigitalOcean has an update queued for the cluster and will apply it in the
+            cluster's maintenance window, which usually means a failover on a
+            multi-node cluster and a short outage on a single-node one. This is
+            something to read before the window arrives, not something to act on — check
+            when the window falls and whether it suits, and apply the maintenance by
+            hand first if a quieter moment is available.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#resources
 
       - alert: DigitalOceanAppDeploymentError
         expr: digitalocean_app_deployment_phase{phase="ERROR"} == 1
@@ -239,7 +315,14 @@ groups:
             than a build takes to give up, so this is a settled failure rather than one
             passing through. Read the build and deploy logs of {{ $labels.name }}
             ({{ $labels.id }}) in the App Platform console.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#resources
 
+  # Everything in this group reads the monitoring-API collectors, dropletmetrics
+  # and loadbalancermetrics, which are off by default because their request cost
+  # scales with the account. The rules stay silent until those collectors are
+  # switched on.
+  - name: digitalocean-monitoring
+    rules:
       - alert: DigitalOceanDropletMetricsUnavailable
         expr: digitalocean_droplet_metrics_up == 0
         for: 30m
@@ -251,6 +334,130 @@ groups:
             DigitalOcean's monitoring API returned nothing for this droplet. The usual
             cause is the droplet agent not running, which also blanks the graphs in the
             DigitalOcean console.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#monitoring-api
+
+      - alert: DigitalOceanDropletDiskAlmostFull
+        expr: >-
+          digitalocean_droplet_filesystem_free_bytes
+            / digitalocean_droplet_filesystem_size_bytes < 0.10
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            Filesystem {{ $labels.mountpoint }} on droplet {{ $labels.name }} has under
+            10% free
+          description: >-
+            A filesystem that fills up takes its droplet down in ways that rarely name
+            the disk: databases stop accepting writes, logs stop being written, and the
+            processes that die first are not the ones filling it. Under ten percent on a
+            small droplet is little room indeed, so find what is growing on
+            {{ $labels.device }} before DigitalOceanDropletDiskCritical takes over at
+            five.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#monitoring-api
+
+      - alert: DigitalOceanDropletDiskCritical
+        expr: >-
+          digitalocean_droplet_filesystem_free_bytes
+            / digitalocean_droplet_filesystem_size_bytes < 0.05
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: >-
+            Filesystem {{ $labels.mountpoint }} on droplet {{ $labels.name }} has under
+            5% free
+          description: >-
+            The last of the space on {{ $labels.device }} is going, and what happens at
+            zero is not graceful. Free space now — logs, caches, forgotten downloads —
+            or resize the droplet. The monitoring API samples every two minutes and this
+            exporter refreshes every five, so the true figure may already be lower than
+            the one that fired this.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#monitoring-api
+
+      - alert: DigitalOceanDropletMemoryLow
+        expr: >-
+          digitalocean_droplet_memory_available_bytes
+            / digitalocean_droplet_memory_total_bytes < 0.10
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Droplet {{ $labels.name }} has under 10% of its memory available
+          description: >-
+            Available memory — what could be handed to new applications without swapping,
+            not merely what is free — has been under ten percent for a quarter of an
+            hour. The next step down is the kernel's OOM killer choosing a victim, and it
+            rarely chooses well. Fifteen minutes filters out a burst that the page cache
+            gives back on its own.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#monitoring-api
+
+      - alert: DigitalOceanLoadBalancerMetricsUnavailable
+        expr: digitalocean_loadbalancer_metrics_up == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: No monitoring data for load balancer {{ $labels.name }}
+          description: >-
+            DigitalOcean's monitoring API returned nothing for this load balancer, so the
+            backend health and frontend metrics beside this alert are stale, not current.
+            Unlike a droplet there is no agent to have stopped: this is the monitoring
+            API itself declining to answer for the load balancer, which is worth a look
+            in the DigitalOcean console.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#monitoring-api
+
+      - alert: DigitalOceanLoadBalancerBackendUnhealthy
+        expr: digitalocean_loadbalancer_droplets_health_checks < 100
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: >-
+            Backend {{ $labels.server }} of load balancer {{ $labels.name }} is failing
+            its health check
+          description: >-
+            The load balancer's own health check has marked this backend down, so it is
+            getting no traffic and the remaining backends are carrying its share. The
+            value is 100 for a healthy backend; anything under that for ten minutes is a
+            backend that is not coming back on its own. Check the service and the health
+            check's path and port on the droplet — if every backend fails at once, the
+            check's definition is the likelier fault than every droplet together.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#monitoring-api
+
+      - alert: DigitalOceanLoadBalancerDropletDowntime
+        expr: digitalocean_loadbalancer_droplets_downtime > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            Backend {{ $labels.server }} of load balancer {{ $labels.name }} is reporting
+            downtime
+          description: >-
+            The load balancer counts this backend as down. It is 0 for a backend that is
+            up, so anything above zero sustained for ten minutes says the backend keeps
+            dropping out — flapping, if DigitalOceanLoadBalancerBackendUnhealthy is not
+            firing alongside it, which is a backend that passes the check just often
+            enough to keep receiving traffic it then fails to serve.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#monitoring-api
+
+      - alert: DigitalOceanLoadBalancerConnectionsNearLimit
+        expr: >-
+          digitalocean_loadbalancer_frontend_connections_current
+            / digitalocean_loadbalancer_frontend_connections_limit > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Load balancer {{ $labels.name }} uses over 80% of its connection limit
+          description: >-
+            Connections past the limit are refused, and to the client that is the site
+            being down while every backend stays healthy. The limit scales with the load
+            balancer's size, so the fix is more size units — an operation DigitalOcean
+            applies without downtime. Ten minutes over eighty percent is sustained load,
+            not a spike.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#monitoring-api
 
   - name: digitalocean-security
     rules:
@@ -265,6 +472,7 @@ groups:
             DigitalOcean renews a lets_encrypt certificate itself, but a renewal can fail
             quietly: the certificate keeps its old expiry while its state turns to error.
             Time remaining is the thing to watch, not state.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#certificates-and-firewalls
 
       - alert: DigitalOceanCertificateExpiringCritical
         expr: (digitalocean_certificate_expiry_timestamp_seconds - time()) / 86400 < 3
@@ -276,6 +484,23 @@ groups:
           description: >-
             Automatic renewal has had its window and has not produced a new certificate.
             Replace it by hand.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#certificates-and-firewalls
+
+      - alert: DigitalOceanCertificateError
+        expr: digitalocean_certificate_info{state="error"} == 1
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: Certificate {{ $labels.name }} is in the error state
+          description: >-
+            DigitalOcean reports the certificate's state as error, which for a
+            lets_encrypt certificate means issuance or renewal failed — usually DNS no
+            longer pointing where the domain validation expects. The certificate being
+            served keeps working until its expiry, which is what makes this quiet: fixed
+            now it costs nothing, ignored it becomes DigitalOceanCertificateExpiringSoon
+            with two weeks left, and this fires as early as the failed renewal itself.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#certificates-and-firewalls
 
       - alert: DigitalOceanFirewallChangesPending
         expr: digitalocean_firewall_pending_changes > 0
@@ -287,6 +512,7 @@ groups:
           description: >-
             The ruleset has not reached every droplet, so the firewall is not protecting
             what it says it protects. This is normally zero within seconds of an edit.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#certificates-and-firewalls
 
       - alert: DigitalOceanFirewallOpenRulesChanged
         expr: changes(digitalocean_firewall_inbound_rules_open[1d]) > 0
@@ -298,6 +524,7 @@ groups:
             The number of inbound rules reachable from 0.0.0.0/0 or ::/0 moved in the last
             day. The count itself is not a fault — a public web server needs one — but an
             unexplained change is worth reading.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#certificates-and-firewalls
 
   - name: digitalocean-cost
     rules:
@@ -313,6 +540,7 @@ groups:
           description: >-
             Storage past the tier's allowance is billed on top of the subscription.
             Garbage-collect untagged manifests in {{ $labels.registry }} or move up a tier.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#cost
 
       - alert: DigitalOceanVolumeUnattached
         expr: digitalocean_volume_droplets == 0
@@ -325,6 +553,7 @@ groups:
             DigitalOcean bills a volume by its allocated size for as long as it exists,
             attached or not. A day of this is usually a leftover from a deleted droplet
             or a released PersistentVolumeClaim.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#cost
 
       - alert: DigitalOceanReservedIPUnassigned
         expr: digitalocean_reserved_ip_assigned == 0
@@ -337,6 +566,7 @@ groups:
             DigitalOcean bills a reserved IP that is not assigned to a droplet, and only
             then. A day of this in {{ $labels.region }} is usually an address held after
             the droplet behind it was destroyed — either reassign it or release it.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#cost
 
       - alert: DigitalOceanSnapshotOld
         expr: >-
@@ -353,6 +583,7 @@ groups:
             rolled back. Check whether {{ $labels.name }} ({{ $labels.id }}) is still
             worth keeping. Automatic droplet backups expire on their own and are not
             counted here.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#cost
 
       - alert: DigitalOceanDropletOff
         expr: digitalocean_droplet_info{status="off"} == 1
@@ -366,6 +597,7 @@ groups:
             disk and the address stay reserved. A day of this is either a droplet
             somebody forgot to destroy or one waiting on a decision. It is the half
             DigitalOceanDropletDown leaves out, reported as a cost rather than a page.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#cost
 
       - alert: DigitalOceanSpacesBucketUnreachable
         expr: digitalocean_spaces_bucket_up == 0
@@ -377,3 +609,4 @@ groups:
           description: >-
             The bucket kept its previous size and object count. The usual cause is a
             Spaces key without read access to this bucket. Other buckets are unaffected.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#cost

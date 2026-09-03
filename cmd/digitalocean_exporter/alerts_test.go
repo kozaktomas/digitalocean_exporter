@@ -139,6 +139,75 @@ func TestAlertRulesAreComplete(t *testing.T) {
 	}
 }
 
+// alertingPagePrefix is where every runbook_url must point: the published
+// alerting page, at the anchor of the alert's own section.
+const alertingPagePrefix = "https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#"
+
+// A runbook_url whose anchor no heading provides lands the reader on the top
+// of the page instead of the alert they were paged for, which is invisible in
+// a Markdown file: the site's anchors only exist once mkdocs renders it. This
+// re-derives them from the headings the same way mkdocs does.
+func TestAlertRunbookURLsPointAtRealSections(t *testing.T) {
+	anchors := alertingPageAnchors(t)
+
+	for _, group := range readAlertRules(t).Groups {
+		for _, rule := range group.Rules {
+			url := rule.Annotations["runbook_url"]
+			if url == "" {
+				t.Errorf("alert %s has no runbook_url annotation", rule.Alert)
+				continue
+			}
+			anchor, ok := strings.CutPrefix(url, alertingPagePrefix)
+			if !ok {
+				t.Errorf("alert %s has runbook_url %q, which is not an anchor of the published alerting page",
+					rule.Alert, url)
+				continue
+			}
+			if !anchors[anchor] {
+				t.Errorf("alert %s has runbook_url anchor %q, which no heading in docs/alerting.md provides",
+					rule.Alert, anchor)
+			}
+		}
+	}
+}
+
+// alertingPageAnchors returns the anchor of every heading in docs/alerting.md.
+func alertingPageAnchors(t *testing.T) map[string]bool {
+	t.Helper()
+
+	page, err := os.ReadFile("../../docs/alerting.md")
+	if err != nil {
+		t.Fatalf("read the alerting page: %v", err)
+	}
+
+	anchors := make(map[string]bool)
+	for _, line := range strings.Split(string(page), "\n") {
+		if !strings.HasPrefix(line, "#") {
+			continue
+		}
+		anchors[slugify(strings.TrimLeft(line, "# "))] = true
+	}
+	if len(anchors) == 0 {
+		t.Fatal("no headings found in docs/alerting.md")
+	}
+	return anchors
+}
+
+// slugify turns a heading into the anchor mkdocs derives from it: lowercased,
+// spaces to hyphens, everything else that is not a word character dropped.
+func slugify(heading string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(heading) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-', r == '_':
+			b.WriteRune(r)
+		case r == ' ':
+			b.WriteByte('-')
+		}
+	}
+	return b.String()
+}
+
 // An alert nobody can look up is one nobody trusts, so every one of them is
 // named on the alerting page.
 func TestAlertsAreDocumented(t *testing.T) {

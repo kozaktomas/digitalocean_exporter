@@ -898,7 +898,7 @@ out.
 
 ## Alerting
 
-Twenty-eight rules ship with the exporter as a plain Prometheus rule file, covering the
+Alerting rules ship with the exporter as a plain Prometheus rule file, covering the
 exporter's own health, account limits, resources that are down, certificates about to expire,
 and volumes and snapshots billed for nothing. The chart can install them as a `PrometheusRule`.
 
