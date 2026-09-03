@@ -65,6 +65,41 @@ nfpms:
       preremove: deb/preremove.sh
       postremove: deb/postremove.sh
 
+# One SBOM per archive, written by syft and attached to the release beside it.
+# The default document name keeps the convention readers expect: <archive>.sbom.json.
+sboms:
+  - artifacts: archive
+
+# Keyless cosign signatures: no key to store or leak. The certificate binds each
+# signature to the release workflow's OIDC identity, and the transparency log entry
+# to the moment it ran. `make snapshot` passes --skip=sign when no OIDC token is in
+# the environment, so a local dry run needs no signing identity — and no cosign.
+signs:
+  - id: archives
+    cmd: cosign
+    artifacts: archive
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - --output-signature=${signature}
+      - --output-certificate=${certificate}
+      - --yes
+      - ${artifact}
+  # The checksums file is the one most people verify, so it carries its own
+  # signature: one verified file then vouches for every artifact it lists.
+  - id: checksums
+    cmd: cosign
+    artifacts: checksum
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - --output-signature=${signature}
+      - --output-certificate=${certificate}
+      - --yes
+      - ${artifact}
+
 changelog:
   sort: asc
   filters:

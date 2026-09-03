@@ -4,8 +4,9 @@ on:
   push:
     tags: ["v*.*.*"]
 
+# Read-only by default; the jobs that publish grant themselves more below.
 permissions:
-  contents: write # goreleaser creates the GitHub Release
+  contents: read
 
 # A tag push that reaches GitHub twice starts two of these, and the second one fails
 # uploading assets the first already attached. One release per tag, and never cancel one
@@ -23,7 +24,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: ./.github/actions/setup-tools
         with:
@@ -44,11 +45,14 @@ jobs:
   release:
     needs: check
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # goreleaser creates the GitHub Release
+      id-token: write # cosign keyless signing states this workflow as its identity
     outputs:
       version: ${{ steps.version.outputs.version }}
       minor: ${{ steps.version.outputs.minor }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # full history for the changelog
 
@@ -68,9 +72,10 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "minor=${version%.*}" >> "$GITHUB_OUTPUT"
 
+      # syft writes the SBOMs and cosign signs the artifacts; both run under goreleaser.
       - uses: ./.github/actions/setup-tools
         with:
-          tools: go helm
+          tools: go helm syft cosign
 
       # The chart version, the appVersion and every pinned version in the documentation
       # are text: nothing else in this workflow notices when the tag disagrees with them,
@@ -91,7 +96,7 @@ jobs:
       # goreleaser attaches dist-chart/*.tgz to the release through release.extra_files.
       # The Pages workflow builds the chart repository index from those assets, so this
       # upload is what actually publishes the chart.
-      - uses: goreleaser/goreleaser-action@v7
+      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
           # Pinned to the major version: `latest` would move the release tooling under

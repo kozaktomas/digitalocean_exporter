@@ -52,6 +52,11 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+# Read-only by default. The docs job writes the docs branch and the deploy job
+# talks to Pages; each grants itself exactly that below.
+permissions:
+  contents: read
+
 env:
   DOCS_BRANCH: docs-versions
   PAGES_URL: https://kozaktomas.github.io/digitalocean_exporter
@@ -81,7 +86,7 @@ jobs:
     outputs:
       publish: ${{ steps.decide.outputs.publish }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # tags, which is what this job is here to look at
 
@@ -112,12 +117,12 @@ jobs:
     permissions:
       contents: write # mike commits the built site to DOCS_BRANCH
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0 # mike needs the docs branch, not just this commit
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
           cache: pip
@@ -191,12 +196,12 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Check out the built documentation
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: docs-versions
           path: site
 
-      - uses: azure/setup-helm@v5
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
 
       - name: Collect every released chart package
         env:
@@ -250,12 +255,12 @@ jobs:
       - name: Stamp the site with the commit being deployed
         run: printf '%s\n' "${GITHUB_SHA}" > site/deployed-commit.txt
 
-      - uses: actions/upload-pages-artifact@v5
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site
 
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
       # deploy-pages identifies a deployment by the commit SHA, and GitHub Pages keeps the
       # first deployment it saw for a SHA: a second one reports success and changes nothing.

@@ -59,9 +59,12 @@ docker:
 	docker buildx build --platform linux/amd64,linux/arm64 \
 		--build-arg VERSION=$(VERSION) --build-arg COMMIT_SHA=$(COMMIT) -t $(APP_NAME):local .
 
-## snapshot: Dry-run the release pipeline (binaries, deb, tarball).
+## snapshot: Dry-run the release pipeline (binaries, deb, tarball, SBOMs).
 snapshot:
-	goreleaser release --snapshot --clean
+# Signing is keyless against the release workflow's OIDC identity. A machine
+# without that token has no identity to sign with, so the stage is skipped —
+# which is what lets this run locally without cosign or any credentials.
+	goreleaser release --snapshot --clean $(if $(ACTIONS_ID_TOKEN_REQUEST_URL),,--skip=sign)
 
 ## alerts-lint: Check the bundled alerting rules with promtool.
 alerts-lint:

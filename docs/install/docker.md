@@ -15,6 +15,55 @@ docker run --rm -p 9212:9212 \
 | `0.3.0` | An exact release. Use this in production. |
 | `latest` | Whatever `main` last built. Moves without warning. |
 
+## Verify the image
+
+Every image is signed by digest with [cosign](https://docs.sigstore.dev/) keyless
+signing. The signature is bound to the identity of the GitHub Actions workflow that
+built and pushed the image, and logged in the public Rekor transparency log — there is
+no maintainer key to trust. Verifying takes cosign 2.x or newer.
+
+For a release tag:
+
+```bash
+VERSION=0.3.0
+
+cosign verify \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  --certificate-identity "https://github.com/kozaktomas/digitalocean_exporter/.github/workflows/docker-publish.yml@refs/tags/v${VERSION}" \
+  "ghcr.io/kozaktomas/digitalocean_exporter:${VERSION}"
+```
+
+The identity flags are what make this a verification rather than a formality: without
+them cosign would accept a signature from any GitHub workflow. `latest` is built from
+`main`, not from a tag, so its identity ends in `@refs/heads/main` instead.
+
+On success cosign prints the digest it verified. Run the image by that digest rather
+than the tag and the deployment pins exactly what was verified:
+
+```bash
+docker run --rm -p 9212:9212 \
+  -e DIGITALOCEAN_TOKEN=dop_v1_... \
+  ghcr.io/kozaktomas/digitalocean_exporter@sha256:...
+```
+
+## Image labels
+
+The image carries the standard OCI labels, so `docker inspect` answers what a running
+container actually is without guessing from its tag:
+
+| Label | What it holds |
+|---|---|
+| `org.opencontainers.image.source` | This repository's URL |
+| `org.opencontainers.image.revision` | The commit the image was built from |
+| `org.opencontainers.image.version` | The release version, or `dev` for a `main` build |
+| `org.opencontainers.image.licenses` | `Apache-2.0` |
+| `org.opencontainers.image.description` | What the exporter is |
+
+```bash
+docker inspect --format '{{ json .Config.Labels }}' \
+  ghcr.io/kozaktomas/digitalocean_exporter:0.3.0
+```
+
 ## Passing the token as a file
 
 `-e DIGITALOCEAN_TOKEN=...` puts the token into the container's environment, where

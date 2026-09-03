@@ -22,8 +22,43 @@ tar xzf "digitalocean_exporter_${VERSION}_linux_${ARCH}.tar.gz"
 sudo install -m 0755 digitalocean_exporter /usr/local/bin/
 ```
 
-Verify the checksum before installing. It is one command and it is the only thing standing
-between you and a truncated download.
+The checksum tells you the download arrived intact — it says nothing about who built it,
+because an attacker who can replace the tarball can replace `checksums.txt` beside it.
+Authenticity comes from the signature.
+
+## Verify the release
+
+Every release is signed with [cosign](https://docs.sigstore.dev/) keyless signing: there
+is no maintainer key to trust or lose. Each signature is bound to the identity of the
+GitHub Actions release workflow that built the artifacts, and logged in the public Rekor
+transparency log. Verifying takes cosign 2.x or newer.
+
+Verify the signature on `checksums.txt`, then let the checksums vouch for the tarball:
+
+```bash
+VERSION=0.3.0
+
+curl -sSLO "https://github.com/kozaktomas/digitalocean_exporter/releases/download/v${VERSION}/digitalocean_exporter_${VERSION}_checksums.txt.sig"
+curl -sSLO "https://github.com/kozaktomas/digitalocean_exporter/releases/download/v${VERSION}/digitalocean_exporter_${VERSION}_checksums.txt.pem"
+
+cosign verify-blob \
+  --certificate "digitalocean_exporter_${VERSION}_checksums.txt.pem" \
+  --signature "digitalocean_exporter_${VERSION}_checksums.txt.sig" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  --certificate-identity "https://github.com/kozaktomas/digitalocean_exporter/.github/workflows/release.yml@refs/tags/v${VERSION}" \
+  "digitalocean_exporter_${VERSION}_checksums.txt"
+
+sha256sum --check --ignore-missing digitalocean_exporter_${VERSION}_checksums.txt
+```
+
+`Verified OK` means the checksums file was produced by this repository's release workflow
+for exactly that tag; a matching checksum then extends that to the tarball you downloaded.
+The two identity flags are not decoration — without them cosign would accept a signature
+from *any* GitHub workflow, including an attacker's.
+
+Each tarball also carries a `.sig`/`.pem` pair of its own, verifiable the same way, and an
+SBOM (`<archive>.sbom.json`, in Syft JSON format) listing every module compiled into the
+binary — that is the file to feed a vulnerability scanner or an inventory.
 
 ## Run it
 

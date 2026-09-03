@@ -7,10 +7,10 @@ description: >
 inputs:
   tools:
     description: >
-      Space-separated subset of `go`, `golangci-lint`, `helm`, `promtool` and
-      `helm-docs`. A job installs only what it runs, so nothing waits on a download
-      it has no use for. `golangci-lint` needs `go` named alongside it: it installs
-      into the GOPATH.
+      Space-separated subset of `go`, `golangci-lint`, `helm`, `promtool`,
+      `helm-docs`, `syft` and `cosign`. A job installs only what it runs, so nothing
+      waits on a download it has no use for. `golangci-lint` needs `go` named
+      alongside it: it installs into the GOPATH.
     required: true
 
 runs:
@@ -20,23 +20,27 @@ runs:
     # `golangci-lint`.
     - name: Install Go
       if: contains(format(' {0} ', inputs.tools), ' go ')
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version: "1.26"
         cache: true
 
+    # From the pinned release, not the install script on the master branch: the
+    # script is fetched at run time and piped into a shell, so whoever controls
+    # that branch controls what the gate executes.
     - name: Install golangci-lint
       if: contains(format(' {0} ', inputs.tools), ' golangci-lint ')
       shell: bash
       run: |
         set -euo pipefail
-        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
-          | sh -s -- -b "$(go env GOPATH)/bin" v2.11.4
+        version=2.11.4
+        curl -sSfL "https://github.com/golangci/golangci-lint/releases/download/v${version}/golangci-lint-${version}-linux-amd64.tar.gz" \
+          | tar -xz -C "$(go env GOPATH)/bin" --strip-components=1 "golangci-lint-${version}-linux-amd64/golangci-lint"
         echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
     - name: Install Helm
       if: contains(format(' {0} ', inputs.tools), ' helm ')
-      uses: azure/setup-helm@v5
+      uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
 
     # promtool is the only thing that catches a malformed rule expression before
     # Prometheus refuses to load the whole group. Taken from the release tarball
@@ -58,3 +62,26 @@ runs:
         version=1.14.2
         curl -sSfL "https://github.com/norwoodj/helm-docs/releases/download/v${version}/helm-docs_${version}_Linux_x86_64.tar.gz" \
           | tar -xz -C /usr/local/bin helm-docs
+
+    # syft is what goreleaser shells out to for the SBOMs it attaches to a release.
+    - name: Install syft
+      if: contains(format(' {0} ', inputs.tools), ' syft ')
+      shell: bash
+      run: |
+        set -euo pipefail
+        version=1.51.1
+        curl -sSfL "https://github.com/anchore/syft/releases/download/v${version}/syft_${version}_linux_amd64.tar.gz" \
+          | tar -xz -C /usr/local/bin syft
+
+    # cosign 2.x, deliberately: it writes the detached .sig/.pem pair the
+    # verification instructions in the documentation are written against, where
+    # 3.x insists on its bundle format.
+    - name: Install cosign
+      if: contains(format(' {0} ', inputs.tools), ' cosign ')
+      shell: bash
+      run: |
+        set -euo pipefail
+        version=2.6.5
+        curl -sSfL -o /usr/local/bin/cosign \
+          "https://github.com/sigstore/cosign/releases/download/v${version}/cosign-linux-amd64"
+        chmod +x /usr/local/bin/cosign
