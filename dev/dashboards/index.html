@@ -1508,6 +1508,13 @@ After replacing a file, normalise it:</p>
 </code></pre></div>
 <p>This strips the instance's <code>id</code> and <code>version</code>, clears the variables' remembered selections and
 rewrites the file with sorted keys. Commit the result.</p>
+<p>One rule nothing enforces, and so worth remembering: <strong>do not rate a metric of this exporter
+over <code>$__rate_interval</code>.</strong> That variable is derived from the scrape interval, while every
+counter here only moves when its collector refreshes — once every
+<code>--collector.&lt;name&gt;.interval</code>, five minutes by default. A window shorter than that usually
+spans no step at all, which reads as a rate of zero, or, inside a ratio or a
+<code>histogram_quantile</code>, as no data at all. The panels that rate a counter use a fixed window
+covering at least two refreshes and say so in their description.</p>
 
 
 
