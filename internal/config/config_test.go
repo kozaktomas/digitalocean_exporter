@@ -889,6 +889,28 @@ func TestParseRateLimitCanBeSet(t *testing.T) {
 	}
 }
 
+// A negative rate limit turns the pacing off exactly as zero does, which is
+// never what somebody who typed one meant: the exporter would run at whatever
+// rate its collectors ask for, and the first sign of it would be DigitalOcean
+// rejecting the requests. Zero says that on purpose; below zero is a typo, and
+// is refused at startup like any other unusable number.
+func TestParseRejectsANegativeRateLimit(t *testing.T) {
+	_, err := config.Parse([]string{"--do.token", "secret", "--do.rate-limit=-1"})
+	if !errors.Is(err, config.ErrNegativeRateLimit) {
+		t.Fatalf("error = %v, want ErrNegativeRateLimit", err)
+	}
+	if !strings.Contains(err.Error(), "--do.rate-limit") {
+		t.Errorf("error %q does not name the flag that carries the value", err)
+	}
+
+	// The chart sets it through the environment, which is the route a value
+	// nobody reads again is most likely to arrive by.
+	t.Setenv("DO_RATE_LIMIT", "-0.5")
+	if _, err := config.Parse([]string{"--do.token", "secret"}); !errors.Is(err, config.ErrNegativeRateLimit) {
+		t.Fatalf("error from the environment = %v, want ErrNegativeRateLimit", err)
+	}
+}
+
 // The API base URL used to be read straight from the environment, outside the
 // flag parser, which made an endpoint that redirects every request the one
 // setting the exporter could not report on. It is a flag now — hidden, because

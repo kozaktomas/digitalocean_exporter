@@ -181,6 +181,38 @@ func TestClientRateLimitPacesRequests(t *testing.T) {
 	}
 }
 
+// Zero is the documented off switch, and it has to be the whole of it: a
+// limiter built at zero requests a second would let the first request through
+// and hold every later one forever, which is a stub API the exporter can no
+// longer read rather than one it reads unpaced.
+func TestClientRateLimitZeroDoesNotPace(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"account":{"status":"active"}}`))
+	}))
+	defer srv.Close()
+
+	client, err := doclient.New(doclient.Config{
+		Token: "token", BaseURL: srv.URL + "/", UserAgent: "test-agent",
+		Timeout: 5 * time.Second, RateLimit: 0, Metrics: doclient.NewMetrics(prometheus.NewRegistry()),
+	})
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+
+	start := time.Now()
+	for range 3 {
+		if _, _, err := client.Account.Get(context.Background()); err != nil {
+			t.Fatalf("account get: %v", err)
+		}
+	}
+	// Three loopback requests are the work of milliseconds. Any pacing worth
+	// the name would show up well inside this.
+	if elapsed := time.Since(start); elapsed > 500*time.Millisecond {
+		t.Errorf("three unpaced requests took %v, want them not to queue at all", elapsed)
+	}
+}
+
 // newTestClient builds a client against srv with retries left on.
 func newTestClient(t *testing.T, baseURL string, reg prometheus.Registerer, attempts int) *godo.Client {
 	t.Helper()

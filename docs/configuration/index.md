@@ -206,10 +206,17 @@ API requests per second the exporter makes, across every collector at once. Four
 clump — an even trickle is what the burst limit is asking for. It applies to the DigitalOcean
 API only; the `spaces` collector talks to the S3-compatible endpoint, which has limits of its
 own. Set it to `0` to turn it off, which is what a stub API deserves and a real one does not.
+**A negative value is refused at startup**, naming the flag, rather than read as another way
+of writing `0`: turning the pacing off is a deliberate thing to do, and an exporter that did
+it because of a stray minus sign would announce it by being rejected by DigitalOcean.
 
 Lowering it below the default is the lever to reach for when
 [`dropletmetrics`](monitoring-api.md) makes a large account uncomfortable; raising it above
-`4` moves the exporter towards being rejected rather than throttled.
+`4` moves the exporter towards being rejected rather than throttled. A request that would
+have to queue for longer than the refresh has left is refused there and then, as a deadline
+exceeded: waiting for a turn that arrives after the collector's timeout achieves nothing,
+and the collectors that measure a resource at a time can tell from it that the resource was
+skipped rather than measured, and start the next refresh with it.
 
 **Retries.** A request rejected with `429`, or failed with a `5xx`, is tried again — three
 attempts in total. What the exporter waits between them is whatever the response asks for:
@@ -299,7 +306,7 @@ basic_auth_users:
 | `--do.token` | `DIGITALOCEAN_TOKEN` | — | API token; read-only is enough |
 | `--do.token-file` | `DIGITALOCEAN_TOKEN_FILE` | — | File holding the API token |
 | `--do.timeout` | `DO_TIMEOUT` | `30s` | Timeout of a single collector refresh |
-| `--do.rate-limit` | `DO_RATE_LIMIT` | `4` | API requests per second, over all collectors; `0` disables it |
+| `--do.rate-limit` | `DO_RATE_LIMIT` | `4` | API requests per second, over all collectors; `0` disables it, a negative value is rejected |
 | `--log.level` | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
 | `--log.format` | `LOG_FORMAT` | `logfmt` | `logfmt` or `json` |
 | `--filter.tag` | `FILTER_TAG` | — | [Report only resources carrying one of these tags](#filtering); repeatable, or comma-separated |

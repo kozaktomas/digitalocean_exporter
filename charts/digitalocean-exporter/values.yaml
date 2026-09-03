@@ -34,7 +34,8 @@ digitalocean:
   # -- Client-side limit on API requests per second, shared by every collector.
   # DigitalOcean allows 250 requests a minute, and the collectors would
   # otherwise spend their refreshes in bursts; 4 a second is 240 a minute, just
-  # inside it. Set it to `0` to turn the limiter off.
+  # inside it. Set it to `0` to turn the limiter off; a negative value is
+  # rejected at startup.
   rateLimit: 4
 
 spaces:

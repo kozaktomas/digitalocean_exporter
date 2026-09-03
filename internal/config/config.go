@@ -54,6 +54,14 @@ var ErrNonPositiveInterval = errors.New("refresh interval must be greater than z
 // collector fails with a deadline exceeded, forever.
 var ErrNonPositiveTimeout = errors.New("timeout must be greater than zero")
 
+// ErrNegativeRateLimit reports that --do.rate-limit was below zero. Zero is the
+// documented switch that turns the client-side pacing off, which a stub API
+// wants and a real one does not; a negative value would do the very same thing,
+// but nobody types one on purpose, and an exporter that quietly stopped pacing
+// itself is found out by DigitalOcean rejecting its requests rather than by
+// anything the exporter says.
+var ErrNegativeRateLimit = errors.New("rate limit must not be negative")
+
 // CollectorConfig holds the switches of a single collector.
 type CollectorConfig struct {
 	// Enabled reports whether the collector should run at all.
@@ -104,7 +112,8 @@ type Config struct {
 	// own.
 	Timeout time.Duration
 	// RateLimit caps how many API requests per second the exporter makes,
-	// across every collector at once. Zero or less turns the limiter off.
+	// across every collector at once. Zero turns the limiter off, and a
+	// negative value is rejected before it gets here.
 	RateLimit float64
 	// LogLevel is the slog level name.
 	LogLevel string
@@ -301,7 +310,8 @@ func bind(app *kingpin.Application) *flags {
 	f.timeout = app.Flag("do.timeout", "Timeout of a single collector refresh.").
 		Envar("DO_TIMEOUT").Default("30s").Duration()
 	f.rateLimit = app.Flag("do.rate-limit",
-		"Client-side limit on API requests per second, shared by every collector. 0 disables it.").
+		"Client-side limit on API requests per second, shared by every collector. "+
+			"0 disables it; a negative value is rejected.").
 		Envar("DO_RATE_LIMIT").Default("4").Float64()
 	f.logLevel = app.Flag("log.level", "Log level: debug, info, warn or error.").
 		Envar("LOG_LEVEL").Default("info").Enum("debug", "info", "warn", "error")
@@ -464,6 +474,9 @@ func (f *flags) config() (*Config, error) {
 	// when the token is missing too.
 	if err := f.validateDurations(); err != nil {
 		return nil, err
+	}
+	if *f.rateLimit < 0 {
+		return nil, fmt.Errorf("--do.rate-limit is %v: %w", *f.rateLimit, ErrNegativeRateLimit)
 	}
 
 	token, err := resolveSecret(*f.token, *f.tokenFile, ErrTokenConflict, ErrNoToken)

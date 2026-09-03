@@ -128,7 +128,8 @@ type Config struct {
 	// waiting for the rate limiter.
 	Timeout time.Duration
 	// RateLimit caps how many requests per second the exporter makes, across
-	// every collector at once. Zero or less turns the limiter off.
+	// every collector at once. Zero turns the limiter off; so does a negative
+	// value, which internal/config rejects at startup rather than passing on.
 	RateLimit float64
 	// MaxAttempts bounds how many times a single request is tried. Zero means
 	// defaultMaxAttempts; one disables retries.
@@ -243,7 +244,7 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 func (t *transport) attempt(req *http.Request) (*http.Response, error) {
 	if t.limiter != nil {
 		if err := t.limiter.Wait(req.Context()); err != nil {
-			return nil, fmt.Errorf("wait for the API rate limiter: %w", err)
+			return nil, fmt.Errorf("wait for the API rate limiter: %w", limiterError(req.Context(), err))
 		}
 	}
 
@@ -265,6 +266,26 @@ func (t *transport) attempt(req *http.Request) (*http.Response, error) {
 	t.metrics.Requests.WithLabelValues(name, res, strconv.Itoa(resp.StatusCode)).Inc()
 	t.metrics.observeRateLimit(resp.Header)
 	return resp, nil
+}
+
+// limiterError translates a refused limiter wait into an error the caller can
+// act on.
+//
+// A limiter that would hold the request past the caller's deadline refuses it
+// straight away, before that deadline has passed, and says so in an error of
+// its own: the context is not done yet, so nothing downstream recognises what
+// happened. That matters, because such a request never reached the API — which
+// is exactly the state the monitoring collectors read a deadline as, when they
+// decide that a resource was skipped rather than measured and that the next
+// refresh must start with it. So the deadline is named as one.
+func limiterError(ctx context.Context, err error) error {
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
+	if _, ok := ctx.Deadline(); ok {
+		return fmt.Errorf("%w: %w", context.DeadlineExceeded, err)
+	}
+	return err
 }
 
 // nextWait returns how long to wait before trying the request again, and
