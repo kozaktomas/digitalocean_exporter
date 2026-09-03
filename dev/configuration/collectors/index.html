@@ -1741,6 +1741,9 @@ others are unaffected. An engine that offers no backups or replicas — a cachin
 answers those endpoints with a client error, which reads as "none" rather than a failure.
 Because the refresh fans out over the account, the collector carries a timeout of its own,
 <code>--collector.databases.timeout</code>, two minutes by default.</p>
+<p>This collector honours <a href="../#filtering">filtering</a>: only the clusters that pass the
+tag and region filter are reported, and a filtered-out cluster is spared its detail
+lookups too.</p>
 <p><strong>Cost:</strong> one request per refresh, plus one per additional page for accounts with many
 clusters, plus two per cluster for the detail lookups unless they are switched off.</p>
 <hr />
@@ -1757,6 +1760,9 @@ response as the rest. Reporting them costs no extra request, which is why they a
 than behind a flag. The agent one is worth knowing before enabling
 <a href="../monitoring-api/#dropletmetrics"><code>dropletmetrics</code></a>: a droplet without the agent is one that
 collector will spend ten requests a refresh on and get no readings back for.</p>
+<p>This collector honours <a href="../#filtering">filtering</a>: only the droplets that pass the
+tag and region filter are reported, and a filter of exactly one tag and no region rides
+the API's tag-scoped listing, which narrows the pages themselves.</p>
 <p><strong>Cost:</strong> one request per refresh, plus one per additional page for accounts with many
 droplets.</p>
 <hr />
@@ -1796,6 +1802,9 @@ unaffected.</p>
 <p><code>digitalocean_kubernetes_node_state</code> is four series per node, one per documented state. That
 is the only part of this collector whose series count grows with the size of the account
 rather than the number of clusters.</p>
+<p>This collector honours <a href="../#filtering">filtering</a>: only the clusters that pass the
+tag and region filter are reported, and a filtered-out cluster is spared its upgrades
+lookup too.</p>
 <p><strong>Cost:</strong> one request per refresh, plus one per additional page for accounts with many
 clusters, plus one per cluster for the upgrades lookup unless it is switched off.</p>
 <hr />
@@ -1845,6 +1854,8 @@ them — therefore costs exactly two.</p>
 full rate while serving no purpose, and nothing in the control panel nags you about it:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">digitalocean_volume_droplets</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span>
 </code></pre></div>
+<p>This collector honours <a href="../#filtering">filtering</a>: only the volumes that pass the tag
+and region filter are reported.</p>
 <p><strong>Cost:</strong> one request per refresh.</p>
 <hr />
 <h2 id="images">images<a class="headerlink" href="#images" title="Permanent link">&para;</a></h2>
@@ -1876,6 +1887,9 @@ come out of the same list response as the rest, so they add nothing to the colle
 usually a deploy that went wrong rather than a deliberate configuration.</p>
 <p>Traffic <em>through</em> a load balancer, and which individual backend is failing its health
 check, come from <a href="../monitoring-api/#loadbalancermetrics"><code>loadbalancermetrics</code></a> instead.</p>
+<p>This collector honours <a href="../#filtering">filtering</a>, matched on the tags the load
+balancer itself carries — not on the droplet tag it selects its backends by — and on its
+region.</p>
 <p><strong>Cost:</strong> one request per refresh.</p>
 <hr />
 <h2 id="cdn">cdn<a class="headerlink" href="#cdn" title="Permanent link">&para;</a></h2>
@@ -1966,6 +1980,9 @@ firewall, so there is no way to see what a rule actually allows through.</p>
 <p><strong>Off by default</strong>, and not because of what it costs: one list request per refresh, the same
 as the collectors that default on. A ruleset changes when somebody deploys, so most accounts
 have no reason to scrape it. Turn it on when you want to alert on the two metrics above.</p>
+<p>This collector honours <a href="../#filtering">filtering</a> by tag alone — a firewall passes
+when it is attached to one of the filter's tags. A cloud firewall has no region, so a
+region filter leaves the firewalls untouched rather than emptying them.</p>
 <p><strong>Cost:</strong> one request per refresh.</p>
 <hr />
 <h2 id="certificates">certificates<a class="headerlink" href="#certificates" title="Permanent link">&para;</a></h2>

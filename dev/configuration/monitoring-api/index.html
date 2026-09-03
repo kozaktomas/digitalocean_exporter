@@ -1447,6 +1447,9 @@ and the rest.</p>
 </code></pre></div>
 <p><strong>The API samples every 2 minutes.</strong> An interval shorter than that buys nothing: you pay the
 requests and get the same readings back. <code>5m</code> is the default; going below <code>2m</code> is waste.</p>
+<p>This collector honours <a href="../#filtering">filtering</a>, and here the filter cuts cost, not
+just output: a droplet the tag and region filter rejects is never measured, so its ten
+requests per refresh are never spent.</p>
 <p><strong>Droplets without DigitalOcean's monitoring agent report no readings.</strong> The agent is what
 produces this data; a droplet created without it, or one where it stopped, simply has none.
 That is not an exporter failure — the request succeeds and returns no series, so the droplet
@@ -1504,6 +1507,9 @@ there are, not which one is sick.</p>
 reports <code>digitalocean_loadbalancer_metrics_up 0</code> and keeps its previous readings; one that
 answered with no series at all — a network load balancer has no HTTP metrics ever — is up
 with nothing under it.</p>
+<p>This collector honours <a href="../#filtering">filtering</a> the same way <code>dropletmetrics</code> does:
+a load balancer the tag and region filter rejects is never measured, so its seven requests
+per refresh are never spent.</p>
 
 
 

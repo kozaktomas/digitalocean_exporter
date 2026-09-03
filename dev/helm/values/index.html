@@ -1699,6 +1699,18 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>Extra volumes for the pod, in Kubernetes <code>volumes</code> form — e.g. a Secret holding an exporter-toolkit web configuration for TLS or basic auth. Pair each entry with one in <code>extraVolumeMounts</code>.</td>
 </tr>
 <tr>
+<td>filters.regions</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Report only resources in these regions, by slug (for example <code>fra1</code>). Empty means every region. When both lists are set a resource must satisfy both. Cloud firewalls have no region and are matched by tag alone.</td>
+</tr>
+<tr>
+<td>filters.tags</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Report only resources carrying at least one of these tags. Empty means every resource. The filter is applied by the resource collectors — droplets, volumes, load balancers, databases, Kubernetes, firewalls and both monitoring-API collectors; the account-wide collectors ignore it.</td>
+</tr>
+<tr>
 <td>fullnameOverride</td>
 <td>string</td>
 <td><code>""</code></td>
