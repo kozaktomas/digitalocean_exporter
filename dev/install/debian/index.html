@@ -1448,6 +1448,10 @@ names. Both spellings are correct, in their own place.</p>
 </code></pre></div>
 <p>The package creates a dedicated unprivileged system user, <code>digitalocean-exporter</code>, enables
 the unit, and does <strong>not</strong> start it — there is no token yet at that point.</p>
+<p>The maintainer scripts only talk to systemd when it is actually running the machine, so the
+package also installs cleanly in a chroot or a container image build. Nothing can enable
+the unit there — run <code>systemctl enable digitalocean-exporter</code> once the installed system is
+actually booted.</p>
 <p>The shipped env file lists every collector switch, with the ones that are off by default
 commented out, so configuring it is mostly a matter of deleting <code>#</code>.</p>
 <h2 id="what-it-puts-where">What it puts where<a class="headerlink" href="#what-it-puts-where" title="Permanent link">&para;</a></h2>
@@ -1503,9 +1507,25 @@ equivalent, listed in <a href="../../configuration/">configuration</a>.</p>
 somewhere the service can still read — <code>/etc/digitalocean-exporter/</code> is fine.</p>
 <h2 id="the-unit-is-locked-down">The unit is locked down<a class="headerlink" href="#the-unit-is-locked-down" title="Permanent link">&para;</a></h2>
 <p>The shipped service runs as a non-root user with <code>NoNewPrivileges</code>, <code>ProtectSystem=strict</code>,
-<code>PrivateTmp</code>, a <code>@system-service</code> syscall filter, and <code>RestrictAddressFamilies</code> limited to
-IPv4 and IPv6. The exporter is stateless — it writes nothing and needs no filesystem access
-beyond reading its own configuration — so none of that gets in the way.</p>
+<code>PrivateTmp</code>, a <code>@system-service</code> syscall filter with the privileged and resource-control
+groups denied on top, <code>RestrictAddressFamilies</code> limited to IPv4 and IPv6, <code>PrivateUsers</code>,
+<code>RemoveIPC</code>, <code>ProtectKernelLogs</code> and a <code>UMask</code> of <code>0077</code>. The exporter is stateless — it
+writes nothing and needs no filesystem access beyond reading its own configuration — so
+none of that gets in the way.</p>
+<p><code>systemd-analyze security</code> scores the unit at an exposure level of <strong>1.1</strong> ("OK"). What it
+still flags is deliberate, because each remaining directive would cost the exporter
+something it actually needs:</p>
+<ul>
+<li><code>PrivateNetwork=</code> and <code>RestrictAddressFamilies=~AF_(INET|INET6)</code> — the exporter is an
+  HTTP client to the DigitalOcean API and an HTTP server for Prometheus. Internet sockets
+  are the whole job.</li>
+<li><code>IPAddressDeny=</code> — an IP allow list would have to enumerate the API's addresses, which
+  are not stable, and every scraper's. It would break silently the day either changed.</li>
+<li><code>RootDirectory=</code>/<code>RootImage=</code> — chrooting would mean shipping a filesystem image for a
+  single static binary; the mount-level protections above already reduce the visible
+  filesystem to the unit's own configuration.</li>
+<li>The <code>char-rtc:r</code> device ACL is implied by <code>ProtectClock=</code> itself and is read-only.</li>
+</ul>
 <p>If you override the unit with <code>systemctl edit</code>, keep those directives. They are the reason
 a credential-holding daemon exposed on a port is not much of a risk.</p>
 <h2 id="logs-and-status">Logs and status<a class="headerlink" href="#logs-and-status" title="Permanent link">&para;</a></h2>
