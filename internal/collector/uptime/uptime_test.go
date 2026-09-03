@@ -53,7 +53,8 @@ digitalocean_uptime_check_info{enabled="false",id="c2",name="gateway",target="gw
 # HELP digitalocean_uptime_check_previous_outage_duration_seconds How long the check's previous outage lasted.
 # TYPE digitalocean_uptime_check_previous_outage_duration_seconds gauge
 digitalocean_uptime_check_previous_outage_duration_seconds{id="c1",name="web",region="eu_west"} 120
-# HELP digitalocean_uptime_check_previous_outage_start_timestamp_seconds Unix time the check's previous outage began, as seen from the region that reported it.
+# HELP digitalocean_uptime_check_previous_outage_start_timestamp_seconds Unix time the ` +
+	`check's previous outage began, as seen from the region that reported it.
 # TYPE digitalocean_uptime_check_previous_outage_start_timestamp_seconds gauge
 digitalocean_uptime_check_previous_outage_start_timestamp_seconds{id="c1",name="web",region="eu_west"} 1788256800
 # HELP digitalocean_uptime_check_region_status Always 1 for the region's current status and 0 for every other known one.
@@ -71,7 +72,8 @@ digitalocean_uptime_check_region_status{id="c2",name="gateway",region="eu_west",
 # TYPE digitalocean_uptime_check_up gauge
 digitalocean_uptime_check_up{id="c1",name="web"} 1
 digitalocean_uptime_check_up{id="c2",name="gateway"} 1
-# HELP digitalocean_uptime_check_uptime_ratio Thirty-day uptime of the check as measured from the region, as a ratio between 0 and 1.
+# HELP digitalocean_uptime_check_uptime_ratio Thirty-day uptime of the check as measured ` +
+	`from the region, as a ratio between 0 and 1.
 # TYPE digitalocean_uptime_check_uptime_ratio gauge
 digitalocean_uptime_check_uptime_ratio{id="c1",name="web",region="eu_west"} 0.97
 digitalocean_uptime_check_uptime_ratio{id="c1",name="web",region="us_east"} 0.995
@@ -89,7 +91,8 @@ digitalocean_uptime_check_info{enabled="false",id="c2",name="gateway",target="gw
 # HELP digitalocean_uptime_check_previous_outage_duration_seconds How long the check's previous outage lasted.
 # TYPE digitalocean_uptime_check_previous_outage_duration_seconds gauge
 digitalocean_uptime_check_previous_outage_duration_seconds{id="c1",name="web",region="eu_west"} 120
-# HELP digitalocean_uptime_check_previous_outage_start_timestamp_seconds Unix time the check's previous outage began, as seen from the region that reported it.
+# HELP digitalocean_uptime_check_previous_outage_start_timestamp_seconds Unix time the ` +
+	`check's previous outage began, as seen from the region that reported it.
 # TYPE digitalocean_uptime_check_previous_outage_start_timestamp_seconds gauge
 digitalocean_uptime_check_previous_outage_start_timestamp_seconds{id="c1",name="web",region="eu_west"} 1788256800
 # HELP digitalocean_uptime_check_region_status Always 1 for the region's current status and 0 for every other known one.
@@ -104,7 +107,8 @@ digitalocean_uptime_check_region_status{id="c1",name="web",region="us_east",stat
 # TYPE digitalocean_uptime_check_up gauge
 digitalocean_uptime_check_up{id="c1",name="web"} 1
 digitalocean_uptime_check_up{id="c2",name="gateway"} 0
-# HELP digitalocean_uptime_check_uptime_ratio Thirty-day uptime of the check as measured from the region, as a ratio between 0 and 1.
+# HELP digitalocean_uptime_check_uptime_ratio Thirty-day uptime of the check as measured ` +
+	`from the region, as a ratio between 0 and 1.
 # TYPE digitalocean_uptime_check_uptime_ratio gauge
 digitalocean_uptime_check_uptime_ratio{id="c1",name="web",region="eu_west"} 0.97
 digitalocean_uptime_check_uptime_ratio{id="c1",name="web",region="us_east"} 0.995
@@ -197,6 +201,12 @@ func TestStateLookupFailureKeepsPreviousState(t *testing.T) {
 	const want = `
 # HELP digitalocean_uptime_check_region_status Always 1 for the region's current status and 0 for every other known one.
 # TYPE digitalocean_uptime_check_region_status gauge
+digitalocean_uptime_check_region_status{id="c1",name="web",region="eu_west",status="CHECKING"} 0
+digitalocean_uptime_check_region_status{id="c1",name="web",region="eu_west",status="DOWN"} 1
+digitalocean_uptime_check_region_status{id="c1",name="web",region="eu_west",status="UP"} 0
+digitalocean_uptime_check_region_status{id="c1",name="web",region="us_east",status="CHECKING"} 0
+digitalocean_uptime_check_region_status{id="c1",name="web",region="us_east",status="DOWN"} 0
+digitalocean_uptime_check_region_status{id="c1",name="web",region="us_east",status="UP"} 1
 digitalocean_uptime_check_region_status{id="c2",name="gateway",region="eu_west",status="CHECKING"} 0
 digitalocean_uptime_check_region_status{id="c2",name="gateway",region="eu_west",status="DOWN"} 0
 digitalocean_uptime_check_region_status{id="c2",name="gateway",region="eu_west",status="UP"} 1
