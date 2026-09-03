@@ -14,6 +14,7 @@ import (
 
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/droplets"
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 )
 
 // Two droplets: one running an image with a slug, backed up, monitored, in a
@@ -83,8 +84,14 @@ digitalocean_droplet_up{id="1",name="web-1",region="fra1"} 1
 digitalocean_droplet_up{id="2",name="db-1",region="ams3"} 0
 `
 
-// newTestCollector wires a collector to a fake DigitalOcean API.
+// newTestCollector wires an unfiltered collector to a fake DigitalOcean API.
 func newTestCollector(t *testing.T, handler http.HandlerFunc) *droplets.Collector {
+	t.Helper()
+	return newFilteredCollector(t, filter.Filter{}, handler)
+}
+
+// newFilteredCollector is newTestCollector with a filter set.
+func newFilteredCollector(t *testing.T, f filter.Filter, handler http.HandlerFunc) *droplets.Collector {
 	t.Helper()
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
@@ -98,7 +105,7 @@ func newTestCollector(t *testing.T, handler http.HandlerFunc) *droplets.Collecto
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	return droplets.New(client, nil)
+	return droplets.New(client, f, nil)
 }
 
 func okHandler(w http.ResponseWriter, r *http.Request) {
@@ -160,6 +167,55 @@ digitalocean_droplet_up{id="2",name="second",region="fra1"} 1
 
 // An account with no droplets is a normal state: the refresh succeeds and
 // there is simply nothing to report.
+// A filter of exactly one tag and no region rides the API's tag-scoped
+// listing instead of filtering client-side, so the pages arrive pre-narrowed.
+func TestRefreshWithASingleTagUsesTheTagScopedListing(t *testing.T) {
+	const taggedJSON = `{"droplets":[{"id":1,"name":"web-1","status":"active","vcpus":2,` +
+		`"memory":4096,"disk":80,"tags":["production","web"],"region":{"slug":"fra1"},` +
+		`"size":{"slug":"s-2vcpu-4gb"},"image":{"slug":"ubuntu-24-04"}}],"meta":{"total":1}}`
+
+	c := newFilteredCollector(t, filter.New([]string{"production"}, nil),
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if r.URL.Path != "/v2/droplets" || r.URL.Query().Get("tag_name") != "production" {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			_, _ = w.Write([]byte(taggedJSON))
+		})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_droplet_up Whether the droplet is active.
+# TYPE digitalocean_droplet_up gauge
+digitalocean_droplet_up{id="1",name="web-1",region="fra1"} 1
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want), "digitalocean_droplet_up"); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+}
+
+// Any other filter shape lists everything and narrows client-side: the ams3
+// droplet is absent from the exposition, not zeroed.
+func TestRefreshFiltersByRegion(t *testing.T) {
+	c := newFilteredCollector(t, filter.New(nil, []string{"fra1"}), okHandler)
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_droplet_up Whether the droplet is active.
+# TYPE digitalocean_droplet_up gauge
+digitalocean_droplet_up{id="1",name="web-1",region="fra1"} 1
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want), "digitalocean_droplet_up"); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+}
+
 func TestRefreshWithoutDropletsSucceeds(t *testing.T) {
 	c := newTestCollector(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

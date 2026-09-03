@@ -39,6 +39,7 @@ import (
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
 	"github.com/kozaktomas/digitalocean_exporter/internal/timeseries"
 )
@@ -109,6 +110,10 @@ type Config struct {
 	// installed afterwards does not set it, and such a droplet would then go
 	// unmeasured although it has readings.
 	AgentOnly bool
+	// Filter narrows the droplets to measure by tag and by region. A droplet
+	// it rejects is not measured at all, so the filter cuts this collector's
+	// request cost, not just its output. The zero value measures everything.
+	Filter filter.Filter
 	// Logger receives a warning for each droplet that could not be measured,
 	// since that failure never reaches the scheduler.
 	Logger *slog.Logger
@@ -120,6 +125,7 @@ type Collector struct {
 	logger      *slog.Logger
 	concurrency int
 	agentOnly   bool
+	filter      filter.Filter
 
 	mu   sync.RWMutex
 	snap []droplet
@@ -140,6 +146,7 @@ func New(client *godo.Client, cfg Config) *Collector {
 		logger:      cfg.Logger,
 		concurrency: concurrency,
 		agentOnly:   cfg.AgentOnly,
+		filter:      cfg.Filter,
 	}
 }
 
@@ -243,23 +250,47 @@ func (c *Collector) advance(by, total int) {
 	c.cursor = (c.cursor + by) % total
 }
 
-// listDroplets names every droplet in the account, or, with AgentOnly set,
-// only those whose listing reports the monitoring agent.
+// listDroplets names every droplet the filter admits, or, with AgentOnly set,
+// only those of them whose listing reports the monitoring agent. Filtering
+// here rather than after measuring is what keeps a filtered account cheap:
+// only the droplets that pass are measured at all.
 func (c *Collector) listDroplets(ctx context.Context) ([]reference, error) {
+	// A filter of exactly one tag and no region rides the tag-scoped listing,
+	// as the droplets collector does, so the API narrows the pages itself;
+	// the client-side match after it is then a no-op.
+	list := c.client.Droplets.List
+	if tag, ok := c.filter.SingleTag(); ok {
+		list = func(ctx context.Context, opt *godo.ListOptions) ([]godo.Droplet, *godo.Response, error) {
+			return c.client.Droplets.ListByTag(ctx, tag, opt)
+		}
+	}
+
 	droplets, err := paging.All(ctx, c.logger, "droplets",
-		func(d godo.Droplet) int { return d.ID }, c.client.Droplets.List)
+		func(d godo.Droplet) int { return d.ID }, list)
 	if err != nil {
 		return nil, err
 	}
 
 	refs := make([]reference, 0, len(droplets))
 	for _, d := range droplets {
+		if !c.filter.Match(d.Tags, regionSlug(&d)) {
+			continue
+		}
 		if c.agentOnly && !slices.Contains(d.Features, monitoringFeature) {
 			continue
 		}
 		refs = append(refs, reference{id: fmt.Sprint(d.ID), name: d.Name})
 	}
 	return refs, nil
+}
+
+// regionSlug names the region a droplet lies in, or "" when the API reported
+// none.
+func regionSlug(d *godo.Droplet) string {
+	if d.Region == nil {
+		return ""
+	}
+	return d.Region.Slug
 }
 
 // measureAll measures the droplets in the order given, at most Concurrency of

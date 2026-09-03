@@ -51,6 +51,17 @@ spaces:
   # -- Key inside `spaces.existingSecret` that holds the secret key.
   existingSecretSecretKeyKey: spaces-secret-key
 
+filters:
+  # -- Report only resources carrying at least one of these tags. Empty means
+  # every resource. The filter is applied by the resource collectors —
+  # droplets, volumes, load balancers, databases, Kubernetes, firewalls and
+  # both monitoring-API collectors; the account-wide collectors ignore it.
+  tags: []
+  # -- Report only resources in these regions, by slug (for example `fra1`).
+  # Empty means every region. When both lists are set a resource must satisfy
+  # both. Cloud firewalls have no region and are matched by tag alone.
+  regions: []
+
 collectors:
   account:
     # -- Report account status and the account's resource limits.

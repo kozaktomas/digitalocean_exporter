@@ -14,6 +14,7 @@ import (
 
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/kubernetes"
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 )
 
 // One cluster with two pools: an autoscaling one whose second node is still
@@ -109,8 +110,17 @@ func newTestCollector(t *testing.T, handler http.HandlerFunc) *kubernetes.Collec
 	return newTestCollectorWith(t, handler, true)
 }
 
-// newTestCollectorWith wires a collector to a fake DigitalOcean API.
+// newTestCollectorWith wires an unfiltered collector to a fake DigitalOcean
+// API.
 func newTestCollectorWith(t *testing.T, handler http.HandlerFunc, upgrades bool) *kubernetes.Collector {
+	t.Helper()
+	return newFilteredCollector(t, handler, upgrades, filter.Filter{})
+}
+
+// newFilteredCollector is newTestCollectorWith a filter set.
+func newFilteredCollector(
+	t *testing.T, handler http.HandlerFunc, upgrades bool, f filter.Filter,
+) *kubernetes.Collector {
 	t.Helper()
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
@@ -124,7 +134,7 @@ func newTestCollectorWith(t *testing.T, handler http.HandlerFunc, upgrades bool)
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	return kubernetes.New(client, upgrades, nil)
+	return kubernetes.New(client, upgrades, f, nil)
 }
 
 func okHandler(w http.ResponseWriter, r *http.Request) {
@@ -136,6 +146,19 @@ func okHandler(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(upgradesJSON))
 	default:
 		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
+// A region filter drops the clusters elsewhere: the fra1 cluster filtered out
+// by a nyc1 filter emits nothing at all, and is spared its upgrades lookup.
+func TestRefreshFiltersByRegion(t *testing.T) {
+	c := newFilteredCollector(t, okHandler, true, filter.New(nil, []string{"nyc1"}))
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	if n := testutil.CollectAndCount(c); n != 0 {
+		t.Errorf("collected %d metrics from a fully filtered account, want 0", n)
 	}
 }
 

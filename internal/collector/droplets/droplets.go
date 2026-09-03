@@ -26,6 +26,7 @@ import (
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
 )
 
@@ -109,23 +110,26 @@ type droplet struct {
 	createdAt float64
 }
 
-// Collector reports the droplets of the account.
+// Collector reports the droplets of the account, or, with a filter set, only
+// the droplets that pass it.
 type Collector struct {
 	client *godo.Client
+	filter filter.Filter
 	logger *slog.Logger
 
 	mu   sync.RWMutex
 	snap []droplet
 }
 
-// New returns a droplet collector backed by client. The logger records what
-// the scheduler never sees: a duplicate droplet dropped from a list that
-// shifted between two page requests. A nil logger discards it.
-func New(client *godo.Client, logger *slog.Logger) *Collector {
+// New returns a droplet collector backed by client, reporting only the
+// droplets f matches. The logger records what the scheduler never sees: a
+// duplicate droplet dropped from a list that shifted between two page
+// requests. A nil logger discards it.
+func New(client *godo.Client, f filter.Filter, logger *slog.Logger) *Collector {
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
-	return &Collector{client: client, logger: logger}
+	return &Collector{client: client, filter: f, logger: logger}
 }
 
 // Name implements collector.Collector.
@@ -143,13 +147,16 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 // previous droplets in place rather than reporting half an account.
 func (c *Collector) Refresh(ctx context.Context) error {
 	droplets, err := paging.All(ctx, c.logger, "droplets",
-		func(d godo.Droplet) int { return d.ID }, c.client.Droplets.List)
+		func(d godo.Droplet) int { return d.ID }, listing(c.client, c.filter))
 	if err != nil {
 		return err
 	}
 
 	next := make([]droplet, 0, len(droplets))
 	for i := range droplets {
+		if !c.filter.Match(droplets[i].Tags, regionSlug(&droplets[i])) {
+			continue
+		}
 		next = append(next, newDroplet(&droplets[i]))
 	}
 
@@ -157,6 +164,33 @@ func (c *Collector) Refresh(ctx context.Context) error {
 	c.snap = next
 	c.mu.Unlock()
 	return nil
+}
+
+// listing picks how the droplets are listed. A filter of exactly one tag and
+// no region is the one shape the API applies server-side, through the
+// tag-scoped droplet listing, so that shape lets the API do the filtering and
+// the pages arrive pre-narrowed; every other shape lists everything and
+// filters client-side. The client-side match still runs after the tag-scoped
+// listing, where it is a no-op, so the two paths cannot disagree.
+func listing(
+	client *godo.Client, f filter.Filter,
+) func(context.Context, *godo.ListOptions) ([]godo.Droplet, *godo.Response, error) {
+	tag, ok := f.SingleTag()
+	if !ok {
+		return client.Droplets.List
+	}
+	return func(ctx context.Context, opt *godo.ListOptions) ([]godo.Droplet, *godo.Response, error) {
+		return client.Droplets.ListByTag(ctx, tag, opt)
+	}
+}
+
+// regionSlug names the region a droplet lies in, or "" when the API reported
+// none.
+func regionSlug(d *godo.Droplet) string {
+	if d.Region == nil {
+		return ""
+	}
+	return d.Region.Slug
 }
 
 // newDroplet converts one API droplet into its snapshot form.

@@ -110,6 +110,13 @@ type Config struct {
 	LogLevel string
 	// LogFormat is either logfmt or json.
 	LogFormat string
+	// FilterTags lists the tags the resource collectors report on: a resource
+	// carrying at least one of them passes. Empty means every resource, as
+	// does the zero filter it builds.
+	FilterTags []string
+	// FilterRegions lists the regions the resource collectors report on: a
+	// resource in one of them passes. Empty means everywhere.
+	FilterRegions []string
 	// Collectors maps a collector name to its configuration.
 	Collectors map[string]CollectorConfig
 	// Spaces holds the Spaces collector's own settings.
@@ -139,15 +146,17 @@ type collectorFlags struct {
 
 // flags holds every bound flag before validation turns them into a Config.
 type flags struct {
-	listen     *string
-	webConfig  *string
-	token      *string
-	tokenFile  *string
-	apiBaseURL *string
-	timeout    *time.Duration
-	rateLimit  *float64
-	logLevel   *string
-	logFormat  *string
+	listen        *string
+	webConfig     *string
+	token         *string
+	tokenFile     *string
+	apiBaseURL    *string
+	timeout       *time.Duration
+	rateLimit     *float64
+	logLevel      *string
+	logFormat     *string
+	filterTags    *[]string
+	filterRegions *[]string
 	// simple holds the collectors configured by nothing but an enable switch
 	// and an interval, keyed by collector name.
 	simple           map[string]*collectorFlags
@@ -293,6 +302,14 @@ func bind(app *kingpin.Application) *flags {
 		Envar("LOG_LEVEL").Default("info").Enum("debug", "info", "warn", "error")
 	f.logFormat = app.Flag("log.format", "Log format: logfmt or json.").
 		Envar("LOG_FORMAT").Default("logfmt").Enum("logfmt", "json")
+	f.filterTags = app.Flag("filter.tag",
+		"Report only resources carrying this tag. Repeatable, or comma-separated. "+
+			"Empty means every resource. See the documentation for which collectors honour it.").
+		Envar("FILTER_TAG").Strings()
+	f.filterRegions = app.Flag("filter.region",
+		"Report only resources in this region, by slug. Repeatable, or comma-separated. "+
+			"Empty means every region. See the documentation for which collectors honour it.").
+		Envar("FILTER_REGION").Strings()
 	f.simple = bindSimple(app)
 	// The one collector switch that is neither an enable nor an interval: the
 	// upgrades lookup is the only part of the Kubernetes collector whose cost
@@ -477,6 +494,8 @@ func (f *flags) config() (*Config, error) {
 		RateLimit:                      *f.rateLimit,
 		LogLevel:                       *f.logLevel,
 		LogFormat:                      *f.logFormat,
+		FilterTags:                     splitList(*f.filterTags),
+		FilterRegions:                  splitList(*f.filterRegions),
 		Collectors:                     collectors,
 		Spaces:                         spaces,
 		DropletMetricsConcurrency:      *f.dmConcurrency,
@@ -568,6 +587,23 @@ func (f *flags) spacesConfig() (SpacesConfig, error) {
 		return SpacesConfig{}, fmt.Errorf("discovery needs a region: %w", ErrNoSpacesRegion)
 	}
 	return cfg, nil
+}
+
+// splitList flattens a repeatable flag's values, splitting each on commas and
+// dropping the empties, for the same reason parseBuckets does: the environment
+// form of a repeatable flag is one string kingpin splits on newlines alone, so
+// without this FILTER_TAG=prod,web asked for a single tag literally named
+// "prod,web", which matches nothing and empties the exposition quietly.
+func splitList(raw []string) []string {
+	var values []string
+	for _, entry := range raw {
+		for _, value := range strings.Split(entry, ",") {
+			if value = strings.TrimSpace(value); value != "" {
+				values = append(values, value)
+			}
+		}
+	}
+	return values
 }
 
 // parseBuckets turns the repeatable bucket flag into names and regions.

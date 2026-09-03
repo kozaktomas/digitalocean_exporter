@@ -20,6 +20,7 @@ import (
 
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/loadbalancermetrics"
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 )
 
 // sampledAt is the timestamp every fixture below reports.
@@ -105,9 +106,17 @@ digitalocean_loadbalancer_metrics_timestamp_seconds{id="lb-1",name="public"} 1.7
 digitalocean_loadbalancer_metrics_up{id="lb-1",name="public"} 1
 `
 
-// newTestCollector wires a collector to a fake DigitalOcean API.
+// newTestCollector wires an unfiltered collector to a fake DigitalOcean API.
 func newTestCollector(
 	t *testing.T, concurrency int, handler http.HandlerFunc,
+) *loadbalancermetrics.Collector {
+	t.Helper()
+	return newFilteredCollector(t, concurrency, filter.Filter{}, handler)
+}
+
+// newFilteredCollector is newTestCollector with a filter set.
+func newFilteredCollector(
+	t *testing.T, concurrency int, f filter.Filter, handler http.HandlerFunc,
 ) *loadbalancermetrics.Collector {
 	t.Helper()
 	srv := httptest.NewServer(handler)
@@ -123,7 +132,7 @@ func newTestCollector(
 		t.Fatalf("new client: %v", err)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return loadbalancermetrics.New(client, concurrency, logger)
+	return loadbalancermetrics.New(client, concurrency, f, logger)
 }
 
 // okHandler serves one load balancer and a full set of readings for it.
@@ -295,6 +304,29 @@ func TestFailedListingFailsTheRefresh(t *testing.T) {
 }
 
 // An account with no load balancers is a normal state.
+// A filtered-out load balancer is not measured at all: the handler serves
+// nothing but the listing, so had it been measured, every fetch would have
+// failed and the refresh with it. It carries no tags, so a tag filter
+// rejects it.
+func TestFilteredOutLoadBalancerIsNotMeasured(t *testing.T) {
+	c := newFilteredCollector(t, 1, filter.New([]string{"prod"}, nil),
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if r.URL.Path == "/v2/load_balancers" {
+				_, _ = w.Write([]byte(oneLoadBalancerJSON))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh with everything filtered out: %v", err)
+	}
+	if got := testutil.CollectAndCount(c); got != 0 {
+		t.Errorf("metric count with everything filtered out = %d, want 0", got)
+	}
+}
+
 func TestRefreshWithoutLoadBalancersSucceeds(t *testing.T) {
 	c := newTestCollector(t, 1, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

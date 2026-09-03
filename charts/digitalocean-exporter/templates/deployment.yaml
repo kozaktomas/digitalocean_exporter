@@ -62,6 +62,12 @@ spec:
             - --do.rate-limit={{ .Values.digitalocean.rateLimit }}
             - --log.level={{ .Values.log.level }}
             - --log.format={{ .Values.log.format }}
+            {{- range .Values.filters.tags }}
+            - --filter.tag={{ . }}
+            {{- end }}
+            {{- range .Values.filters.regions }}
+            - --filter.region={{ . }}
+            {{- end }}
             {{- if .Values.collectors.account.enabled }}
             - --collector.account
             - --collector.account.interval={{ .Values.collectors.account.interval }}

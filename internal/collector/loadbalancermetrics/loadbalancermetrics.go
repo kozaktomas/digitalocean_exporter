@@ -35,6 +35,7 @@ import (
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
 	"github.com/kozaktomas/digitalocean_exporter/internal/timeseries"
 )
@@ -94,6 +95,7 @@ type Collector struct {
 	client      *godo.Client
 	logger      *slog.Logger
 	concurrency int
+	filter      filter.Filter
 
 	mu   sync.RWMutex
 	snap []loadBalancer
@@ -103,15 +105,17 @@ type Collector struct {
 	cursor int
 }
 
-// New returns a load balancer metrics collector backed by client. Concurrency
-// caps how many load balancers are measured at once and is raised to 1 if it
-// is lower; logger receives a warning for each one that could not be measured,
-// since that failure never reaches the scheduler.
-func New(client *godo.Client, concurrency int, logger *slog.Logger) *Collector {
+// New returns a load balancer metrics collector backed by client, measuring
+// only the load balancers f matches — a rejected one is not measured at all,
+// so the filter cuts this collector's request cost, not just its output.
+// Concurrency caps how many load balancers are measured at once and is raised
+// to 1 if it is lower; logger receives a warning for each one that could not
+// be measured, since that failure never reaches the scheduler.
+func New(client *godo.Client, concurrency int, f filter.Filter, logger *slog.Logger) *Collector {
 	if concurrency < 1 {
 		concurrency = 1
 	}
-	return &Collector{client: client, logger: logger, concurrency: concurrency}
+	return &Collector{client: client, logger: logger, concurrency: concurrency, filter: f}
 }
 
 // Name implements collector.Collector.
@@ -213,7 +217,9 @@ func (c *Collector) advance(by, total int) {
 	c.cursor = (c.cursor + by) % total
 }
 
-// listLoadBalancers names every load balancer in the account.
+// listLoadBalancers names every load balancer the filter admits. Filtering
+// here rather than after measuring is what keeps a filtered account cheap:
+// only the load balancers that pass are measured at all.
 func (c *Collector) listLoadBalancers(ctx context.Context) ([]reference, error) {
 	balancers, err := paging.All(ctx, c.logger, "load balancers",
 		func(lb godo.LoadBalancer) string { return lb.ID }, c.client.LoadBalancers.List)
@@ -222,10 +228,22 @@ func (c *Collector) listLoadBalancers(ctx context.Context) ([]reference, error) 
 	}
 
 	refs := make([]reference, 0, len(balancers))
-	for _, lb := range balancers {
-		refs = append(refs, reference{id: lb.ID, name: lb.Name})
+	for i := range balancers {
+		if !c.filter.Match(balancers[i].Tags, regionSlug(&balancers[i])) {
+			continue
+		}
+		refs = append(refs, reference{id: balancers[i].ID, name: balancers[i].Name})
 	}
 	return refs, nil
+}
+
+// regionSlug names the region a load balancer lies in, or "" when the API
+// reported none.
+func regionSlug(lb *godo.LoadBalancer) string {
+	if lb.Region == nil {
+		return ""
+	}
+	return lb.Region.Slug
 }
 
 // measureAll measures the load balancers in the order given, at most

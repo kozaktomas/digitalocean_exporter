@@ -79,6 +79,10 @@ answers those endpoints with a client error, which reads as "none" rather than a
 Because the refresh fans out over the account, the collector carries a timeout of its own,
 `--collector.databases.timeout`, two minutes by default.
 
+This collector honours [filtering](index.md#filtering): only the clusters that pass the
+tag and region filter are reported, and a filtered-out cluster is spared its detail
+lookups too.
+
 **Cost:** one request per refresh, plus one per additional page for accounts with many
 clusters, plus two per cluster for the detail lookups unless they are switched off.
 
@@ -101,6 +105,10 @@ response as the rest. Reporting them costs no extra request, which is why they a
 than behind a flag. The agent one is worth knowing before enabling
 [`dropletmetrics`](monitoring-api.md#dropletmetrics): a droplet without the agent is one that
 collector will spend ten requests a refresh on and get no readings back for.
+
+This collector honours [filtering](index.md#filtering): only the droplets that pass the
+tag and region filter are reported, and a filter of exactly one tag and no region rides
+the API's tag-scoped listing, which narrows the pages themselves.
 
 **Cost:** one request per refresh, plus one per additional page for accounts with many
 droplets.
@@ -153,6 +161,10 @@ unaffected.
 `digitalocean_kubernetes_node_state` is four series per node, one per documented state. That
 is the only part of this collector whose series count grows with the size of the account
 rather than the number of clusters.
+
+This collector honours [filtering](index.md#filtering): only the clusters that pass the
+tag and region filter are reported, and a filtered-out cluster is spared its upgrades
+lookup too.
 
 **Cost:** one request per refresh, plus one per additional page for accounts with many
 clusters, plus one per cluster for the upgrades lookup unless it is switched off.
@@ -231,6 +243,9 @@ full rate while serving no purpose, and nothing in the control panel nags you ab
 digitalocean_volume_droplets == 0
 ```
 
+This collector honours [filtering](index.md#filtering): only the volumes that pass the tag
+and region filter are reported.
+
 **Cost:** one request per refresh.
 
 ---
@@ -277,6 +292,10 @@ usually a deploy that went wrong rather than a deliberate configuration.
 
 Traffic *through* a load balancer, and which individual backend is failing its health
 check, come from [`loadbalancermetrics`](monitoring-api.md#loadbalancermetrics) instead.
+
+This collector honours [filtering](index.md#filtering), matched on the tags the load
+balancer itself carries — not on the droplet tag it selects its backends by — and on its
+region.
 
 **Cost:** one request per refresh.
 
@@ -408,6 +427,10 @@ firewall, so there is no way to see what a rule actually allows through.
 **Off by default**, and not because of what it costs: one list request per refresh, the same
 as the collectors that default on. A ruleset changes when somebody deploys, so most accounts
 have no reason to scrape it. Turn it on when you want to alert on the two metrics above.
+
+This collector honours [filtering](index.md#filtering) by tag alone — a firewall passes
+when it is attached to one of the filter's tags. A cloud firewall has no region, so a
+region filter leaves the firewalls untouched rather than emptying them.
 
 **Cost:** one request per refresh.
 

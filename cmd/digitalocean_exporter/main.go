@@ -46,6 +46,7 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/volumes"
 	"github.com/kozaktomas/digitalocean_exporter/internal/config"
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 	"github.com/kozaktomas/digitalocean_exporter/internal/spacesclient"
 	"github.com/kozaktomas/digitalocean_exporter/internal/version"
 )
@@ -127,6 +128,11 @@ func run(args []string) error {
 func registerCollectors(
 	scheduler *collector.Scheduler, cfg *config.Config, client *godo.Client, logger *slog.Logger,
 ) {
+	// One filter shared by every resource collector that honours it, so
+	// "matches the filter" means the same thing across the whole exposition.
+	// The account-wide collectors never see it.
+	flt := filter.New(cfg.FilterTags, cfg.FilterRegions)
+
 	available := []struct {
 		name  string
 		build func() collector.Collector
@@ -134,24 +140,24 @@ func registerCollectors(
 		{"account", func() collector.Collector { return account.New(client) }},
 		{"balance", func() collector.Collector { return balance.New(client) }},
 		{"databases", func() collector.Collector {
-			return databases.New(client, cfg.DatabaseDetails, logger)
+			return databases.New(client, cfg.DatabaseDetails, flt, logger)
 		}},
-		{"droplets", func() collector.Collector { return droplets.New(client, logger) }},
+		{"droplets", func() collector.Collector { return droplets.New(client, flt, logger) }},
 		{"dropletautoscale", func() collector.Collector { return dropletautoscale.New(client, logger) }},
 		{"images", func() collector.Collector { return images.New(client, logger) }},
 		{"kubernetes", func() collector.Collector {
-			return kubernetes.New(client, cfg.KubernetesUpgrades, logger)
+			return kubernetes.New(client, cfg.KubernetesUpgrades, flt, logger)
 		}},
 		{"limits", func() collector.Collector { return limits.New(client) }},
 		{"registry", func() collector.Collector { return registry.New(client, logger) }},
 		{"reservedips", func() collector.Collector { return reservedips.New(client, logger) }},
 		{"spaces", func() collector.Collector { return newSpaces(cfg.Spaces, logger) }},
-		{"volumes", func() collector.Collector { return volumes.New(client, logger) }},
-		{"loadbalancers", func() collector.Collector { return loadbalancers.New(client, logger) }},
+		{"volumes", func() collector.Collector { return volumes.New(client, flt, logger) }},
+		{"loadbalancers", func() collector.Collector { return loadbalancers.New(client, flt, logger) }},
 		{"cdn", func() collector.Collector { return cdn.New(client, logger) }},
 		{"apps", func() collector.Collector { return apps.New(client, logger) }},
 		{"domains", func() collector.Collector { return domains.New(client, logger) }},
-		{"firewalls", func() collector.Collector { return firewalls.New(client, logger) }},
+		{"firewalls", func() collector.Collector { return firewalls.New(client, flt, logger) }},
 		{"certificates", func() collector.Collector { return certificates.New(client, logger) }},
 		{"tags", func() collector.Collector { return tags.New(client, logger) }},
 		{"projects", func() collector.Collector { return projects.New(client, logger) }},
@@ -159,11 +165,12 @@ func registerCollectors(
 			return dropletmetrics.New(client, dropletmetrics.Config{
 				Concurrency: cfg.DropletMetricsConcurrency,
 				AgentOnly:   cfg.DropletMetricsAgentOnly,
+				Filter:      flt,
 				Logger:      logger,
 			})
 		}},
 		{"loadbalancermetrics", func() collector.Collector {
-			return loadbalancermetrics.New(client, cfg.LoadBalancerMetricsConcurrency, logger)
+			return loadbalancermetrics.New(client, cfg.LoadBalancerMetricsConcurrency, flt, logger)
 		}},
 	}
 

@@ -25,6 +25,7 @@ import (
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
 )
 
@@ -137,23 +138,28 @@ type healthCheck struct {
 	unhealthy float64
 }
 
-// Collector reports the load balancers of the account.
+// Collector reports the load balancers of the account, or, with a filter set,
+// only the load balancers that pass it.
 type Collector struct {
 	client *godo.Client
+	filter filter.Filter
 	logger *slog.Logger
 
 	mu   sync.RWMutex
 	snap []loadBalancer
 }
 
-// New returns a load balancer collector backed by client. The logger records
-// what the scheduler never sees: a duplicate load balancer dropped from a list
-// that shifted between two page requests. A nil logger discards it.
-func New(client *godo.Client, logger *slog.Logger) *Collector {
+// New returns a load balancer collector backed by client, reporting only the
+// load balancers f matches — matched on the tags the load balancer itself
+// carries, not on the droplet tag it selects its backends by. The logger
+// records what the scheduler never sees: a duplicate load balancer dropped
+// from a list that shifted between two page requests. A nil logger discards
+// it.
+func New(client *godo.Client, f filter.Filter, logger *slog.Logger) *Collector {
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
-	return &Collector{client: client, logger: logger}
+	return &Collector{client: client, filter: f, logger: logger}
 }
 
 // Name implements collector.Collector.
@@ -178,6 +184,9 @@ func (c *Collector) Refresh(ctx context.Context) error {
 
 	next := make([]loadBalancer, 0, len(balancers))
 	for i := range balancers {
+		if !c.filter.Match(balancers[i].Tags, regionSlug(&balancers[i])) {
+			continue
+		}
 		next = append(next, newLoadBalancer(&balancers[i]))
 	}
 
@@ -185,6 +194,15 @@ func (c *Collector) Refresh(ctx context.Context) error {
 	c.snap = next
 	c.mu.Unlock()
 	return nil
+}
+
+// regionSlug names the region a load balancer lies in, or "" when the API
+// reported none.
+func regionSlug(lb *godo.LoadBalancer) string {
+	if lb.Region == nil {
+		return ""
+	}
+	return lb.Region.Slug
 }
 
 // newLoadBalancer converts one API load balancer into its snapshot form.

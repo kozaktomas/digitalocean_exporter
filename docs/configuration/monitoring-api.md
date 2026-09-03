@@ -103,6 +103,10 @@ digitalocean_exporter --collector.dropletmetrics --collector.dropletmetrics.inte
 **The API samples every 2 minutes.** An interval shorter than that buys nothing: you pay the
 requests and get the same readings back. `5m` is the default; going below `2m` is waste.
 
+This collector honours [filtering](index.md#filtering), and here the filter cuts cost, not
+just output: a droplet the tag and region filter rejects is never measured, so its ten
+requests per refresh are never spent.
+
 **Droplets without DigitalOcean's monitoring agent report no readings.** The agent is what
 produces this data; a droplet created without it, or one where it stopped, simply has none.
 That is not an exporter failure — the request succeeds and returns no series, so the droplet
@@ -173,3 +177,7 @@ Same knobs, same meanings: `--collector.loadbalancermetrics.interval` (`5m`),
 reports `digitalocean_loadbalancer_metrics_up 0` and keeps its previous readings; one that
 answered with no series at all — a network load balancer has no HTTP metrics ever — is up
 with nothing under it.
+
+This collector honours [filtering](index.md#filtering) the same way `dropletmetrics` does:
+a load balancer the tag and region filter rejects is never measured, so its seven requests
+per refresh are never spent.

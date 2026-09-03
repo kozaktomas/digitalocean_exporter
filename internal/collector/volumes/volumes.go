@@ -19,6 +19,7 @@ import (
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
 )
 
@@ -54,23 +55,26 @@ type volume struct {
 	droplets float64
 }
 
-// Collector reports the block storage volumes of the account.
+// Collector reports the block storage volumes of the account, or, with a
+// filter set, only the volumes that pass it.
 type Collector struct {
 	client *godo.Client
+	filter filter.Filter
 	logger *slog.Logger
 
 	mu   sync.RWMutex
 	snap []volume
 }
 
-// New returns a volume collector backed by client. The logger records what the
-// scheduler never sees: a duplicate volume dropped from a list that shifted
-// between two page requests. A nil logger discards it.
-func New(client *godo.Client, logger *slog.Logger) *Collector {
+// New returns a volume collector backed by client, reporting only the volumes
+// f matches. The logger records what the scheduler never sees: a duplicate
+// volume dropped from a list that shifted between two page requests. A nil
+// logger discards it.
+func New(client *godo.Client, f filter.Filter, logger *slog.Logger) *Collector {
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
-	return &Collector{client: client, logger: logger}
+	return &Collector{client: client, filter: f, logger: logger}
 }
 
 // Name implements collector.Collector.
@@ -100,6 +104,9 @@ func (c *Collector) Refresh(ctx context.Context) error {
 
 	next := make([]volume, 0, len(volumes))
 	for i := range volumes {
+		if !c.filter.Match(volumes[i].Tags, regionSlug(&volumes[i])) {
+			continue
+		}
 		next = append(next, newVolume(&volumes[i]))
 	}
 
@@ -107,6 +114,15 @@ func (c *Collector) Refresh(ctx context.Context) error {
 	c.snap = next
 	c.mu.Unlock()
 	return nil
+}
+
+// regionSlug names the region a volume lies in, or "" when the API reported
+// none.
+func regionSlug(v *godo.Volume) string {
+	if v.Region == nil {
+		return ""
+	}
+	return v.Region.Slug
 }
 
 // newVolume converts one API volume into its snapshot form.

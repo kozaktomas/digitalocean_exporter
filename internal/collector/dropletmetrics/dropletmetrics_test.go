@@ -21,6 +21,7 @@ import (
 
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/dropletmetrics"
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 )
 
 // sampledAt is the timestamp every fixture below reports, so the expected
@@ -366,6 +367,31 @@ func TestRefreshWithoutDropletsSucceeds(t *testing.T) {
 	}
 	if got := testutil.CollectAndCount(c); got != 0 {
 		t.Errorf("metric count without droplets = %d, want 0", got)
+	}
+}
+
+// A filtered-out droplet is not measured at all: the handler serves nothing
+// but the listing, so had the droplet been measured, every fetch would have
+// failed and the refresh with it. The droplet carries neither the tag nor any
+// region, so both conditions reject it.
+func TestFilteredOutDropletIsNotMeasured(t *testing.T) {
+	c := newConfiguredCollector(t, dropletmetrics.Config{
+		Concurrency: 1,
+		Filter:      filter.New([]string{"prod", "web"}, nil),
+	}, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/v2/droplets" {
+			_, _ = w.Write([]byte(oneDropletJSON))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh with everything filtered out: %v", err)
+	}
+	if got := testutil.CollectAndCount(c); got != 0 {
+		t.Errorf("metric count with everything filtered out = %d, want 0", got)
 	}
 }
 

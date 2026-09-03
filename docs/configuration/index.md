@@ -65,6 +65,58 @@ This trips people up once each, so it is worth stating plainly.
 
     The chart renders the negated flag for you.
 
+## Filtering
+
+An account shared between teams, or one with a noisy staging region, can be narrowed to a
+slice: `--filter.tag` and `--filter.region` make the resource collectors report only the
+resources that pass. Both flags are repeatable, and both accept comma-separated values —
+the environment form of a repeatable flag is a single string, so commas are how a list is
+written there.
+
+A resource passes when it carries **at least one** of the given tags (when any are given)
+**and** lies in **one** of the given regions (when any are given). A condition that was not
+configured holds for everything, so leaving both flags unset reports the whole account,
+exactly as before.
+
+=== "Flags"
+
+    ```bash
+    digitalocean_exporter --filter.tag=prod --filter.tag=web --filter.region=fra1
+    ```
+
+=== "Environment"
+
+    ```bash
+    FILTER_TAG=prod,web
+    FILTER_REGION=fra1
+    ```
+
+=== "Helm"
+
+    ```yaml
+    filters:
+      tags: [prod, web]
+      regions: [fra1]
+    ```
+
+The filter is honoured by exactly these collectors: [`droplets`](collectors.md#droplets),
+[`volumes`](collectors.md#volumes), [`loadbalancers`](collectors.md#loadbalancers),
+[`databases`](collectors.md#databases), [`kubernetes`](collectors.md#kubernetes),
+[`firewalls`](collectors.md#firewalls) — by tag alone, since a cloud firewall has no
+region — and both [monitoring-API collectors](monitoring-api.md), which measure only the
+droplets and load balancers that pass. Every other collector is unaffected — the
+account-wide ones (`account`, `balance`, `limits`, `domains`, `registry`, `spaces`, `cdn`,
+`certificates`) describe the account rather than a filterable resource, and the remaining
+inventory collectors (`images`, `reservedips`, `apps`, `tags`, `projects`,
+`dropletautoscale`) report everything they list.
+
+Filtering happens in the exporter, after listing, so it changes what is reported without
+changing what a refresh costs — with two exceptions in the cheaper direction. A filter of
+exactly one tag and no region is the one shape the API applies server-side, so the droplet
+collectors then use the tag-scoped droplet listing and the pages arrive pre-narrowed. And
+the monitoring-API collectors skip the per-resource metric requests of everything the
+filter rejects, which on a large account is most of their cost.
+
 ## Intervals, timeouts and the API budget
 
 **A scrape costs nothing.** Serving `/metrics` reads an in-memory snapshot and issues no API
@@ -250,6 +302,8 @@ basic_auth_users:
 | `--do.rate-limit` | `DO_RATE_LIMIT` | `4` | API requests per second, over all collectors; `0` disables it |
 | `--log.level` | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
 | `--log.format` | `LOG_FORMAT` | `logfmt` | `logfmt` or `json` |
+| `--filter.tag` | `FILTER_TAG` | — | [Report only resources carrying one of these tags](#filtering); repeatable, or comma-separated |
+| `--filter.region` | `FILTER_REGION` | — | [Report only resources in these regions](#filtering); repeatable, or comma-separated |
 
 ### Collectors on by default
 

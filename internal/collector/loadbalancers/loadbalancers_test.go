@@ -14,6 +14,7 @@ import (
 
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/loadbalancers"
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 )
 
 // Two load balancers: an active regional one with droplet backends, a fully
@@ -110,8 +111,14 @@ digitalocean_loadbalancer_status{id="lb-1",ip="10.0.0.1",name="public"} 1
 digitalocean_loadbalancer_status{id="lb-2",ip="",name="pending"} 0
 `
 
-// newTestCollector wires a collector to a fake DigitalOcean API.
+// newTestCollector wires an unfiltered collector to a fake DigitalOcean API.
 func newTestCollector(t *testing.T, handler http.HandlerFunc) *loadbalancers.Collector {
+	t.Helper()
+	return newFilteredCollector(t, filter.Filter{}, handler)
+}
+
+// newFilteredCollector is newTestCollector with a filter set.
+func newFilteredCollector(t *testing.T, f filter.Filter, handler http.HandlerFunc) *loadbalancers.Collector {
 	t.Helper()
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
@@ -125,7 +132,7 @@ func newTestCollector(t *testing.T, handler http.HandlerFunc) *loadbalancers.Col
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	return loadbalancers.New(client, nil)
+	return loadbalancers.New(client, f, nil)
 }
 
 // okHandler serves the two-load-balancer account.
@@ -136,6 +143,25 @@ func okHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNotFound)
+}
+
+// A region filter keeps only the load balancers in its regions: the ams3 one
+// is absent from the exposition, not zeroed.
+func TestRefreshFiltersByRegion(t *testing.T) {
+	c := newFilteredCollector(t, filter.New(nil, []string{"fra1"}), okHandler)
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_loadbalancer_status The status of the load balancer, 1 if active.
+# TYPE digitalocean_loadbalancer_status gauge
+digitalocean_loadbalancer_status{id="lb-1",ip="10.0.0.1",name="public"} 1
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want),
+		"digitalocean_loadbalancer_status"); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
 }
 
 func TestCollectAfterRefresh(t *testing.T) {

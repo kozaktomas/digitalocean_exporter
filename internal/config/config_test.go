@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +33,51 @@ func TestParseDefaults(t *testing.T) {
 	}
 	if !account.Enabled || account.Interval != 5*time.Minute {
 		t.Errorf("account = %+v, want enabled with a 5m interval", account)
+	}
+}
+
+func TestParseFiltersDefaultToEverything(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cfg.FilterTags) != 0 || len(cfg.FilterRegions) != 0 {
+		t.Errorf("filters = %v / %v, want both empty", cfg.FilterTags, cfg.FilterRegions)
+	}
+}
+
+// A comma separates values as well as repeating the flag does, because the
+// environment form of a repeatable flag is one string that kingpin splits on
+// newlines alone.
+func TestParseFilters(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret",
+		"--filter.tag", "prod",
+		"--filter.tag", "web, api",
+		"--filter.region", "fra1,ams3",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := []string{"prod", "web", "api"}; !slices.Equal(cfg.FilterTags, want) {
+		t.Errorf("filter tags = %v, want %v", cfg.FilterTags, want)
+	}
+	if want := []string{"fra1", "ams3"}; !slices.Equal(cfg.FilterRegions, want) {
+		t.Errorf("filter regions = %v, want %v", cfg.FilterRegions, want)
+	}
+}
+
+func TestParseFiltersFromEnv(t *testing.T) {
+	t.Setenv("FILTER_TAG", "prod,web")
+	t.Setenv("FILTER_REGION", "fra1")
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := []string{"prod", "web"}; !slices.Equal(cfg.FilterTags, want) {
+		t.Errorf("filter tags = %v, want %v", cfg.FilterTags, want)
+	}
+	if want := []string{"fra1"}; !slices.Equal(cfg.FilterRegions, want) {
+		t.Errorf("filter regions = %v, want %v", cfg.FilterRegions, want)
 	}
 }
 

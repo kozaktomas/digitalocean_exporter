@@ -15,6 +15,7 @@ import (
 
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/databases"
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 )
 
 // Two clusters: a single-node MySQL with maintenance pending, a replica and
@@ -99,8 +100,16 @@ digitalocean_database_replica_status{id="1",name="main",region="ams3",replica="m
 digitalocean_database_replicas{id="1",name="main",region="fra1"} 1
 `
 
-// newCollector wires a collector to a fake DigitalOcean API.
+// newCollector wires an unfiltered collector to a fake DigitalOcean API.
 func newCollector(t *testing.T, details bool, handler http.HandlerFunc) *databases.Collector {
+	t.Helper()
+	return newFilteredCollector(t, details, filter.Filter{}, handler)
+}
+
+// newFilteredCollector is newCollector with a filter set.
+func newFilteredCollector(
+	t *testing.T, details bool, f filter.Filter, handler http.HandlerFunc,
+) *databases.Collector {
 	t.Helper()
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
@@ -114,7 +123,7 @@ func newCollector(t *testing.T, details bool, handler http.HandlerFunc) *databas
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	return databases.New(client, details, nil)
+	return databases.New(client, details, f, nil)
 }
 
 // newTestCollector wires a collector with the detail lookups switched off.
@@ -153,6 +162,25 @@ func detailsHandler(fail2 *atomic.Bool) http.HandlerFunc {
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
+	}
+}
+
+// A region filter keeps only the clusters in its regions: the ams3 one is
+// absent from the exposition, not zeroed.
+func TestRefreshFiltersByRegion(t *testing.T) {
+	c := newFilteredCollector(t, false, filter.New(nil, []string{"fra1"}), okHandler)
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_database_status Whether the cluster is online.
+# TYPE digitalocean_database_status gauge
+digitalocean_database_status{engine="mysql",id="1",name="main",region="fra1",size="db-2vcpu-4gb",version="8"} 1
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want),
+		"digitalocean_database_status"); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
 	}
 }
 

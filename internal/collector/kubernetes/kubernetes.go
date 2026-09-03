@@ -15,6 +15,7 @@ import (
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
 )
 
@@ -154,23 +155,25 @@ type cluster struct {
 type Collector struct {
 	client      *godo.Client
 	askUpgrades bool
+	filter      filter.Filter
 	logger      *slog.Logger
 
 	mu   sync.RWMutex
 	snap []cluster
 }
 
-// New returns a Kubernetes collector backed by client. With upgrades set the
-// refresh also asks what each cluster could be upgraded to, which costs one
-// request per cluster. The logger records what the scheduler never sees: a
-// duplicate cluster dropped from a list that shifted between two page
-// requests, and an upgrades lookup that failed for one cluster. A nil logger
-// discards it.
-func New(client *godo.Client, upgrades bool, logger *slog.Logger) *Collector {
+// New returns a Kubernetes collector backed by client, reporting only the
+// clusters f matches; a filtered-out cluster is also spared its upgrades
+// lookup. With upgrades set the refresh also asks what each cluster could be
+// upgraded to, which costs one request per cluster. The logger records what
+// the scheduler never sees: a duplicate cluster dropped from a list that
+// shifted between two page requests, and an upgrades lookup that failed for
+// one cluster. A nil logger discards it.
+func New(client *godo.Client, upgrades bool, f filter.Filter, logger *slog.Logger) *Collector {
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
-	return &Collector{client: client, askUpgrades: upgrades, logger: logger}
+	return &Collector{client: client, askUpgrades: upgrades, filter: f, logger: logger}
 }
 
 // Name implements collector.Collector.
@@ -196,6 +199,9 @@ func (c *Collector) Refresh(ctx context.Context) error {
 	previous := c.previousUpgrades()
 	next := make([]cluster, 0, len(clusters))
 	for _, kc := range clusters {
+		if !c.filter.Match(kc.Tags, kc.RegionSlug) {
+			continue
+		}
 		cl := newCluster(kc)
 		if err := c.refreshUpgrades(ctx, &cl, previous); err != nil {
 			return err

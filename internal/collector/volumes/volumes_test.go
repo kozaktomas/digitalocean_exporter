@@ -14,12 +14,13 @@ import (
 
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/volumes"
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 )
 
 // Two volumes: one attached to a droplet, one orphaned. The orphan also has no
 // filesystem, which is what an unformatted volume looks like.
 const volumesJSON = `{"volumes":[` +
-	`{"id":"vol-1","name":"data","region":{"slug":"fra1"},"size_gigabytes":100,` +
+	`{"id":"vol-1","name":"data","region":{"slug":"fra1"},"size_gigabytes":100,"tags":["prod"],` +
 	`"filesystem_type":"ext4","filesystem_label":"data","droplet_ids":[42]},` +
 	`{"id":"vol-2","name":"orphan","region":{"slug":"ams3"},"size_gigabytes":10,` +
 	`"filesystem_type":"","filesystem_label":"","droplet_ids":[]}` +
@@ -40,8 +41,14 @@ digitalocean_volume_size_bytes{id="vol-1",name="data",region="fra1"} 1.073741824
 digitalocean_volume_size_bytes{id="vol-2",name="orphan",region="ams3"} 1.073741824e+10
 `
 
-// newTestCollector wires a collector to a fake DigitalOcean API.
+// newTestCollector wires an unfiltered collector to a fake DigitalOcean API.
 func newTestCollector(t *testing.T, handler http.HandlerFunc) *volumes.Collector {
+	t.Helper()
+	return newFilteredCollector(t, filter.Filter{}, handler)
+}
+
+// newFilteredCollector is newTestCollector with a filter set.
+func newFilteredCollector(t *testing.T, f filter.Filter, handler http.HandlerFunc) *volumes.Collector {
 	t.Helper()
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
@@ -55,7 +62,7 @@ func newTestCollector(t *testing.T, handler http.HandlerFunc) *volumes.Collector
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	return volumes.New(client, nil)
+	return volumes.New(client, f, nil)
 }
 
 // okHandler serves the two-volume account.
@@ -75,6 +82,25 @@ func TestCollectAfterRefresh(t *testing.T) {
 	}
 
 	if err := testutil.CollectAndCompare(c, strings.NewReader(volumeMetrics)); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+}
+
+// A tag filter keeps only the volumes carrying one of its tags: the untagged
+// orphan is absent from the exposition, not zeroed.
+func TestRefreshFiltersByTag(t *testing.T) {
+	c := newFilteredCollector(t, filter.New([]string{"prod"}, nil), okHandler)
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_volume_size_bytes Size of the volume in bytes.
+# TYPE digitalocean_volume_size_bytes gauge
+digitalocean_volume_size_bytes{id="vol-1",name="data",region="fra1"} 1.073741824e+11
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want),
+		"digitalocean_volume_size_bytes"); err != nil {
 		t.Errorf("unexpected metrics: %v", err)
 	}
 }

@@ -14,6 +14,7 @@ import (
 
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/firewalls"
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 )
 
 // Two firewalls covering the cases that change a metric: one fully applied and
@@ -67,8 +68,14 @@ digitalocean_firewall_tags{id="fw-1",name="web"} 1
 digitalocean_firewall_tags{id="fw-2",name="db"} 0
 `
 
-// newTestCollector wires a collector to a fake DigitalOcean API.
+// newTestCollector wires an unfiltered collector to a fake DigitalOcean API.
 func newTestCollector(t *testing.T, handler http.HandlerFunc) *firewalls.Collector {
+	t.Helper()
+	return newFilteredCollector(t, filter.Filter{}, handler)
+}
+
+// newFilteredCollector is newTestCollector with a filter set.
+func newFilteredCollector(t *testing.T, f filter.Filter, handler http.HandlerFunc) *firewalls.Collector {
 	t.Helper()
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
@@ -82,7 +89,7 @@ func newTestCollector(t *testing.T, handler http.HandlerFunc) *firewalls.Collect
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	return firewalls.New(client, nil)
+	return firewalls.New(client, f, nil)
 }
 
 // okHandler serves the two-firewall account.
@@ -93,6 +100,45 @@ func okHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNotFound)
+}
+
+// A tag filter keeps only the firewalls attached to one of its tags: fw-2,
+// attached to none, is absent from the exposition, not zeroed.
+func TestRefreshFiltersByTag(t *testing.T) {
+	c := newFilteredCollector(t, filter.New([]string{"web"}, nil), okHandler)
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_firewall_droplets Number of droplets the firewall is attached to directly.
+# TYPE digitalocean_firewall_droplets gauge
+digitalocean_firewall_droplets{id="fw-1",name="web"} 2
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want),
+		"digitalocean_firewall_droplets"); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+}
+
+// A cloud firewall has no region, so a region filter alone leaves the
+// firewalls untouched rather than emptying them.
+func TestRegionFilterAloneLeavesFirewallsUntouched(t *testing.T) {
+	c := newFilteredCollector(t, filter.New(nil, []string{"fra1"}), okHandler)
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_firewall_droplets Number of droplets the firewall is attached to directly.
+# TYPE digitalocean_firewall_droplets gauge
+digitalocean_firewall_droplets{id="fw-1",name="web"} 2
+digitalocean_firewall_droplets{id="fw-2",name="db"} 1
+`
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want),
+		"digitalocean_firewall_droplets"); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
 }
 
 func TestCollectAfterRefresh(t *testing.T) {

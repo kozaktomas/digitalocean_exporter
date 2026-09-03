@@ -22,6 +22,7 @@ import (
 	"github.com/digitalocean/godo"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/kozaktomas/digitalocean_exporter/internal/filter"
 	"github.com/kozaktomas/digitalocean_exporter/internal/paging"
 )
 
@@ -76,23 +77,28 @@ type firewall struct {
 	pending  float64
 }
 
-// Collector reports the cloud firewalls of the account.
+// Collector reports the cloud firewalls of the account, or, with a filter
+// set, only the firewalls that pass it.
 type Collector struct {
 	client *godo.Client
+	filter filter.Filter
 	logger *slog.Logger
 
 	mu   sync.RWMutex
 	snap []firewall
 }
 
-// New returns a firewalls collector backed by client. The logger records what
+// New returns a firewalls collector backed by client, reporting only the
+// firewalls whose attached tags f matches. Only the filter's tag condition
+// applies: a cloud firewall has no region, so a region filter alone leaves
+// the firewalls untouched rather than emptying them. The logger records what
 // the scheduler never sees: a duplicate firewall dropped from a list that
 // shifted between two page requests. A nil logger discards it.
-func New(client *godo.Client, logger *slog.Logger) *Collector {
+func New(client *godo.Client, f filter.Filter, logger *slog.Logger) *Collector {
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
-	return &Collector{client: client, logger: logger}
+	return &Collector{client: client, filter: f, logger: logger}
 }
 
 // Name implements collector.Collector.
@@ -117,6 +123,9 @@ func (c *Collector) Refresh(ctx context.Context) error {
 
 	next := make([]firewall, 0, len(firewalls))
 	for i := range firewalls {
+		if !c.filter.MatchTags(firewalls[i].Tags) {
+			continue
+		}
 		next = append(next, newFirewall(&firewalls[i]))
 	}
 
