@@ -560,6 +560,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#verify-the-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verify the release
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#run-it" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1294,6 +1305,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#verify-the-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verify the release
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#run-it" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1369,28 +1391,56 @@ with a <code>checksums.txt</code>.</p>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>tar<span class="w"> </span>xzf<span class="w"> </span><span class="s2">"digitalocean_exporter_</span><span class="si">${</span><span class="nv">VERSION</span><span class="si">}</span><span class="s2">_linux_</span><span class="si">${</span><span class="nv">ARCH</span><span class="si">}</span><span class="s2">.tar.gz"</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>sudo<span class="w"> </span>install<span class="w"> </span>-m<span class="w"> </span><span class="m">0755</span><span class="w"> </span>digitalocean_exporter<span class="w"> </span>/usr/local/bin/
 </code></pre></div>
-<p>Verify the checksum before installing. It is one command and it is the only thing standing
-between you and a truncated download.</p>
+<p>The checksum tells you the download arrived intact — it says nothing about who built it,
+because an attacker who can replace the tarball can replace <code>checksums.txt</code> beside it.
+Authenticity comes from the signature.</p>
+<h2 id="verify-the-release">Verify the release<a class="headerlink" href="#verify-the-release" title="Permanent link">&para;</a></h2>
+<p>Every release is signed with <a href="https://docs.sigstore.dev/">cosign</a> keyless signing: there
+is no maintainer key to trust or lose. Each signature is bound to the identity of the
+GitHub Actions release workflow that built the artifacts, and logged in the public Rekor
+transparency log. Verifying takes cosign 2.x or newer.</p>
+<p>Verify the signature on <code>checksums.txt</code>, then let the checksums vouch for the tarball:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">VERSION</span><span class="o">=</span><span class="m">0</span>.3.0
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>curl<span class="w"> </span>-sSLO<span class="w"> </span><span class="s2">"https://github.com/kozaktomas/digitalocean_exporter/releases/download/v</span><span class="si">${</span><span class="nv">VERSION</span><span class="si">}</span><span class="s2">/digitalocean_exporter_</span><span class="si">${</span><span class="nv">VERSION</span><span class="si">}</span><span class="s2">_checksums.txt.sig"</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>curl<span class="w"> </span>-sSLO<span class="w"> </span><span class="s2">"https://github.com/kozaktomas/digitalocean_exporter/releases/download/v</span><span class="si">${</span><span class="nv">VERSION</span><span class="si">}</span><span class="s2">/digitalocean_exporter_</span><span class="si">${</span><span class="nv">VERSION</span><span class="si">}</span><span class="s2">_checksums.txt.pem"</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>cosign<span class="w"> </span>verify-blob<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span>--certificate<span class="w"> </span><span class="s2">"digitalocean_exporter_</span><span class="si">${</span><span class="nv">VERSION</span><span class="si">}</span><span class="s2">_checksums.txt.pem"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span>--signature<span class="w"> </span><span class="s2">"digitalocean_exporter_</span><span class="si">${</span><span class="nv">VERSION</span><span class="si">}</span><span class="s2">_checksums.txt.sig"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span>--certificate-oidc-issuer<span class="w"> </span><span class="s2">"https://token.actions.githubusercontent.com"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span>--certificate-identity<span class="w"> </span><span class="s2">"https://github.com/kozaktomas/digitalocean_exporter/.github/workflows/release.yml@refs/tags/v</span><span class="si">${</span><span class="nv">VERSION</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">  </span><span class="s2">"digitalocean_exporter_</span><span class="si">${</span><span class="nv">VERSION</span><span class="si">}</span><span class="s2">_checksums.txt"</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>sha256sum<span class="w"> </span>--check<span class="w"> </span>--ignore-missing<span class="w"> </span>digitalocean_exporter_<span class="si">${</span><span class="nv">VERSION</span><span class="si">}</span>_checksums.txt
+</code></pre></div>
+<p><code>Verified OK</code> means the checksums file was produced by this repository's release workflow
+for exactly that tag; a matching checksum then extends that to the tarball you downloaded.
+The two identity flags are not decoration — without them cosign would accept a signature
+from <em>any</em> GitHub workflow, including an attacker's.</p>
+<p>Each tarball also carries a <code>.sig</code>/<code>.pem</code> pair of its own, verifiable the same way, and an
+SBOM (<code>&lt;archive&gt;.sbom.json</code>, in Syft JSON format) listing every module compiled into the
+binary — that is the file to feed a vulnerability scanner or an inventory.</p>
 <h2 id="run-it">Run it<a class="headerlink" href="#run-it" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>digitalocean_exporter<span class="w"> </span>--do.token-file<span class="o">=</span>/etc/digitalocean-exporter/token
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>digitalocean_exporter<span class="w"> </span>--help
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>digitalocean_exporter<span class="w"> </span>--do.token-file<span class="o">=</span>/etc/digitalocean-exporter/token
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>digitalocean_exporter<span class="w"> </span>--help
 </code></pre></div>
 <p><code>--help</code> lists every flag with its default and its environment variable.</p>
 <h2 id="building-from-source">Building from source<a class="headerlink" href="#building-from-source" title="Permanent link">&para;</a></h2>
 <p>Needs Go 1.26 or newer.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/kozaktomas/digitalocean_exporter.git
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">cd</span><span class="w"> </span>digitalocean_exporter
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>make<span class="w"> </span>build
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>./digitalocean_exporter<span class="w"> </span>--version
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/kozaktomas/digitalocean_exporter.git
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">cd</span><span class="w"> </span>digitalocean_exporter
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>make<span class="w"> </span>build
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>./digitalocean_exporter<span class="w"> </span>--version
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>digitalocean_exporter, version 0.3.0 (commit 57f5e48, go1.26.1)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>digitalocean_exporter, version 0.3.0 (commit 57f5e48, go1.26.1)
 </code></pre></div>
 <p><code>make build</code> stamps the version and commit into the binary, so the three values above are
 illustrative — yours are whatever you built. A plain <code>go build</code> produces a working exporter
 that reports <code>dev</code> as its version and <code>none</code> as its commit.</p>
 <p>The same build metadata is in the first log line at startup and in a metric, which is how
 you check what a running exporter is:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>digitalocean_exporter_build_info{commit="57f5e48",goversion="go1.26.1",version="0.3.0"} 1
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>digitalocean_exporter_build_info{commit="57f5e48",goversion="go1.26.1",version="0.3.0"} 1
 </code></pre></div>
 <h2 id="supervising-it-yourself">Supervising it yourself<a class="headerlink" href="#supervising-it-yourself" title="Permanent link">&para;</a></h2>
 <p>Whatever runs it should:</p>
