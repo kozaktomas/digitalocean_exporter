@@ -23,6 +23,7 @@ ProtectHome=true
 PrivateTmp=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
+ProtectKernelLogs=true
 ProtectControlGroups=true
 ProtectClock=true
 ProtectHostname=true
@@ -34,6 +35,16 @@ RestrictRealtime=true
 # is setuid.
 RestrictSUIDSGID=true
 LockPersonality=true
+# The exporter creates no files at all, so the umask can deny everything: if a
+# file ever does appear, it is private to the service user rather than
+# world-readable.
+UMask=0077
+# No SysV IPC is used; any objects left behind by a crash are cleaned up when
+# the service stops.
+RemoveIPC=true
+# The service never changes user, so it can live in a user namespace where
+# every uid but root and its own maps to nobody.
+PrivateUsers=true
 # No capability is needed at all: the exporter binds 9212, which is above the
 # privileged range, and never changes user. An empty bounding set makes them
 # unavailable rather than merely unused, so nothing the process execs can pick
@@ -49,6 +60,11 @@ PrivateDevices=true
 ProtectProc=invisible
 ProcSubset=pid
 SystemCallFilter=@system-service
+# @system-service is an allow list, but a broad one: it still admits the
+# privileged and resource-control groups. Deny those on top — the exporter
+# needs neither. The Go runtime does try one setrlimit at startup to raise its
+# file-descriptor limit and shrugs off the EPERM this returns.
+SystemCallFilter=~@privileged @resources
 SystemCallErrorNumber=EPERM
 # A syscall filter written for the native ABI is bypassed by the same call made
 # through another one. There is no second architecture to allow: the package

@@ -15,16 +15,25 @@ useradd --system -d /nonexistent -s /usr/sbin/nologin -g digitalocean-exporter d
 chown root:digitalocean-exporter /etc/digitalocean-exporter/digitalocean-exporter.env
 chmod 640 /etc/digitalocean-exporter/digitalocean-exporter.env
 
-systemctl daemon-reload
-systemctl enable digitalocean-exporter || true
+# systemd is the running init only when this directory exists. In a chroot, a
+# container image build, or anything else booted without it, systemctl cannot
+# work and — under set -e — an unguarded call would fail the whole install.
+if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload
+    systemctl enable digitalocean-exporter || true
 
+    if [ -n "$previous_version" ]; then
+        # An upgrade. The pre-removal script leaves the service running, so the
+        # old binary is still the one in memory: restart it to pick up the new
+        # one. try-restart touches only a unit that is actually running, which
+        # leaves a deliberately stopped exporter — one that has never been
+        # configured, say — exactly as it was.
+        systemctl try-restart digitalocean-exporter || true
+    fi
+fi
+
+# The banner is for a first installation only; an upgrade is done at this point.
 if [ -n "$previous_version" ]; then
-    # An upgrade. The pre-removal script leaves the service running, so the old
-    # binary is still the one in memory: restart it to pick up the new one.
-    # try-restart touches only a unit that is actually running, which leaves a
-    # deliberately stopped exporter — one that has never been configured, say —
-    # exactly as it was.
-    systemctl try-restart digitalocean-exporter || true
     exit 0
 fi
 

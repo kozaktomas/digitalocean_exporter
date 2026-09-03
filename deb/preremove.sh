@@ -8,7 +8,11 @@ set -e
 # removal — `remove`, or the removal half of a purge — takes the service down.
 case "$1" in
     remove|purge)
-        systemctl stop digitalocean-exporter || true
-        systemctl disable digitalocean-exporter || true
+        # Without systemd running — a chroot, a container build — there is no
+        # service to stop, and systemctl would only fail the removal.
+        if [ -d /run/systemd/system ]; then
+            systemctl stop digitalocean-exporter || true
+            systemctl disable digitalocean-exporter || true
+        fi
         ;;
 esac

@@ -24,6 +24,11 @@ curl -s localhost:9212/metrics | head
 The package creates a dedicated unprivileged system user, `digitalocean-exporter`, enables
 the unit, and does **not** start it — there is no token yet at that point.
 
+The maintainer scripts only talk to systemd when it is actually running the machine, so the
+package also installs cleanly in a chroot or a container image build. Nothing can enable
+the unit there — run `systemctl enable digitalocean-exporter` once the installed system is
+actually booted.
+
 The shipped env file lists every collector switch, with the ones that are off by default
 commented out, so configuring it is mostly a matter of deleting `#`.
 
@@ -80,9 +85,25 @@ somewhere the service can still read — `/etc/digitalocean-exporter/` is fine.
 ## The unit is locked down
 
 The shipped service runs as a non-root user with `NoNewPrivileges`, `ProtectSystem=strict`,
-`PrivateTmp`, a `@system-service` syscall filter, and `RestrictAddressFamilies` limited to
-IPv4 and IPv6. The exporter is stateless — it writes nothing and needs no filesystem access
-beyond reading its own configuration — so none of that gets in the way.
+`PrivateTmp`, a `@system-service` syscall filter with the privileged and resource-control
+groups denied on top, `RestrictAddressFamilies` limited to IPv4 and IPv6, `PrivateUsers`,
+`RemoveIPC`, `ProtectKernelLogs` and a `UMask` of `0077`. The exporter is stateless — it
+writes nothing and needs no filesystem access beyond reading its own configuration — so
+none of that gets in the way.
+
+`systemd-analyze security` scores the unit at an exposure level of **1.1** ("OK"). What it
+still flags is deliberate, because each remaining directive would cost the exporter
+something it actually needs:
+
+- `PrivateNetwork=` and `RestrictAddressFamilies=~AF_(INET|INET6)` — the exporter is an
+  HTTP client to the DigitalOcean API and an HTTP server for Prometheus. Internet sockets
+  are the whole job.
+- `IPAddressDeny=` — an IP allow list would have to enumerate the API's addresses, which
+  are not stable, and every scraper's. It would break silently the day either changed.
+- `RootDirectory=`/`RootImage=` — chrooting would mean shipping a filesystem image for a
+  single static binary; the mount-level protections above already reduce the visible
+  filesystem to the unit's own configuration.
+- The `char-rtc:r` device ACL is implied by `ProtectClock=` itself and is read-only.
 
 If you override the unit with `systemctl edit`, keep those directives. They are the reason
 a credential-holding daemon exposed on a port is not much of a risk.

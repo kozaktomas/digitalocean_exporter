@@ -5,4 +5,8 @@ set -e
 # own files elsewhere on the host — a token file, a log — and Debian practice
 # is to leave such an account behind rather than orphan them to a numeric uid
 # that a later package could be given.
-systemctl daemon-reload || true
+# Only when systemd is the running init; in a chroot or a container build
+# there is nothing to reload.
+if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload || true
+fi
