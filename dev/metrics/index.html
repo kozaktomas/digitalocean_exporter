@@ -3292,7 +3292,7 @@ long a starved exporter stays starved. A response that carries no rate-limit hea
 the gauges as they were rather than zeroing them: a zero reads as a budget that has just run
 out.</p>
 <h2 id="alerting">Alerting<a class="headerlink" href="#alerting" title="Permanent link">&para;</a></h2>
-<p>Twenty-eight rules ship with the exporter as a plain Prometheus rule file, covering the
+<p>Alerting rules ship with the exporter as a plain Prometheus rule file, covering the
 exporter's own health, account limits, resources that are down, certificates about to expire,
 and volumes and snapshots billed for nothing. The chart can install them as a <code>PrometheusRule</code>.</p>
 <p>See <a href="../alerting/">alerting</a> for the full list, what each one fires on and what is deliberately
