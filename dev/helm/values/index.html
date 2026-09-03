@@ -1369,6 +1369,12 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>How often the certificates collector refreshes.</td>
 </tr>
 <tr>
+<td>collectors.databases.details</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Ask each cluster for its read-only replicas and the age of its newest backup. The only part of this collector that costs requests per cluster — two per refresh — rather than one per refresh, and the only source of the replica and backup metrics an alert can watch. Turn it off on an account with many clusters where those requests are worth saving.</td>
+</tr>
+<tr>
 <td>collectors.databases.enabled</td>
 <td>bool</td>
 <td><code>true</code></td>
@@ -1379,6 +1385,12 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>string</td>
 <td><code>"5m"</code></td>
 <td>How often the databases collector refreshes.</td>
+</tr>
+<tr>
+<td>collectors.databases.timeout</td>
+<td>string</td>
+<td><code>"2m"</code></td>
+<td>Timeout of one full databases refresh, including the per-cluster detail lookups.</td>
 </tr>
 <tr>
 <td>collectors.domains.enabled</td>

@@ -1657,12 +1657,26 @@ is not a bug and will not be "fixed".</p>
 <p><strong>Cost:</strong> one request per refresh.</p>
 <hr />
 <h2 id="databases">databases<a class="headerlink" href="#databases" title="Permanent link">&para;</a></h2>
-<p>Every managed database cluster: engine, version, state, node count and storage size.</p>
+<p>Every managed database cluster: engine, version, state, node count, storage size, users,
+logical databases, whether storage autoscaling is on, and which project and VPC it belongs
+to — all from the one list response.</p>
 <p>This is <strong>inventory, not load</strong>. Connections, queries and replication lag come from a
 Prometheus endpoint DigitalOcean runs per cluster, with credentials of its own, which this
 exporter does not touch. If you want those, scrape that endpoint directly — it is a
 separate target, not a missing feature here.</p>
-<p><strong>Cost:</strong> one request per refresh.</p>
+<p>The read-only replicas and the age of the newest backup do not arrive in the list: they are
+two endpoints of their own, two requests per cluster per refresh, behind
+<code>--collector.databases.details</code>. It is on by default because an account with clusters has a
+handful of them, not hundreds; turn it off with <code>--no-collector.databases.details</code> on an
+account where two requests per cluster every five minutes is worth saving, and the replica
+and backup metrics simply stop being reported. One cluster's lookup failing is not a failed
+refresh: that cluster keeps its previous detail values and the exporter logs why, so the
+others are unaffected. An engine that offers no backups or replicas — a caching cluster —
+answers those endpoints with a client error, which reads as "none" rather than a failure.
+Because the refresh fans out over the account, the collector carries a timeout of its own,
+<code>--collector.databases.timeout</code>, two minutes by default.</p>
+<p><strong>Cost:</strong> one request per refresh, plus one per additional page for accounts with many
+clusters, plus two per cluster for the detail lookups unless they are switched off.</p>
 <hr />
 <h2 id="droplets">droplets<a class="headerlink" href="#droplets" title="Permanent link">&para;</a></h2>
 <p>Every droplet: state, region, size slug, vCPUs, memory, disk and hourly price.</p>

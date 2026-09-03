@@ -2994,7 +2994,9 @@ Dashboards migrated from it keep working.</p>
 a number fails the refresh rather than being reported as zero — zero is a legitimate
 balance, and conflating the two would break billing dashboards silently.</p>
 <h2 id="managed-databases">Managed databases<a class="headerlink" href="#managed-databases" title="Permanent link">&para;</a></h2>
-<p>Collected by <code>databases</code> from <code>/v2/databases</code>, one set of metrics per cluster.</p>
+<p>Collected by <code>databases</code> from <code>/v2/databases</code>, one set of metrics per cluster, plus —
+unless <code>--no-collector.databases.details</code> — each cluster's replicas from
+<code>/v2/databases/{id}/replicas</code> and its backups from <code>/v2/databases/{id}/backups</code>.</p>
 <table>
 <thead>
 <tr>
@@ -3024,6 +3026,41 @@ balance, and conflating the two would break billing dashboards silently.</p>
 <td><code>id</code>, <code>name</code>, <code>region</code></td>
 <td>1 if maintenance is waiting for the cluster</td>
 </tr>
+<tr>
+<td><code>digitalocean_database_users</code></td>
+<td><code>id</code>, <code>name</code>, <code>region</code></td>
+<td>Number of database users on the cluster</td>
+</tr>
+<tr>
+<td><code>digitalocean_database_databases</code></td>
+<td><code>id</code>, <code>name</code>, <code>region</code></td>
+<td>Number of logical databases on the cluster</td>
+</tr>
+<tr>
+<td><code>digitalocean_database_storage_autoscale_enabled</code></td>
+<td><code>id</code>, <code>name</code>, <code>region</code></td>
+<td>1 if the cluster grows its own storage before it fills</td>
+</tr>
+<tr>
+<td><code>digitalocean_database_cluster_info</code></td>
+<td><code>id</code>, <code>name</code>, <code>region</code>, <code>project_id</code>, <code>private_network_uuid</code></td>
+<td>Always 1; ties the cluster to its project and its VPC</td>
+</tr>
+<tr>
+<td><code>digitalocean_database_replicas</code></td>
+<td><code>id</code>, <code>name</code>, <code>region</code></td>
+<td>Number of read-only replicas of the cluster</td>
+</tr>
+<tr>
+<td><code>digitalocean_database_replica_status</code></td>
+<td><code>id</code>, <code>name</code>, <code>replica</code>, <code>region</code>, <code>status</code></td>
+<td>1 for the replica's current status, 0 for every other known one</td>
+</tr>
+<tr>
+<td><code>digitalocean_database_last_backup_timestamp_seconds</code></td>
+<td><code>id</code>, <code>name</code>, <code>region</code></td>
+<td>Unix time the newest backup of the cluster was taken</td>
+</tr>
 </tbody>
 </table>
 <p><code>digitalocean_database_status</code> and <code>digitalocean_database_nodes</code> keep the names and the
@@ -3035,6 +3072,17 @@ gauge is for. Hence <code>digitalocean_database_maintenance_pending</code>.</p>
 disk actually in use come from a Prometheus endpoint DigitalOcean runs per cluster, reached
 with credentials of its own; that is a separate exporter's job, not this one's.</p>
 <p><code>storage_bytes</code> is the storage the plan allocates, again not the storage in use.</p>
+<p>The last three rows are the detail metrics, behind <code>--collector.databases.details</code> (on by
+default, two extra requests per cluster per refresh). On the replica series <code>id</code> and <code>name</code>
+are the cluster's and <code>replica</code> and <code>region</code> the replica's own — a replica may live in a
+different region from its cluster, which is much of the point of having one. Every documented
+status — <code>creating</code>, <code>online</code>, <code>resizing</code>, <code>migrating</code>, <code>forking</code> — is reported for every
+replica on every scrape, so an alert has a series before a replica ever enters the status it
+watches for. One cluster's detail lookup failing does not fail the refresh or cost the other
+clusters: that cluster keeps the details its last successful lookup found and the exporter
+logs why. An engine that does not offer backups or replicas — a caching cluster, say —
+answers those endpoints with a client error, which is read as "this cluster has none":
+<code>digitalocean_database_replicas</code> reports 0 and no backup series appears.</p>
 <p>godo does not expose the pagination links of this endpoint, so the collector treats a full
 page as the signal that another may follow. An account whose cluster count divides exactly
 by the page size costs one extra empty request per refresh. The walk also stops at the first
