@@ -1,0 +1,48 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "digitalocean-exporter.fullname" . }}
+  labels:
+    {{- include "digitalocean-exporter.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "digitalocean-exporter.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    {{- /*
+    Only the metrics port, and only from what the two selectors allow. Both
+    default to empty, which in NetworkPolicy terms selects everything — the
+    lockdown the policy buys by default is the port and the egress, and the
+    selectors are there to narrow the scrapers down to your Prometheus.
+    */}}
+    - from:
+        - namespaceSelector:
+            {{- toYaml .Values.networkPolicy.ingress.namespaceSelector | nindent 12 }}
+          podSelector:
+            {{- toYaml .Values.networkPolicy.ingress.podSelector | nindent 12 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.service.port }}
+  egress:
+    {{- /*
+    DNS, or the pod cannot resolve api.digitalocean.com; both protocols,
+    because a large response falls back to TCP.
+    */}}
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    {{- /*
+    TCP 443 is everything the exporter talks to: the DigitalOcean API and, when
+    the spaces collector is on, the Spaces S3 endpoints. No CIDR narrows it
+    further on purpose — DigitalOcean publishes no stable address ranges.
+    */}}
+    - ports:
+        - protocol: TCP
+          port: 443
+{{- end }}

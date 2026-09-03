@@ -252,6 +252,26 @@ serviceMonitor:
   scrapeTimeout: 10s
   # -- Extra labels for the ServiceMonitor, for whatever your Prometheus selects on.
   labels: {}
+  # -- Namespaces the ServiceMonitor discovers the Service in, e.g.
+  # `{matchNames: [monitoring]}`. Empty means the ServiceMonitor's own namespace,
+  # which is right whenever it is installed alongside the chart; set it only when
+  # the ServiceMonitor lives somewhere else, such as a central monitoring
+  # namespace.
+  namespaceSelector: {}
+  # -- Label on the Service whose value becomes the `job` label of every scraped
+  # series. Empty keeps the operator's default, which is the Service name.
+  jobLabel: ""
+  # -- Keep the label values the exporter serves when they collide with the
+  # target labels Prometheus attaches. The exporter's own metrics collide with
+  # nothing, so the default off is the safe one; turn it on only if a relabeling
+  # here creates a collision on purpose.
+  honorLabels: false
+  # -- Relabelings applied to the discovered targets before scraping, in
+  # Prometheus Operator `RelabelConfig` form.
+  relabelings: []
+  # -- Relabelings applied to the scraped samples before ingestion — the place to
+  # drop a metric you do not want to store, such as the Go runtime series.
+  metricRelabelings: []
 
 prometheusRule:
   # -- Create a Prometheus Operator PrometheusRule holding the bundled alerting
@@ -262,6 +282,11 @@ prometheusRule:
   # -- Extra labels for the PrometheusRule, for whatever your Prometheus selects
   # rules on. For kube-prometheus-stack that is usually `release: <release name>`.
   labels: {}
+  # -- Namespace to create the PrometheusRule in. Empty means the release
+  # namespace. Some Prometheus installations only pick up rules from their own
+  # namespace (`ruleNamespaceSelector` unset with Prometheus running elsewhere),
+  # which is when this is worth setting.
+  namespace: ""
 
 grafana:
   dashboards:
@@ -281,6 +306,33 @@ grafana:
     # inert and the dashboards land in the sidecar's default folder.
     folder: ""
 
+networkPolicy:
+  # -- Create a NetworkPolicy for the pod. Off by default because it only does
+  # anything on a cluster whose CNI enforces NetworkPolicy — on one that does
+  # not, it renders and is silently ignored. When on, egress is limited to DNS
+  # and to TCP 443, which is all the exporter needs: the DigitalOcean API and
+  # Spaces both live behind HTTPS. Ingress is limited to the metrics port, from
+  # whatever the two selectors below allow.
+  enabled: false
+  ingress:
+    # -- Namespaces allowed to scrape the metrics port, as a label selector.
+    # The empty selector allows every namespace; narrow it to where your
+    # Prometheus runs, e.g.
+    # `{matchLabels: {kubernetes.io/metadata.name: monitoring}}`.
+    namespaceSelector: {}
+    # -- Pods within those namespaces allowed to scrape, as a label selector.
+    # The empty selector allows every pod.
+    podSelector: {}
+
+probes:
+  # -- Scheme the liveness and readiness probes use, `HTTP` or `HTTPS`. Switch
+  # it to `HTTPS` whenever a web configuration passed through `extraArgs` turns
+  # TLS on: the toolkit serves every path over TLS, probes included, and a
+  # probe left on plain HTTP fails against the TLS listener until the pod
+  # crash-loops. The kubelet skips certificate verification on HTTPS probes,
+  # so a self-signed pair works.
+  scheme: HTTP
+
 # -- Container resources. The exporter holds one snapshot per collector in memory
 # and does nothing between refreshes.
 resources:
@@ -290,9 +342,23 @@ resources:
   limits:
     memory: 128Mi
 
+# -- Deployment update strategy. Recreate rather than Kubernetes' RollingUpdate
+# default, because with one replica the rolling surge runs two exporters side by
+# side through every upgrade — and every token rotation, since the Secret
+# checksum annotation rolls the pod — doubling the API spend and reporting the
+# same account twice for as long as both live, which is exactly what running a
+# single replica is meant to avoid. The cost is a metrics gap of one pod start,
+# and a failed scrape or two is the honest picture of an exporter restarting.
+strategy:
+  type: Recreate
+
 # -- Extra annotations for the pod. The chart already sets a checksum of the
 # Secret here, and merges these on top of it.
 podAnnotations: {}
+# -- Extra labels for the pod, merged over the chart's own — for whatever your
+# cluster tooling selects pods on, such as a cost allocation or network policy
+# label. Do not repeat a label the chart already sets.
+podLabels: {}
 # -- PriorityClass for the pod. An exporter is worth less than what it watches,
 # so a cluster with priority classes usually wants a low one here rather than
 # the default.
@@ -302,6 +368,20 @@ priorityClassName: ""
 # as `--do.timeout=20s`. It cannot override one the chart already renders: the
 # flag parser rejects a repeated flag and the container then crash-loops.
 extraArgs: []
+# -- Extra environment entries for the container, in Kubernetes `env` form, so
+# `valueFrom` works as well as plain `value`. This is for what the cluster
+# imposes — a proxy, a resource attribute for a tracing sidecar — not for
+# credentials: the token stays in the mounted Secret, where it cannot leak
+# through `kubectl describe pod`.
+extraEnv: []
+# -- Extra volumes for the pod, in Kubernetes `volumes` form — e.g. a Secret
+# holding an exporter-toolkit web configuration for TLS or basic auth. Pair each
+# entry with one in `extraVolumeMounts`.
+extraVolumes: []
+# -- Extra volume mounts for the container. The container's root filesystem is
+# read-only, so any file the exporter must read — a web configuration, a private
+# CA bundle — has to arrive through one of these.
+extraVolumeMounts: []
 # -- Node selector for the pod.
 nodeSelector: {}
 # -- Tolerations for the pod.

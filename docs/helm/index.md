@@ -24,6 +24,7 @@ This section documents the chart itself.
 | `Secret` (Spaces) | when the spaces collector is on and `spaces.existingSecret` is not set |
 | `ServiceMonitor` | when `serviceMonitor.enabled` is true |
 | `PrometheusRule` | when `prometheusRule.enabled` is true |
+| `NetworkPolicy` | when `networkPolicy.enabled` is true |
 | `ConfigMap` (dashboards) | when `grafana.dashboards.enabled` is true, one per bundled dashboard |
 
 No PVC, no RBAC beyond the ServiceAccount, and no ConfigMap unless you ask for the
@@ -68,13 +69,16 @@ The two probes point at different endpoints because they answer different questi
 
 ```yaml
 livenessProbe:
-  httpGet: {path: /healthz, port: metrics}
+  httpGet: {path: /healthz, port: metrics, scheme: HTTP}
 readinessProbe:
-  httpGet: {path: /readyz, port: metrics}
+  httpGet: {path: /readyz, port: metrics, scheme: HTTP}
   initialDelaySeconds: 10
   periodSeconds: 10
   failureThreshold: 45
 ```
+
+The scheme is `probes.scheme`, and moves to `HTTPS` together with a TLS web
+configuration — see [TLS and basic auth](#tls-and-basic-auth).
 
 `/healthz` answers without consulting a collector, which is what liveness wants: a refresh
 that cannot reach the DigitalOcean API is not fixed by killing the pod, and killing it throws
@@ -106,10 +110,81 @@ for nothing.
 
 See [secrets](secrets.md) for the two ways to supply it.
 
+## TLS and basic auth
+
+`/metrics` is plain HTTP inside the cluster. If your cluster's rules require TLS or basic
+auth on it, the exporter supports both through an
+[exporter-toolkit web configuration](../configuration/index.md#serving-metrics) —
+the chart has no `tls` value of its own, but the three escape hatches compose into it.
+Put the web configuration (and the certificate pair it references) in a Secret, mount it
+with `extraVolumes` and `extraVolumeMounts`, and pass the flag through `extraArgs`:
+
+```yaml
+extraVolumes:
+  - name: web-config
+    secret:
+      secretName: exporter-web-config
+extraVolumeMounts:
+  - name: web-config
+    mountPath: /etc/digitalocean-exporter-web
+    readOnly: true
+extraArgs:
+  - --web.config.file=/etc/digitalocean-exporter-web/web-config.yml
+probes:
+  scheme: HTTPS
+```
+
+Mount it beside the token mount, not inside it: kubelet manages each secret volume's
+contents with atomic symlink swaps, and a mount point nested in one is needlessly fragile.
+
+Two consequences of the toolkit serving *every* path through that configuration, probes
+included:
+
+- **TLS needs `probes.scheme: HTTPS`**, as in the example. Without it the kubelet keeps
+  probing plain HTTP against a listener that only speaks TLS, liveness fails, and the pod
+  crash-loops. The kubelet skips certificate verification on HTTPS probes, so a
+  self-signed pair works. Move the scrape to HTTPS as well — the scheme and any
+  credentials are set on the Prometheus side.
+- **Basic auth alone does not fit in a cluster**: the toolkit answers 401 on `/healthz`
+  and `/readyz` too, the probes have no credentials to offer, and the pod is killed as
+  unhealthy. Inside a cluster, restricting who may scrape is the
+  [NetworkPolicy](#networkpolicy)'s job; save basic auth for an exporter exposed outside
+  one.
+
 ## One replica
 
 Do not raise `replicaCount` — there is deliberately no such value. Each replica refreshes
 independently, so a second one doubles the API requests and reports the same account twice.
+
+The Deployment's update strategy is `Recreate` for the same reason. The RollingUpdate
+default would surge a second pod during every upgrade — and every token rotation, because
+the Secret checksum annotation rolls the pod — and for as long as both pods live the API
+spend doubles and every series is reported twice. `Recreate` trades that for a metrics gap
+of one pod start, which is the honest picture of an exporter restarting. It can be put back
+with `strategy.type=RollingUpdate` if a gap is worse for you than the overlap.
+
+## NetworkPolicy
+
+`networkPolicy.enabled=true` creates a NetworkPolicy that allows the pod exactly what it
+needs and nothing else: egress to DNS and to TCP 443 (the DigitalOcean API, and Spaces when
+that collector is on), and ingress only on the metrics port. Who may scrape that port is
+narrowed with the two selectors, which default to allowing everything:
+
+```yaml
+networkPolicy:
+  enabled: true
+  ingress:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: monitoring
+    podSelector:
+      matchLabels:
+        app.kubernetes.io/name: prometheus
+```
+
+It is off by default because it only does anything on a cluster whose CNI enforces
+NetworkPolicy; on one that does not, it renders and is silently ignored, which is worse
+than absent — it reads as protection that is not there.
 
 ## Dashboards
 

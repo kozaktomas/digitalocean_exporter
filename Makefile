@@ -84,6 +84,28 @@ chart-lint:
 	helm template charts/digitalocean-exporter --set digitalocean.token=dummy \
 		--set 'imagePullSecrets[0].name=registry' --set podAnnotations.example=1 \
 		--set priorityClassName=low --set 'extraArgs[0]=--do.timeout=20s' >/dev/null
+# The pod-spec extras together, the way the TLS case combines them: a mounted
+# Secret, its mount, an env entry of each shape (`value` and `valueFrom`), pod
+# labels, and the strategy put back to RollingUpdate.
+	helm template charts/digitalocean-exporter --set digitalocean.token=dummy \
+		--set strategy.type=RollingUpdate \
+		--set podLabels.team=platform \
+		--set 'extraEnv[0].name=HTTPS_PROXY' --set 'extraEnv[0].value=http://proxy:3128' \
+		--set 'extraEnv[1].name=POD_NAME' \
+		--set 'extraEnv[1].valueFrom.fieldRef.fieldPath=metadata.name' \
+		--set 'extraVolumes[0].name=web-config' \
+		--set 'extraVolumes[0].secret.secretName=exporter-web-config' \
+		--set 'extraVolumeMounts[0].name=web-config' \
+		--set 'extraVolumeMounts[0].mountPath=/etc/digitalocean-exporter-web' \
+		--set 'extraVolumeMounts[0].readOnly=true' \
+		--set 'extraArgs[0]=--web.config.file=/etc/digitalocean-exporter-web/web-config.yml' \
+		--set probes.scheme=HTTPS >/dev/null
+# The NetworkPolicy is off by default, and both of its selectors have a branch
+# of their own.
+	helm template charts/digitalocean-exporter --set digitalocean.token=dummy \
+		--set networkPolicy.enabled=true \
+		--set 'networkPolicy.ingress.namespaceSelector.matchLabels.kubernetes\.io/metadata\.name=monitoring' \
+		--set 'networkPolicy.ingress.podSelector.matchLabels.app\.kubernetes\.io/name=prometheus' >/dev/null
 # The spaces collector is the one with credentials of its own, a region and a bucket
 # list; `name@region` is the form the region-scoped bucket flag takes.
 	helm template charts/digitalocean-exporter --set digitalocean.token=dummy \
@@ -97,9 +119,25 @@ chart-lint:
 	helm template charts/digitalocean-exporter \
 		--set digitalocean.existingSecret=digitalocean-token \
 		--set digitalocean.existingSecretKey=api-token >/dev/null
+# The ServiceMonitor with every optional knob at once: labels, a namespace
+# selector, a job label, honored labels and a relabeling of each kind.
 	helm template charts/digitalocean-exporter --set digitalocean.token=dummy \
 		--set serviceMonitor.enabled=true \
-		--set serviceMonitor.labels.release=kube-prometheus-stack >/dev/null
+		--set serviceMonitor.labels.release=kube-prometheus-stack \
+		--set serviceMonitor.jobLabel=app.kubernetes.io/name \
+		--set serviceMonitor.honorLabels=true \
+		--set 'serviceMonitor.namespaceSelector.matchNames[0]=monitoring' \
+		--set 'serviceMonitor.relabelings[0].action=labeldrop' \
+		--set 'serviceMonitor.relabelings[0].regex=endpoint' \
+		--set 'serviceMonitor.metricRelabelings[0].action=drop' \
+		--set 'serviceMonitor.metricRelabelings[0].sourceLabels[0]=__name__' \
+		--set 'serviceMonitor.metricRelabelings[0].regex=go_.*' >/dev/null
+# The PrometheusRule created away from the release, in the namespace Prometheus
+# watches for rules.
+	helm template charts/digitalocean-exporter --set digitalocean.token=dummy \
+		--set prometheusRule.enabled=true \
+		--set prometheusRule.namespace=monitoring \
+		--set prometheusRule.labels.release=kube-prometheus-stack >/dev/null
 # Name collisions, an unstable pod-template checksum and the disabled branch of every
 # collector: three things that render without error and are still wrong.
 	./scripts/chart-invariants.sh

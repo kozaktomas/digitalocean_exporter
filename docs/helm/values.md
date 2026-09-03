@@ -40,7 +40,26 @@ cost.
 
 **`serviceMonitor.labels`** must match your Prometheus' `serviceMonitorSelector`, or the
 ServiceMonitor is created and quietly ignored. For `kube-prometheus-stack` that is usually
-`release: <release name>`.
+`release: <release name>`. The rest of the ServiceMonitor's knobs —
+`namespaceSelector`, `jobLabel`, `honorLabels`, `relabelings`, `metricRelabelings` —
+default to rendering nothing, which leaves the operator's own defaults in charge; the one
+most worth knowing about is `metricRelabelings`, the place to drop series you do not want
+to store.
+
+**`strategy`** defaults to `Recreate`, not Kubernetes' `RollingUpdate`. With one replica
+the rolling surge runs two exporters side by side through every upgrade and token
+rotation, doubling the API spend and reporting the account twice — see
+[one replica](index.md#one-replica).
+
+**`networkPolicy.enabled`** creates a NetworkPolicy allowing only DNS and TCP 443 out and
+the metrics port in; `networkPolicy.ingress.namespaceSelector` and
+`networkPolicy.ingress.podSelector` narrow who may scrape. Off by default, because it only
+does anything on a cluster whose CNI enforces it. See
+[NetworkPolicy](index.md#networkpolicy).
+
+**`probes.scheme`** exists for one case: a web configuration in `extraArgs` that turns TLS
+on also turns it on for the probe endpoints, and the kubelet has to be told to probe over
+HTTPS or the pod crash-loops. See [TLS and basic auth](index.md#tls-and-basic-auth).
 
 **`resources`** are sized for what the exporter does: hold one snapshot per collector in
 memory and sleep. The defaults are generous for accounts of any size; the one thing that
@@ -56,7 +75,16 @@ rejects a flag given twice rather than taking the later one, so the container wo
 crash-loop. A collector is switched off with `collectors.<name>.enabled: false`, which
 renders `--no-collector.<name>`, and never through this list.
 
-**`imagePullSecrets`, `podAnnotations` and `priorityClassName`** are the escape hatches for
-what a cluster imposes rather than what the exporter needs: a private mirror of the image, a
-pod annotation something else in the cluster reads, and a priority low enough that the
-exporter is evicted before what it watches. All three render nothing when unset.
+**`imagePullSecrets`, `podAnnotations`, `podLabels` and `priorityClassName`** are the
+escape hatches for what a cluster imposes rather than what the exporter needs: a private
+mirror of the image, a pod annotation or label something else in the cluster reads, and a
+priority low enough that the exporter is evicted before what it watches. All of them
+render nothing when unset.
+
+**`extraEnv`, `extraVolumes` and `extraVolumeMounts`** are the same kind of hatch for the
+pod spec itself, in the corresponding Kubernetes forms — `extraEnv` entries take
+`valueFrom` as well as `value`. Their main use together is mounting an exporter-toolkit
+web configuration for TLS, worked through in
+[TLS and basic auth](index.md#tls-and-basic-auth). Credentials do not belong in
+`extraEnv`; the token travels as a mounted file so it cannot leak through
+`kubectl describe pod`.

@@ -6,6 +6,13 @@ metadata:
     {{- include "digitalocean-exporter.labels" . | nindent 4 }}
 spec:
   replicas: 1
+  {{- /*
+  Recreate by default: with one replica the RollingUpdate surge runs two
+  exporters side by side through every upgrade and token rotation, doubling
+  the API spend and reporting the account twice for as long as both live.
+  */}}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
   selector:
     matchLabels:
       {{- include "digitalocean-exporter.selectorLabels" . | nindent 6 }}
@@ -23,6 +30,9 @@ spec:
         {{- end }}
       labels:
         {{- include "digitalocean-exporter.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -198,6 +208,14 @@ spec:
             {{- range .Values.extraArgs }}
             - {{ . | quote }}
             {{- end }}
+          {{- /*
+          The chart itself sets no environment: credentials travel as files, and
+          everything else is a flag. This is only for what the cluster imposes.
+          */}}
+          {{- with .Values.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: metrics
               containerPort: {{ .Values.service.port }}
@@ -211,6 +229,7 @@ spec:
             httpGet:
               path: /healthz
               port: metrics
+              scheme: {{ .Values.probes.scheme }}
           {{- /*
           Readiness is the opposite question, and /readyz answers it honestly:
           503 until every enabled collector has refreshed once. A collector
@@ -229,6 +248,7 @@ spec:
             httpGet:
               path: /readyz
               port: metrics
+              scheme: {{ .Values.probes.scheme }}
             initialDelaySeconds: 10
             periodSeconds: 10
             failureThreshold: 45
@@ -253,6 +273,9 @@ spec:
               mountPath: /etc/digitalocean-exporter-spaces
               readOnly: true
             {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         - name: token
           secret:
@@ -269,6 +292,9 @@ spec:
                 path: access-key
               - key: {{ .Values.spaces.existingSecretSecretKeyKey }}
                 path: secret-key
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
