@@ -1537,6 +1537,24 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>How often the loadbalancers collector refreshes.</td>
 </tr>
 <tr>
+<td>collectors.projects.enabled</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Report every project and how many resources of each type it owns, counted by URN type from the project's resources list. Costs one API request per project per refresh on top of the project list.</td>
+</tr>
+<tr>
+<td>collectors.projects.interval</td>
+<td>string</td>
+<td><code>"10m"</code></td>
+<td>How often the projects collector refreshes. Resources move between projects when somebody reassigns them, so ten minutes is plenty.</td>
+</tr>
+<tr>
+<td>collectors.projects.timeout</td>
+<td>string</td>
+<td><code>"2m"</code></td>
+<td>Timeout of one full projects refresh, including the per-project resources lookups. Separate from the global <code>--do.timeout</code> because the collector fans out over projects.</td>
+</tr>
+<tr>
 <td>collectors.registry.enabled</td>
 <td>bool</td>
 <td><code>true</code></td>
@@ -1595,6 +1613,18 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>string</td>
 <td><code>"2m"</code></td>
 <td>Timeout of one full Spaces refresh, all buckets together. Separate from the global <code>--do.timeout</code> because the collector fans out over buckets.</td>
+</tr>
+<tr>
+<td>collectors.tags.enabled</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Report how many resources of each type carry every tag, straight from the tag list: one paged request per refresh however many resources the tags are spread across.</td>
+</tr>
+<tr>
+<td>collectors.tags.interval</td>
+<td>string</td>
+<td><code>"10m"</code></td>
+<td>How often the tags collector refreshes. A tag set changes on deploys rather than continuously, so ten minutes is plenty.</td>
 </tr>
 <tr>
 <td>collectors.volumes.enabled</td>

@@ -1040,6 +1040,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#projects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Projects
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#firewalls" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1689,6 +1711,28 @@
     <span class="md-ellipsis">
       
         Domains
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#projects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Projects
       
     </span>
   </a>
@@ -2490,6 +2534,63 @@ collectors cover the parts of that API that are reachable.</p>
 number of them, the same way the number of droplets is <code>count(digitalocean_droplet_up)</code>.</p>
 <p>The records inside a zone are deliberately absent: counting them costs one API request per
 zone. The <a href="../configuration/collectors/#domains">collector page</a> explains the trade-off.</p>
+<h2 id="tags">Tags<a class="headerlink" href="#tags" title="Permanent link">&para;</a></h2>
+<p>Collected by <code>tags</code> from <code>/v2/tags</code>, one metric per tag and resource type.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>digitalocean_tag_resources</code></td>
+<td><code>tag</code>, <code>type</code></td>
+<td>Resources of that type carrying the tag</td>
+</tr>
+</tbody>
+</table>
+<p><code>type</code> is one of <code>droplet</code>, <code>image</code>, <code>volume</code>, <code>volume_snapshot</code> or <code>database</code> — the types
+the tag list reports counts for. A type the API reports no count for emits no series, rather
+than a zero for every tag, so <code>sum by (tag)</code> adds up exactly what the API claimed.</p>
+<p>The number of tags is <code>count(count by (tag) (digitalocean_tag_resources))</code>; a tag attached
+to nothing at all emits no series and is not in that count.</p>
+<h2 id="projects">Projects<a class="headerlink" href="#projects" title="Permanent link">&para;</a></h2>
+<p>Collected by <code>projects</code> from <code>/v2/projects</code> and each project's <code>/resources</code> list, one set of
+metrics per project.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>digitalocean_project_info</code></td>
+<td><code>id</code>, <code>name</code>, <code>purpose</code>, <code>environment</code>, <code>is_default</code></td>
+<td>Always 1</td>
+</tr>
+<tr>
+<td><code>digitalocean_project_resources</code></td>
+<td><code>id</code>, <code>name</code>, <code>type</code></td>
+<td>Resources of that type the project owns</td>
+</tr>
+</tbody>
+</table>
+<p><code>type</code> is taken from each resource's URN, <code>do:&lt;type&gt;:&lt;id&gt;</code> — <code>droplet</code>, <code>volume</code>,
+<code>loadbalancer</code>, <code>domain</code> and whatever else the account holds. A URN of a shape the exporter
+does not recognise is counted under <code>unknown</code> rather than dropped, so
+<code>sum by (id) (digitalocean_project_resources)</code> is the number of resources the project owns.</p>
+<p>A project whose resources lookup has never succeeded reports its <code>_info</code> and no counts: a
+fabricated zero would be indistinguishable from an empty project. A lookup that fails after
+succeeding once keeps the counts of the last success, the same way a whole failed refresh
+keeps the previous snapshot.</p>
+<p>The <a href="../configuration/collectors/#projects">collector page</a> explains what the fan-out costs
+and the timeout that bounds it.</p>
 <h2 id="firewalls">Firewalls<a class="headerlink" href="#firewalls" title="Permanent link">&para;</a></h2>
 <p>Collected by <code>firewalls</code> from <code>/v2/firewalls</code>, one set of metrics per firewall. Off by
 default.</p>

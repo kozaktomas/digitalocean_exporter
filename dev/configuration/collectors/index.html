@@ -846,6 +846,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#projects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        projects
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#firewalls" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1569,6 +1591,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#projects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        projects
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#firewalls" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1618,8 +1662,8 @@
 <h1 id="collectors">Collectors<a class="headerlink" href="#collectors" title="Permanent link">&para;</a></h1>
 <p>One page per question you might have about a collector: what it reports, what it costs, and
 when to turn it off. The metric names themselves are in the <a href="../../metrics/">metrics reference</a>.</p>
-<p>Fourteen collectors are on by default. They are on because each costs one to three API
-requests per refresh, which is negligible against the limit of 5000 an hour.</p>
+<p>Sixteen collectors are on by default. They are on because each costs a few API requests per
+refresh, which is negligible against the limit of 5000 an hour.</p>
 <p>Five are off. Three of them — <a href="../spaces/"><code>spaces</code></a>,
 <a href="../monitoring-api/#dropletmetrics"><code>dropletmetrics</code></a> and
 <a href="../monitoring-api/#loadbalancermetrics"><code>loadbalancermetrics</code></a> — have pages of their own,
@@ -1842,6 +1886,32 @@ each zone's full BIND zone file, and record counts could be derived from it with
 request, but that file is a text format DigitalOcean documents no guarantees about — a
 silently miscounted record is worse than an absent one.</p>
 <p><strong>Cost:</strong> one request per refresh.</p>
+<hr />
+<h2 id="tags">tags<a class="headerlink" href="#tags" title="Permanent link">&para;</a></h2>
+<p>Every tag of the account and how many resources of each type carry it — droplets, images,
+volumes, volume snapshots and databases.</p>
+<p>The counts arrive on the tag list itself, so one paged request covers however many resources
+the tags are spread across; nothing fans out per tag. A type the API reports no count for is
+skipped rather than exported as zero, so <code>digitalocean_tag_resources</code> only carries the series
+the response actually claimed.</p>
+<p>The natural questions are joins: which droplets carry no <code>env</code> tag, whether a <code>backup</code> tag
+still covers the volumes it should. The counts alone answer "how much do we have under this
+tag", which is enough to alert on a tag emptying out unexpectedly.</p>
+<p><strong>Cost:</strong> one request per 200 tags per refresh.</p>
+<hr />
+<h2 id="projects">projects<a class="headerlink" href="#projects" title="Permanent link">&para;</a></h2>
+<p>Every project of the account — name, purpose, environment, whether it is the default — and
+how many resources of each type it owns, counted from the URN type of each entry in the
+project's resources list (<code>droplet</code>, <code>volume</code>, <code>loadbalancer</code>, <code>domain</code> and so on).</p>
+<p>This is the collector that fans out: one paged resources request per project on top of the
+project list, which is why it carries a timeout of its own
+(<code>--collector.projects.timeout</code>). One project's resources lookup failing keeps that
+project's previous counts and is logged; the other projects still refresh, and only every
+lookup failing at once fails the refresh.</p>
+<p>An account has a handful of projects, not hundreds, so the fan-out is cheap in practice.
+If yours is the exception, slow the interval down before turning the collector off — the
+assignments change when somebody moves a resource, not continuously.</p>
+<p><strong>Cost:</strong> one request for the project list plus one per project per refresh.</p>
 <hr />
 <h2 id="firewalls">firewalls<a class="headerlink" href="#firewalls" title="Permanent link">&para;</a></h2>
 <p>Cloud firewalls: what each one is attached to, how many rules it carries, and how far
