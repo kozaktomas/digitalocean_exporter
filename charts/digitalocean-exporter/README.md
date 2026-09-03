@@ -60,6 +60,9 @@ helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
 | collectors.loadbalancermetrics.timeout | string | `"2m"` | Timeout of one full loadbalancermetrics refresh. |
 | collectors.loadbalancers.enabled | bool | `true` | Report the state, backend count and billed size of every load balancer. Traffic through them belongs to the loadbalancermetrics collector. |
 | collectors.loadbalancers.interval | string | `"5m"` | How often the loadbalancers collector refreshes. |
+| collectors.projects.enabled | bool | `true` | Report every project and how many resources of each type it owns, counted by URN type from the project's resources list. Costs one API request per project per refresh on top of the project list. |
+| collectors.projects.interval | string | `"10m"` | How often the projects collector refreshes. Resources move between projects when somebody reassigns them, so ten minutes is plenty. |
+| collectors.projects.timeout | string | `"2m"` | Timeout of one full projects refresh, including the per-project resources lookups. Separate from the global `--do.timeout` because the collector fans out over projects. |
 | collectors.registry.enabled | bool | `true` | Report Container Registry storage, subscription tier and repositories. An account without a registry is not a failure: the collector reports no metrics and keeps `collector_success 1`, so it is safe to leave enabled everywhere. |
 | collectors.registry.interval | string | `"5m"` | How often the registry collector refreshes. |
 | collectors.reservedips.enabled | bool | `true` | Report every reserved IP address and whether it is assigned to a droplet. DigitalOcean bills a reserved IP that is assigned to nothing, the same way it bills an unattached volume, and both IPv4 and IPv6 addresses are read. |
@@ -70,6 +73,8 @@ helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
 | collectors.spaces.interval | string | `"5m"` | How often the spaces collector refreshes. |
 | collectors.spaces.region | string | `""` | Region used for bucket discovery and for buckets named without one. |
 | collectors.spaces.timeout | string | `"2m"` | Timeout of one full Spaces refresh, all buckets together. Separate from the global `--do.timeout` because the collector fans out over buckets. |
+| collectors.tags.enabled | bool | `true` | Report how many resources of each type carry every tag, straight from the tag list: one paged request per refresh however many resources the tags are spread across. |
+| collectors.tags.interval | string | `"10m"` | How often the tags collector refreshes. A tag set changes on deploys rather than continuously, so ten minutes is plenty. |
 | collectors.volumes.enabled | bool | `true` | Report the size of every block storage volume and how many droplets it is attached to. A volume attached to none is billed while serving nothing, which is what makes it worth an alert. |
 | collectors.volumes.interval | string | `"5m"` | How often the volumes collector refreshes. |
 | digitalocean.existingSecret | string | `""` | Name of a Secret you manage yourself holding the API token. Preferred over `token` in real clusters, because it keeps the token out of your Helm values. |

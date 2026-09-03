@@ -369,6 +369,44 @@ number of them, the same way the number of droplets is `count(digitalocean_dropl
 The records inside a zone are deliberately absent: counting them costs one API request per
 zone. The [collector page](configuration/collectors.md#domains) explains the trade-off.
 
+## Tags
+
+Collected by `tags` from `/v2/tags`, one metric per tag and resource type.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_tag_resources` | `tag`, `type` | Resources of that type carrying the tag |
+
+`type` is one of `droplet`, `image`, `volume`, `volume_snapshot` or `database` — the types
+the tag list reports counts for. A type the API reports no count for emits no series, rather
+than a zero for every tag, so `sum by (tag)` adds up exactly what the API claimed.
+
+The number of tags is `count(count by (tag) (digitalocean_tag_resources))`; a tag attached
+to nothing at all emits no series and is not in that count.
+
+## Projects
+
+Collected by `projects` from `/v2/projects` and each project's `/resources` list, one set of
+metrics per project.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_project_info` | `id`, `name`, `purpose`, `environment`, `is_default` | Always 1 |
+| `digitalocean_project_resources` | `id`, `name`, `type` | Resources of that type the project owns |
+
+`type` is taken from each resource's URN, `do:<type>:<id>` — `droplet`, `volume`,
+`loadbalancer`, `domain` and whatever else the account holds. A URN of a shape the exporter
+does not recognise is counted under `unknown` rather than dropped, so
+`sum by (id) (digitalocean_project_resources)` is the number of resources the project owns.
+
+A project whose resources lookup has never succeeded reports its `_info` and no counts: a
+fabricated zero would be indistinguishable from an empty project. A lookup that fails after
+succeeding once keeps the counts of the last success, the same way a whole failed refresh
+keeps the previous snapshot.
+
+The [collector page](configuration/collectors.md#projects) explains what the fan-out costs
+and the timeout that bounds it.
+
 ## Firewalls
 
 Collected by `firewalls` from `/v2/firewalls`, one set of metrics per firewall. Off by

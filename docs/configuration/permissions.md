@@ -50,6 +50,8 @@ one needs exactly the read scope for the resource it reports:
 | [`loadbalancers`](collectors.md#loadbalancers) | `load_balancer:read` |
 | [`cdn`](collectors.md#cdn) | `cdn:read` |
 | [`domains`](collectors.md#domains) | `domain:read` |
+| [`tags`](collectors.md#tags) | `tag:read` |
+| [`projects`](collectors.md#projects) | `project:read` |
 | [`firewalls`](collectors.md#firewalls) | `firewall:read` |
 | [`certificates`](collectors.md#certificates) | `certificate:read` |
 | [`dropletmetrics`](monitoring-api.md#dropletmetrics) | `monitoring:read`, `droplet:read` |

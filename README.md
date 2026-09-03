@@ -28,7 +28,7 @@ actually deserves.
 
 ## Status
 
-Early. This release ships the exporter, the full build and release pipeline, and nineteen
+Early. This release ships the exporter, the full build and release pipeline, and twenty-one
 collectors:
 
 | Collector | State |
@@ -48,6 +48,8 @@ collectors:
 | `cdn` — CDN endpoints, their cache TTL and the certificate each one serves | available |
 | `apps` — App Platform tier, deployment phase and component instances of every app | available |
 | `domains` — DNS zones the account hosts and their default TTL | available |
+| `tags` — resources of each type carrying every tag | available |
+| `projects` — every project and the resources of each type it owns | available |
 | `firewalls` — rules, attachments and pending changes of every cloud firewall (off by default) | available |
 | `certificates` — TLS certificates and when each one expires (off by default) | available |
 | `dropletmetrics` — CPU, memory, disk and load per droplet (off by default) | available |

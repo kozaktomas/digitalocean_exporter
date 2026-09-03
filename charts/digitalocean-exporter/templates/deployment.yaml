@@ -139,6 +139,13 @@ spec:
             {{- else }}
             - --no-collector.limits
             {{- end }}
+            {{- if .Values.collectors.projects.enabled }}
+            - --collector.projects
+            - --collector.projects.interval={{ .Values.collectors.projects.interval }}
+            - --collector.projects.timeout={{ .Values.collectors.projects.timeout }}
+            {{- else }}
+            - --no-collector.projects
+            {{- end }}
             {{- if .Values.collectors.registry.enabled }}
             - --collector.registry
             - --collector.registry.interval={{ .Values.collectors.registry.interval }}
@@ -166,6 +173,12 @@ spec:
             - --spaces.secret-key-file=/etc/digitalocean-exporter-spaces/secret-key
             {{- else }}
             - --no-collector.spaces
+            {{- end }}
+            {{- if .Values.collectors.tags.enabled }}
+            - --collector.tags
+            - --collector.tags.interval={{ .Values.collectors.tags.interval }}
+            {{- else }}
+            - --no-collector.tags
             {{- end }}
             {{- if .Values.collectors.volumes.enabled }}
             - --collector.volumes

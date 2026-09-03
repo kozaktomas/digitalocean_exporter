@@ -3,8 +3,8 @@
 One page per question you might have about a collector: what it reports, what it costs, and
 when to turn it off. The metric names themselves are in the [metrics reference](../metrics.md).
 
-Fourteen collectors are on by default. They are on because each costs one to three API
-requests per refresh, which is negligible against the limit of 5000 an hour.
+Sixteen collectors are on by default. They are on because each costs a few API requests per
+refresh, which is negligible against the limit of 5000 an hour.
 
 Five are off. Three of them — [`spaces`](spaces.md),
 [`dropletmetrics`](monitoring-api.md#dropletmetrics) and
@@ -324,6 +324,44 @@ request, but that file is a text format DigitalOcean documents no guarantees abo
 silently miscounted record is worse than an absent one.
 
 **Cost:** one request per refresh.
+
+---
+
+## tags
+
+Every tag of the account and how many resources of each type carry it — droplets, images,
+volumes, volume snapshots and databases.
+
+The counts arrive on the tag list itself, so one paged request covers however many resources
+the tags are spread across; nothing fans out per tag. A type the API reports no count for is
+skipped rather than exported as zero, so `digitalocean_tag_resources` only carries the series
+the response actually claimed.
+
+The natural questions are joins: which droplets carry no `env` tag, whether a `backup` tag
+still covers the volumes it should. The counts alone answer "how much do we have under this
+tag", which is enough to alert on a tag emptying out unexpectedly.
+
+**Cost:** one request per 200 tags per refresh.
+
+---
+
+## projects
+
+Every project of the account — name, purpose, environment, whether it is the default — and
+how many resources of each type it owns, counted from the URN type of each entry in the
+project's resources list (`droplet`, `volume`, `loadbalancer`, `domain` and so on).
+
+This is the collector that fans out: one paged resources request per project on top of the
+project list, which is why it carries a timeout of its own
+(`--collector.projects.timeout`). One project's resources lookup failing keeps that
+project's previous counts and is logged; the other projects still refresh, and only every
+lookup failing at once fails the refresh.
+
+An account has a handful of projects, not hundreds, so the fan-out is cheap in practice.
+If yours is the exception, slow the interval down before turning the collector off — the
+assignments change when somebody moves a resource, not continuously.
+
+**Cost:** one request for the project list plus one per project per refresh.
 
 ---
 

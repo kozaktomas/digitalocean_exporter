@@ -148,6 +148,18 @@ collectors:
     enabled: true
     # -- How often the limits collector refreshes.
     interval: 5m
+  projects:
+    # -- Report every project and how many resources of each type it owns,
+    # counted by URN type from the project's resources list. Costs one API
+    # request per project per refresh on top of the project list.
+    enabled: true
+    # -- How often the projects collector refreshes. Resources move between
+    # projects when somebody reassigns them, so ten minutes is plenty.
+    interval: 10m
+    # -- Timeout of one full projects refresh, including the per-project
+    # resources lookups. Separate from the global `--do.timeout` because the
+    # collector fans out over projects.
+    timeout: 2m
   registry:
     # -- Report Container Registry storage, subscription tier and repositories. An
     # account without a registry is not a failure: the collector reports no metrics
@@ -182,6 +194,14 @@ collectors:
     # which needs a full-access Spaces key; with a limited key the buckets have
     # to be named here.
     buckets: []
+  tags:
+    # -- Report how many resources of each type carry every tag, straight from
+    # the tag list: one paged request per refresh however many resources the
+    # tags are spread across.
+    enabled: true
+    # -- How often the tags collector refreshes. A tag set changes on deploys
+    # rather than continuously, so ten minutes is plenty.
+    interval: 10m
   volumes:
     # -- Report the size of every block storage volume and how many droplets it is
     # attached to. A volume attached to none is billed while serving nothing, which

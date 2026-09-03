@@ -141,6 +141,18 @@ def repositories(registry):
                                                   "updated_at": "2026-08-24T12:00:00Z"}}],
             "meta": {"total": 1}}
 
+# One tag whose counts arrive on the tag list itself, and one project owning
+# the droplet and the volume above; the project's resources are an extra
+# request the projects collector pays per project.
+TAGS = {"tags": [{"name": "web", "resources": {"count": 2, "droplets": {"count": 1},
+                                               "volumes": {"count": 1}}}],
+        "meta": {"total": 1}}
+PROJECTS = {"projects": [{"id": "proj", "name": "smoke", "purpose": "Web app",
+                          "environment": "Production", "is_default": True}],
+            "meta": {"total": 1}}
+PROJECT_RESOURCES = {"resources": [{"urn": "do:droplet:1"}, {"urn": "do:volume:vol"}],
+                     "meta": {"total": 2}}
+
 # The monitoring API is a Prometheus range-query API: one matrix of series per
 # request, one request per metric per resource. The same body answers every one
 # of those routes, which is enough to prove the two monitoring collectors read
@@ -170,6 +182,9 @@ ROUTES = {"/v2/customers/my/balance": BALANCE,
           "/v2/load_balancers": LOAD_BALANCERS,
           "/v2/cdn/endpoints": CDN,
           "/v2/domains": DOMAINS,
+          "/v2/tags": TAGS,
+          "/v2/projects": PROJECTS,
+          "/v2/projects/proj/resources": PROJECT_RESOURCES,
           "/v2/firewalls": FIREWALLS,
           "/v2/certificates": CERTIFICATES,
           "/v2/registries": REGISTRIES,
@@ -234,6 +249,8 @@ DO_SPACES_ENDPOINT="http://127.0.0.1:${API_PORT}" \
          --collector.domains.interval=1s \
          --collector.apps.interval=1s \
          --collector.images.interval=1s \
+         --collector.tags.interval=1s \
+         --collector.projects.interval=1s \
          --collector.firewalls --collector.firewalls.interval=1s \
          --collector.certificates --collector.certificates.interval=1s \
          --collector.spaces --collector.spaces.interval=1s \
@@ -256,7 +273,7 @@ done
 # for "no sample equals 0" would therefore pass while a collector had not
 # started yet, and the assertions below would race it — a flake that looks
 # exactly like a broken collector. Bump this when adding a collector.
-EXPECTED_COLLECTORS=19
+EXPECTED_COLLECTORS=21
 
 # Poll until all of them have reported a successful refresh.
 METRICS=""
@@ -349,6 +366,9 @@ for metric in \
   digitalocean_app_deployment_in_progress \
   digitalocean_app_component_instances \
   digitalocean_domain_ttl_seconds \
+  digitalocean_tag_resources \
+  digitalocean_project_info \
+  digitalocean_project_resources \
   digitalocean_firewall_inbound_rules_open \
   digitalocean_firewall_pending_changes \
   digitalocean_certificate_expiry_timestamp_seconds \

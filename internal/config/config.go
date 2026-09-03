@@ -155,6 +155,9 @@ type flags struct {
 	dbInterval       *time.Duration
 	dbTimeout        *time.Duration
 	dbDetails        *bool
+	projects         *bool
+	projInterval     *time.Duration
+	projTimeout      *time.Duration
 	dropletMetrics   *bool
 	dmInterval       *time.Duration
 	dmTimeout        *time.Duration
@@ -225,6 +228,9 @@ var simpleCollectors = []struct {
 		"Enable the App Platform collector, which reports app tier, deployment phase and component instances.",
 		true, defaultInterval},
 	{"domains", "Enable the DNS domains collector.", true, defaultInterval},
+	{"tags",
+		"Enable the tags collector, which counts the resources of each type carrying every tag.",
+		true, 10 * time.Minute},
 	{"firewalls",
 		"Enable the cloud firewalls collector, which reports rule counts and how far each firewall is applied.",
 		false, defaultInterval},
@@ -293,6 +299,7 @@ func bind(app *kingpin.Application) *flags {
 			"Costs one extra API request per cluster per refresh.").
 		Envar("COLLECTOR_KUBERNETES_UPGRADES").Default("true").Bool()
 	bindDatabases(app, f)
+	bindProjects(app, f)
 	bindMonitoring(app, f)
 	bindSpaces(app, f)
 	return f
@@ -338,6 +345,23 @@ func bindDatabases(app *kingpin.Application, f *flags) {
 		"Ask each database cluster for its replicas and backups. "+
 			"Costs two extra API requests per cluster per refresh.").
 		Envar("COLLECTOR_DATABASES_DETAILS").Default("true").Bool()
+}
+
+// bindProjects declares the flags of the projects collector. It is not in
+// simpleCollectors because its refresh fans out over the account — one
+// resources request per project on top of the list — which is what the
+// timeout bounds.
+func bindProjects(app *kingpin.Application, f *flags) {
+	f.projects = app.Flag("collector.projects",
+		"Enable the projects collector, which counts what each project owns. "+
+			"Costs one extra API request per project per refresh.").
+		Envar("COLLECTOR_PROJECTS").Default("true").Bool()
+	f.projInterval = app.Flag("collector.projects.interval",
+		"Refresh interval of the projects collector.").
+		Envar("COLLECTOR_PROJECTS_INTERVAL").Default("10m").Duration()
+	f.projTimeout = app.Flag("collector.projects.timeout",
+		"Timeout of one full projects refresh, including the per-project resources lookups.").
+		Envar("COLLECTOR_PROJECTS_TIMEOUT").Default("2m").Duration()
 }
 
 // bindMonitoring declares the flags of the collectors that read the monitoring
@@ -421,12 +445,15 @@ func (f *flags) config() (*Config, error) {
 		return nil, err
 	}
 
-	collectors := make(map[string]CollectorConfig, len(f.simple)+4)
+	collectors := make(map[string]CollectorConfig, len(f.simple)+5)
 	for name, bound := range f.simple {
 		collectors[name] = CollectorConfig{Enabled: *bound.enabled, Interval: *bound.interval}
 	}
 	collectors["databases"] = CollectorConfig{
 		Enabled: *f.databases, Interval: *f.dbInterval, Timeout: *f.dbTimeout,
+	}
+	collectors["projects"] = CollectorConfig{
+		Enabled: *f.projects, Interval: *f.projInterval, Timeout: *f.projTimeout,
 	}
 	collectors["dropletmetrics"] = CollectorConfig{
 		Enabled: *f.dropletMetrics, Interval: *f.dmInterval, Timeout: *f.dmTimeout,
@@ -486,6 +513,7 @@ func (f *flags) validateDurations() error {
 		interval, timeout time.Duration
 	}{
 		{"databases", *f.dbInterval, *f.dbTimeout},
+		{"projects", *f.projInterval, *f.projTimeout},
 		{"dropletmetrics", *f.dmInterval, *f.dmTimeout},
 		{"loadbalancermetrics", *f.lbmInterval, *f.lbmTimeout},
 		{"spaces", *f.spacesInterval, *f.spacesTimeout},

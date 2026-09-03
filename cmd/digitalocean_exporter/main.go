@@ -37,9 +37,11 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/limits"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/loadbalancermetrics"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/loadbalancers"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/projects"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/registry"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/reservedips"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/spaces"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/tags"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/volumes"
 	"github.com/kozaktomas/digitalocean_exporter/internal/config"
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
@@ -149,6 +151,8 @@ func registerCollectors(
 		{"domains", func() collector.Collector { return domains.New(client, logger) }},
 		{"firewalls", func() collector.Collector { return firewalls.New(client, logger) }},
 		{"certificates", func() collector.Collector { return certificates.New(client, logger) }},
+		{"tags", func() collector.Collector { return tags.New(client, logger) }},
+		{"projects", func() collector.Collector { return projects.New(client, logger) }},
 		{"dropletmetrics", func() collector.Collector {
 			return dropletmetrics.New(client, dropletmetrics.Config{
 				Concurrency: cfg.DropletMetricsConcurrency,

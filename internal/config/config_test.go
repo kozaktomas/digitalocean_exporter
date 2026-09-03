@@ -347,6 +347,56 @@ func TestParseRegistersTheDatabasesCollector(t *testing.T) {
 	}
 }
 
+// Projects fans out — one resources request per project on top of the list —
+// so it carries a timeout of its own and a slower default interval: resource
+// assignments change when somebody moves something, not continuously.
+func TestParseRegistersTheProjectsCollector(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	p, ok := cfg.Collectors["projects"]
+	if !ok {
+		t.Fatal("projects collector missing from config")
+	}
+	if !p.Enabled || p.Interval != 10*time.Minute || p.Timeout != 2*time.Minute {
+		t.Errorf("projects = %+v, want enabled with a 10m interval and a 2m timeout", p)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--no-collector.projects"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Collectors["projects"].Enabled {
+		t.Error("projects collector = enabled, want disabled")
+	}
+}
+
+// Tags cost one paged list per refresh however many resources carry them, and
+// a tag set changes on deploys rather than continuously, so the collector is
+// on by default at a slower interval.
+func TestParseRegistersTheTagsCollector(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	tags, ok := cfg.Collectors["tags"]
+	if !ok {
+		t.Fatal("tags collector missing from config")
+	}
+	if !tags.Enabled || tags.Interval != 10*time.Minute {
+		t.Errorf("tags = %+v, want enabled with a 10m interval", tags)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--no-collector.tags"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Collectors["tags"].Enabled {
+		t.Error("tags collector = enabled, want disabled")
+	}
+}
+
 func TestParseRegistersTheKubernetesCollector(t *testing.T) {
 	cfg, err := config.Parse([]string{"--do.token", "secret"})
 	if err != nil {
