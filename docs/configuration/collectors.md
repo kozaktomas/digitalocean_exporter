@@ -3,8 +3,8 @@
 One page per question you might have about a collector: what it reports, what it costs, and
 when to turn it off. The metric names themselves are in the [metrics reference](../metrics.md).
 
-Sixteen collectors are on by default. They are on because each costs a few API requests per
-refresh, which is negligible against the limit of 5000 an hour.
+Seventeen collectors are on by default. They are on because each costs a few API requests
+per refresh, which is negligible against the limit of 5000 an hour.
 
 Five are off. Three of them — [`spaces`](spaces.md),
 [`dropletmetrics`](monitoring-api.md#dropletmetrics) and
@@ -104,6 +104,28 @@ collector will spend ten requests a refresh on and get no readings back for.
 
 **Cost:** one request per refresh, plus one per additional page for accounts with many
 droplets.
+
+---
+
+## dropletautoscale
+
+Every droplet autoscale pool: how many droplets it runs against its minimum, maximum or
+fixed target, and the current CPU and memory utilisation against the targets it scales on.
+
+This collector refreshes every **two minutes** rather than five, because the utilisation a
+pool scales on moves on that cadence and a scaling event is exactly what it is watching for.
+One paged list request covers the whole account however many pools there are, so the faster
+interval is still cheap; an account with no autoscale pools spends one request per refresh
+on an empty list, and turning the collector off saves it.
+
+The droplets a pool runs are ordinary droplets and are reported by
+[`droplets`](#droplets) like any other. What this collector adds is the pool's own view —
+the bounds, the targets and the aggregate utilisation — which is what the bundled
+`DigitalOceanDropletAutoscalePoolAtMaximum` alert reads: a pool pinned at its maximum while
+running hotter than its target has an autoscaler that wants more droplets than it is
+allowed.
+
+**Cost:** one request per 200 pools per refresh.
 
 ---
 

@@ -29,6 +29,7 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/certificates"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/databases"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/domains"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/dropletautoscale"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/dropletmetrics"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/droplets"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/firewalls"
@@ -136,6 +137,7 @@ func registerCollectors(
 			return databases.New(client, cfg.DatabaseDetails, logger)
 		}},
 		{"droplets", func() collector.Collector { return droplets.New(client, logger) }},
+		{"dropletautoscale", func() collector.Collector { return dropletautoscale.New(client, logger) }},
 		{"images", func() collector.Collector { return images.New(client, logger) }},
 		{"kubernetes", func() collector.Collector {
 			return kubernetes.New(client, cfg.KubernetesUpgrades, logger)

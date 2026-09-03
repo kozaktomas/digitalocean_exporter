@@ -28,7 +28,7 @@ actually deserves.
 
 ## Status
 
-Early. This release ships the exporter, the full build and release pipeline, and twenty-one
+Early. This release ships the exporter, the full build and release pipeline, and twenty-two
 collectors:
 
 | Collector | State |
@@ -37,6 +37,7 @@ collectors:
 | `balance` — balance and month-to-date usage (needs a billing-scoped token) | available |
 | `databases` — state, nodes and storage of every managed database cluster | available |
 | `droplets` — state, size and price of every droplet | available |
+| `dropletautoscale` — size, targets and utilisation of every droplet autoscale pool | available |
 | `kubernetes` — cluster state and node pools of every managed cluster | available |
 | `limits` — droplets, reserved IPs and volumes in use against the account limits | available |
 | `registry` — Container Registry storage, subscription and repositories | available |

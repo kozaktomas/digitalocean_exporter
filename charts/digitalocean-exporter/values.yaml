@@ -107,6 +107,17 @@ collectors:
     enabled: true
     # -- How often the domains collector refreshes.
     interval: 5m
+  dropletautoscale:
+    # -- Report every droplet autoscale pool: how many droplets it runs against
+    # its minimum, maximum or fixed target, and the current CPU and memory
+    # utilisation against the targets it scales on. One paged list request
+    # covers the whole account.
+    enabled: true
+    # -- How often the dropletautoscale collector refreshes. Two minutes rather
+    # than five because the utilisation the pool scales on moves on that
+    # cadence, and a scaling event is exactly what this collector is watching
+    # for.
+    interval: 2m
   droplets:
     # -- Report the state, size and price of every droplet, including the droplets
     # that make up a managed Kubernetes cluster.

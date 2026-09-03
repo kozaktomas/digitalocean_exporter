@@ -167,6 +167,36 @@ groups:
             DigitalOceanDropletOff reports at info.
           runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#resources
 
+      - alert: DigitalOceanDropletAutoscalePoolAtMaximum
+        expr: >-
+          (digitalocean_droplet_autoscale_pool_active_instances
+             >= digitalocean_droplet_autoscale_pool_max_instances)
+            and (
+              (digitalocean_droplet_autoscale_pool_current_cpu_utilization_ratio
+                 > digitalocean_droplet_autoscale_pool_target_cpu_utilization_ratio)
+              or
+              (digitalocean_droplet_autoscale_pool_current_memory_utilization_ratio
+                 > digitalocean_droplet_autoscale_pool_target_memory_utilization_ratio)
+            )
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: Autoscale pool {{ $labels.name }} is at its maximum and over its target
+          description: >-
+            The pool has run at its configured maximum for half an hour while its
+            utilisation stays above the target it scales on, so the autoscaler wants
+            more droplets than it is allowed and the ones running are working harder
+            than intended. Half an hour separates a pool that has settled there from
+            one riding out a spike, which a cooldown of a few minutes would absorb on
+            its own. Raise the pool's maximum, or treat the ceiling as a deliberate
+            budget and accept the elevated utilisation — but then this alert is the
+            reminder that scaling has stopped there. A pool with a fixed target has no
+            maximum and cannot fire this. The account droplet limit can impose the
+            same ceiling from outside, which DigitalOceanAccountNearDropletLimit
+            reports.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#resources
+
       - alert: DigitalOceanKubernetesClusterDown
         expr: digitalocean_kubernetes_cluster_up == 0
         for: 15m

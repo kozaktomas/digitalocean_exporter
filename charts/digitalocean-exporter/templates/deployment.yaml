@@ -104,6 +104,12 @@ spec:
             {{- else }}
             - --no-collector.domains
             {{- end }}
+            {{- if .Values.collectors.dropletautoscale.enabled }}
+            - --collector.dropletautoscale
+            - --collector.dropletautoscale.interval={{ .Values.collectors.dropletautoscale.interval }}
+            {{- else }}
+            - --no-collector.dropletautoscale
+            {{- end }}
             {{- if .Values.collectors.droplets.enabled }}
             - --collector.droplets
             - --collector.droplets.interval={{ .Values.collectors.droplets.interval }}

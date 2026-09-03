@@ -41,6 +41,16 @@ DROPLETS = {"droplets": [{"id": 1, "name": "web-1", "status": "active", "vcpus":
                           "size": {"slug": "s-2vcpu-4gb", "price_hourly": 0.02679, "price_monthly": 18},
                           "image": {"slug": "ubuntu-24-04"}}],
             "meta": {"total": 5}}
+# One autoscale pool scaling on a CPU target, with the active droplet count and
+# current utilisation the collector reports alongside the configured bounds.
+AUTOSCALE_POOLS = {"autoscale_pools": [{"id": "pool-1", "name": "web-pool",
+                                        "status": "active", "active_resources_count": 2,
+                                        "config": {"min_instances": 1, "max_instances": 4,
+                                                   "target_cpu_utilization": 0.6},
+                                        "droplet_template": {"region": "fra1",
+                                                             "size": "s-2vcpu-4gb"},
+                                        "current_utilization": {"cpu": 0.4, "memory": 0.3}}],
+                   "meta": {"total": 1}}
 # Two reserved IPv4 addresses, one assigned to the droplet above and one idle,
 # plus a reserved IPv6. The idle one is what the reservedips collector exists
 # for: DigitalOcean bills a reserved IP only while it serves nothing.
@@ -173,6 +183,7 @@ ROUTES = {"/v2/customers/my/balance": BALANCE,
           "/v2/databases/1/replicas": DB_REPLICAS,
           "/v2/databases/1/backups": DB_BACKUPS,
           "/v2/droplets": DROPLETS,
+          "/v2/droplets/autoscale": AUTOSCALE_POOLS,
           "/v2/kubernetes/clusters": CLUSTERS,
           "/v2/kubernetes/clusters/c1/upgrades": UPGRADES,
           "/v2/reserved_ips": RESERVED_IPS,
@@ -245,6 +256,7 @@ DO_SPACES_ENDPOINT="http://127.0.0.1:${API_PORT}" \
          --collector.registry.interval=1s --collector.limits.interval=1s \
          --collector.reservedips.interval=1s \
          --collector.droplets.interval=1s --collector.databases.interval=1s \
+         --collector.dropletautoscale.interval=1s \
          --collector.kubernetes.interval=1s \
          --collector.domains.interval=1s \
          --collector.apps.interval=1s \
@@ -273,7 +285,7 @@ done
 # for "no sample equals 0" would therefore pass while a collector had not
 # started yet, and the assertions below would race it — a flake that looks
 # exactly like a broken collector. Bump this when adding a collector.
-EXPECTED_COLLECTORS=21
+EXPECTED_COLLECTORS=22
 
 # Poll until all of them have reported a successful refresh.
 METRICS=""
@@ -340,6 +352,11 @@ for metric in \
   digitalocean_droplet_backups_enabled \
   digitalocean_droplet_monitoring_agent \
   digitalocean_droplet_created_timestamp_seconds \
+  digitalocean_droplet_autoscale_pool_info \
+  digitalocean_droplet_autoscale_pool_active_instances \
+  digitalocean_droplet_autoscale_pool_max_instances \
+  digitalocean_droplet_autoscale_pool_target_cpu_utilization_ratio \
+  digitalocean_droplet_autoscale_pool_current_cpu_utilization_ratio \
   digitalocean_database_status \
   digitalocean_database_storage_bytes \
   digitalocean_database_users \

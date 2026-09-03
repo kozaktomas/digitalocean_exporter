@@ -41,6 +41,7 @@ one needs exactly the read scope for the resource it reports:
 | [`balance`](collectors.md#balance) | `billing:read` |
 | [`databases`](collectors.md#databases) | `database:read` |
 | [`droplets`](collectors.md#droplets) | `droplet:read` |
+| [`dropletautoscale`](collectors.md#dropletautoscale) | `droplet:read` |
 | [`kubernetes`](collectors.md#kubernetes) | `kubernetes:read` |
 | [`limits`](collectors.md#limits) | `account:read`, `droplet:read`, `reserved_ip:read`, `block_storage:read` |
 | [`registry`](collectors.md#registry) | `registry:read` |

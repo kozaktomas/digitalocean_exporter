@@ -118,6 +118,42 @@ metric alone. Neither `tags` nor `vpc_uuid` is on the up or the status series: r
 droplet, or moving it between VPCs, must not break the continuity of the series an alert
 watches.
 
+## Droplet autoscale pools
+
+Collected by `dropletautoscale` from `/v2/droplets/autoscale`, one set of metrics per
+autoscale pool.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_droplet_autoscale_pool_info` | `id`, `name`, `region`, `size`, `status` | Always 1 |
+| `digitalocean_droplet_autoscale_pool_active_instances` | `id`, `name` | Active droplets in the pool |
+| `digitalocean_droplet_autoscale_pool_min_instances` | `id`, `name` | Minimum droplets the pool keeps |
+| `digitalocean_droplet_autoscale_pool_max_instances` | `id`, `name` | Maximum droplets the pool may grow to |
+| `digitalocean_droplet_autoscale_pool_target_instances` | `id`, `name` | Fixed droplet count the pool is configured to run |
+| `digitalocean_droplet_autoscale_pool_target_cpu_utilization_ratio` | `id`, `name` | CPU utilisation the pool scales towards, 0 to 1 |
+| `digitalocean_droplet_autoscale_pool_target_memory_utilization_ratio` | `id`, `name` | Memory utilisation the pool scales towards, 0 to 1 |
+| `digitalocean_droplet_autoscale_pool_current_cpu_utilization_ratio` | `id`, `name` | Average CPU utilisation across the pool's droplets, 0 to 1 |
+| `digitalocean_droplet_autoscale_pool_current_memory_utilization_ratio` | `id`, `name` | Average memory utilisation across the pool's droplets, 0 to 1 |
+
+A pool is configured one of two ways, and the metrics follow the split. A pool that scales
+on utilisation carries `min_instances`, `max_instances` and at least one of the two target
+ratios; a pool with a fixed target carries `target_instances` and none of those. The metrics
+of the shape not in use are absent rather than zero — a fixed-target pool reporting
+`max_instances 0` would read as a pool forbidden to run anything.
+
+The utilisation ratios are the API's own decimals between 0 and 1, passed through
+unchanged, so `current > target` is directly the condition the autoscaler acts on. A pool
+whose listing reports no current utilisation emits neither `current_` series rather than
+zeros.
+
+The droplets a pool runs are ordinary droplets and appear in the [droplets](#droplets)
+metrics like any other; nothing here duplicates them. What this collector adds is the
+pool's own view — the bounds, the targets and the aggregate utilisation the scaling
+decisions are made from. `DigitalOceanDropletAutoscalePoolAtMaximum` in the bundled
+[alerting rules](alerting.md) reads exactly these series.
+
+`status` on the info metric is `active`, `deleting` or `error`, as the API reports it.
+
 ## Volumes
 
 Collected by `volumes` from `/v2/volumes`, one set of metrics per block storage volume.
