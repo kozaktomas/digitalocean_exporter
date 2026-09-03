@@ -126,6 +126,9 @@ type Config struct {
 	// KubernetesUpgrades lets the Kubernetes collector ask what each cluster
 	// can be upgraded to, at one API request per cluster per refresh.
 	KubernetesUpgrades bool
+	// DatabaseDetails lets the databases collector ask each cluster for its
+	// replicas and backups, at two API requests per cluster per refresh.
+	DatabaseDetails bool
 }
 
 // collectorFlags holds the two flags every collector has.
@@ -148,6 +151,10 @@ type flags struct {
 	// simple holds the collectors configured by nothing but an enable switch
 	// and an interval, keyed by collector name.
 	simple           map[string]*collectorFlags
+	databases        *bool
+	dbInterval       *time.Duration
+	dbTimeout        *time.Duration
+	dbDetails        *bool
 	dropletMetrics   *bool
 	dmInterval       *time.Duration
 	dmTimeout        *time.Duration
@@ -177,8 +184,8 @@ const defaultInterval = 5 * time.Minute
 
 // simpleCollectors are the collectors that need nothing but an enable switch
 // and a refresh interval. The ones that carry a timeout or a concurrency of
-// their own — the two monitoring-API collectors and spaces — are bound
-// separately.
+// their own — databases, the two monitoring-API collectors and spaces — are
+// bound separately.
 //
 // A collector is on by default when it costs one or two API requests per
 // refresh and its metrics suit any account. firewalls and certificates are the
@@ -207,7 +214,6 @@ var simpleCollectors = []struct {
 	{"limits", "Enable the limits collector, which counts droplets, reserved IPs and volumes.",
 		true, defaultInterval},
 	{"droplets", "Enable the droplets collector.", true, defaultInterval},
-	{"databases", "Enable the managed databases collector.", true, defaultInterval},
 	{"kubernetes", "Enable the managed Kubernetes collector.", true, defaultInterval},
 	{"volumes", "Enable the block storage volumes collector.", true, defaultInterval},
 	{"images",
@@ -286,6 +292,7 @@ func bind(app *kingpin.Application) *flags {
 		"Ask what each Kubernetes cluster can be upgraded to. "+
 			"Costs one extra API request per cluster per refresh.").
 		Envar("COLLECTOR_KUBERNETES_UPGRADES").Default("true").Bool()
+	bindDatabases(app, f)
 	bindMonitoring(app, f)
 	bindSpaces(app, f)
 	return f
@@ -312,6 +319,25 @@ func bindSimple(app *kingpin.Application) map[string]*collectorFlags {
 		}
 	}
 	return bound
+}
+
+// bindDatabases declares the flags of the databases collector. It left
+// simpleCollectors when it learned to ask each cluster for its replicas and
+// backups: the detail lookup makes the refresh fan out over the account, which
+// is what the timeout bounds and the details switch turns off.
+func bindDatabases(app *kingpin.Application, f *flags) {
+	f.databases = app.Flag("collector.databases", "Enable the managed databases collector.").
+		Envar("COLLECTOR_DATABASES").Default("true").Bool()
+	f.dbInterval = app.Flag("collector.databases.interval",
+		"Refresh interval of the databases collector.").
+		Envar("COLLECTOR_DATABASES_INTERVAL").Default("5m").Duration()
+	f.dbTimeout = app.Flag("collector.databases.timeout",
+		"Timeout of one full databases refresh, including the per-cluster detail lookups.").
+		Envar("COLLECTOR_DATABASES_TIMEOUT").Default("2m").Duration()
+	f.dbDetails = app.Flag("collector.databases.details",
+		"Ask each database cluster for its replicas and backups. "+
+			"Costs two extra API requests per cluster per refresh.").
+		Envar("COLLECTOR_DATABASES_DETAILS").Default("true").Bool()
 }
 
 // bindMonitoring declares the flags of the collectors that read the monitoring
@@ -395,9 +421,12 @@ func (f *flags) config() (*Config, error) {
 		return nil, err
 	}
 
-	collectors := make(map[string]CollectorConfig, len(f.simple)+3)
+	collectors := make(map[string]CollectorConfig, len(f.simple)+4)
 	for name, bound := range f.simple {
 		collectors[name] = CollectorConfig{Enabled: *bound.enabled, Interval: *bound.interval}
+	}
+	collectors["databases"] = CollectorConfig{
+		Enabled: *f.databases, Interval: *f.dbInterval, Timeout: *f.dbTimeout,
 	}
 	collectors["dropletmetrics"] = CollectorConfig{
 		Enabled: *f.dropletMetrics, Interval: *f.dmInterval, Timeout: *f.dmTimeout,
@@ -424,6 +453,7 @@ func (f *flags) config() (*Config, error) {
 		DropletMetricsAgentOnly:        *f.dmAgentOnly,
 		LoadBalancerMetricsConcurrency: *f.lbmConcurrency,
 		KubernetesUpgrades:             *f.k8sUpgrades,
+		DatabaseDetails:                *f.dbDetails,
 	}, nil
 }
 
@@ -455,6 +485,7 @@ func (f *flags) validateDurations() error {
 		name              string
 		interval, timeout time.Duration
 	}{
+		{"databases", *f.dbInterval, *f.dbTimeout},
 		{"dropletmetrics", *f.dmInterval, *f.dmTimeout},
 		{"loadbalancermetrics", *f.lbmInterval, *f.lbmTimeout},
 		{"spaces", *f.spacesInterval, *f.spacesTimeout},

@@ -91,6 +91,15 @@ collectors:
     enabled: true
     # -- How often the databases collector refreshes.
     interval: 5m
+    # -- Timeout of one full databases refresh, including the per-cluster
+    # detail lookups.
+    timeout: 2m
+    # -- Ask each cluster for its read-only replicas and the age of its newest
+    # backup. The only part of this collector that costs requests per cluster —
+    # two per refresh — rather than one per refresh, and the only source of the
+    # replica and backup metrics an alert can watch. Turn it off on an account
+    # with many clusters where those requests are worth saving.
+    details: true
   domains:
     # -- Report the DNS zones the account hosts and their default TTL. One list
     # request covers the whole account. The records inside a zone are not

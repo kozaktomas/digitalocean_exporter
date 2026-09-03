@@ -58,14 +58,29 @@ is not a bug and will not be "fixed".
 
 ## databases
 
-Every managed database cluster: engine, version, state, node count and storage size.
+Every managed database cluster: engine, version, state, node count, storage size, users,
+logical databases, whether storage autoscaling is on, and which project and VPC it belongs
+to — all from the one list response.
 
 This is **inventory, not load**. Connections, queries and replication lag come from a
 Prometheus endpoint DigitalOcean runs per cluster, with credentials of its own, which this
 exporter does not touch. If you want those, scrape that endpoint directly — it is a
 separate target, not a missing feature here.
 
-**Cost:** one request per refresh.
+The read-only replicas and the age of the newest backup do not arrive in the list: they are
+two endpoints of their own, two requests per cluster per refresh, behind
+`--collector.databases.details`. It is on by default because an account with clusters has a
+handful of them, not hundreds; turn it off with `--no-collector.databases.details` on an
+account where two requests per cluster every five minutes is worth saving, and the replica
+and backup metrics simply stop being reported. One cluster's lookup failing is not a failed
+refresh: that cluster keeps its previous detail values and the exporter logs why, so the
+others are unaffected. An engine that offers no backups or replicas — a caching cluster —
+answers those endpoints with a client error, which reads as "none" rather than a failure.
+Because the refresh fans out over the account, the collector carries a timeout of its own,
+`--collector.databases.timeout`, two minutes by default.
+
+**Cost:** one request per refresh, plus one per additional page for accounts with many
+clusters, plus two per cluster for the detail lookups unless they are switched off.
 
 ---
 

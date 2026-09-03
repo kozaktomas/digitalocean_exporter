@@ -130,7 +130,9 @@ func registerCollectors(
 	}{
 		{"account", func() collector.Collector { return account.New(client) }},
 		{"balance", func() collector.Collector { return balance.New(client) }},
-		{"databases", func() collector.Collector { return databases.New(client, logger) }},
+		{"databases", func() collector.Collector {
+			return databases.New(client, cfg.DatabaseDetails, logger)
+		}},
 		{"droplets", func() collector.Collector { return droplets.New(client, logger) }},
 		{"images", func() collector.Collector { return images.New(client, logger) }},
 		{"kubernetes", func() collector.Collector {

@@ -706,7 +706,9 @@ balance, and conflating the two would break billing dashboards silently.
 
 ## Managed databases
 
-Collected by `databases` from `/v2/databases`, one set of metrics per cluster.
+Collected by `databases` from `/v2/databases`, one set of metrics per cluster, plus —
+unless `--no-collector.databases.details` — each cluster's replicas from
+`/v2/databases/{id}/replicas` and its backups from `/v2/databases/{id}/backups`.
 
 | Metric | Labels | Description |
 |---|---|---|
@@ -714,6 +716,13 @@ Collected by `databases` from `/v2/databases`, one set of metrics per cluster.
 | `digitalocean_database_nodes` | `id`, `name`, `region`, `size`, `engine`, `version` | Number of nodes in the cluster |
 | `digitalocean_database_storage_bytes` | `id`, `name`, `region` | Storage allocated to the cluster |
 | `digitalocean_database_maintenance_pending` | `id`, `name`, `region` | 1 if maintenance is waiting for the cluster |
+| `digitalocean_database_users` | `id`, `name`, `region` | Number of database users on the cluster |
+| `digitalocean_database_databases` | `id`, `name`, `region` | Number of logical databases on the cluster |
+| `digitalocean_database_storage_autoscale_enabled` | `id`, `name`, `region` | 1 if the cluster grows its own storage before it fills |
+| `digitalocean_database_cluster_info` | `id`, `name`, `region`, `project_id`, `private_network_uuid` | Always 1; ties the cluster to its project and its VPC |
+| `digitalocean_database_replicas` | `id`, `name`, `region` | Number of read-only replicas of the cluster |
+| `digitalocean_database_replica_status` | `id`, `name`, `replica`, `region`, `status` | 1 for the replica's current status, 0 for every other known one |
+| `digitalocean_database_last_backup_timestamp_seconds` | `id`, `name`, `region` | Unix time the newest backup of the cluster was taken |
 
 `digitalocean_database_status` and `digitalocean_database_nodes` keep the names and the
 descriptive labels of the older, unmaintained exporter. Its three maintenance-window labels
@@ -726,6 +735,18 @@ disk actually in use come from a Prometheus endpoint DigitalOcean runs per clust
 with credentials of its own; that is a separate exporter's job, not this one's.
 
 `storage_bytes` is the storage the plan allocates, again not the storage in use.
+
+The last three rows are the detail metrics, behind `--collector.databases.details` (on by
+default, two extra requests per cluster per refresh). On the replica series `id` and `name`
+are the cluster's and `replica` and `region` the replica's own — a replica may live in a
+different region from its cluster, which is much of the point of having one. Every documented
+status — `creating`, `online`, `resizing`, `migrating`, `forking` — is reported for every
+replica on every scrape, so an alert has a series before a replica ever enters the status it
+watches for. One cluster's detail lookup failing does not fail the refresh or cost the other
+clusters: that cluster keeps the details its last successful lookup found and the exporter
+logs why. An engine that does not offer backups or replicas — a caching cluster, say —
+answers those endpoints with a client error, which is read as "this cluster has none":
+`digitalocean_database_replicas` reports 0 and no backup series appears.
 
 godo does not expose the pagination links of this endpoint, so the collector treats a full
 page as the signal that another may follow. An account whose cluster count divides exactly

@@ -104,6 +104,7 @@ very differently and neither clears itself.
 | `DigitalOceanLoadBalancerWithoutBackends` | critical | 30m | An active load balancer proxies to no droplets |
 | `DigitalOceanDatabaseUnhealthy` | critical | 15m | A managed database cluster is not `online` |
 | `DigitalOceanDatabaseMaintenancePending` | info | 1h | A managed database cluster has maintenance queued for its window |
+| `DigitalOceanDatabaseBackupStale` | warning | 30m | The newest backup of a managed database cluster is older than 36 hours |
 | `DigitalOceanAppDeploymentError` | warning | 10m | The deployment an App Platform app is serving is in the `ERROR` phase |
 
 `DigitalOceanLoadBalancerWithoutBackends` is the one worth having even in a small account: an
@@ -152,6 +153,15 @@ not a fault: DigitalOcean will apply it in the cluster's maintenance window, whi
 means a failover on a multi-node cluster and a short outage on a single-node one. The alert
 is the nudge to check when that window falls, and to apply the maintenance by hand first if
 a quieter moment suits better.
+
+`DigitalOceanDatabaseBackupStale` watches the age of the newest backup rather than whether a
+backup job ran: DigitalOcean backs a managed cluster up daily, so a newest backup older than
+thirty-six hours means at least one daily backup did not happen — a day's cadence plus half a
+day's slack, which an ordinary backup running a few hours late never crosses. What is at
+stake is the restore: everything written since that backup would be lost. It reads
+`digitalocean_database_last_backup_timestamp_seconds`, which needs
+`--collector.databases.details` (on by default). Engines without backups — caching clusters,
+say — never report the metric, so they cannot fire it.
 
 ## Monitoring API
 

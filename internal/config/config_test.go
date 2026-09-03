@@ -334,8 +334,8 @@ func TestParseRegistersTheDatabasesCollector(t *testing.T) {
 	if !ok {
 		t.Fatal("databases collector missing from config")
 	}
-	if !d.Enabled || d.Interval != 5*time.Minute {
-		t.Errorf("databases = %+v, want enabled with a 5m interval", d)
+	if !d.Enabled || d.Interval != 5*time.Minute || d.Timeout != 2*time.Minute {
+		t.Errorf("databases = %+v, want enabled with a 5m interval and a 2m timeout", d)
 	}
 
 	cfg, err = config.Parse([]string{"--do.token", "secret", "--no-collector.databases"})
@@ -387,6 +387,27 @@ func TestKubernetesUpgradesDefaultOnAndCanBeDisabled(t *testing.T) {
 	}
 	if cfg.KubernetesUpgrades {
 		t.Error("KubernetesUpgrades = true with the flag negated, want false")
+	}
+}
+
+// The detail lookups are the only part of the databases collector that costs
+// requests per cluster rather than per refresh, so they have a switch of their
+// own. They are on because an account has a handful of clusters, not hundreds.
+func TestDatabaseDetailsDefaultOnAndCanBeDisabled(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !cfg.DatabaseDetails {
+		t.Error("DatabaseDetails = false by default, want true")
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--no-collector.databases.details"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.DatabaseDetails {
+		t.Error("DatabaseDetails = true with the flag negated, want false")
 	}
 }
 

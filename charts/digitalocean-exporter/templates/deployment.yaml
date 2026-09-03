@@ -89,6 +89,12 @@ spec:
             {{- if .Values.collectors.databases.enabled }}
             - --collector.databases
             - --collector.databases.interval={{ .Values.collectors.databases.interval }}
+            - --collector.databases.timeout={{ .Values.collectors.databases.timeout }}
+            {{- if .Values.collectors.databases.details }}
+            - --collector.databases.details
+            {{- else }}
+            - --no-collector.databases.details
+            {{- end }}
             {{- else }}
             - --no-collector.databases
             {{- end }}

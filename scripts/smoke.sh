@@ -92,9 +92,17 @@ CERTIFICATES = {"certificates": [{"id": "cert", "name": "cdn", "type": "lets_enc
 DATABASES = {"databases": [{"id": "1", "name": "main", "engine": "mysql", "version": "8",
                             "num_nodes": 1, "size": "db-2vcpu-4gb", "region": "fra1",
                             "status": "online", "storage_size_mib": 102400,
+                            "users": [{"name": "doadmin"}], "db_names": ["defaultdb"],
+                            "project_id": "p-1", "private_network_uuid": "vpc-1",
+                            "storage_autoscale": {"enabled": True},
                             "maintenance_window": {"day": "sunday", "hour": "03:00:00",
                                                    "pending": False}}],
              "meta": {"total": 1}}
+# The per-cluster detail endpoints, which --collector.databases.details pays
+# two requests per cluster for: one replica and one backup.
+DB_REPLICAS = {"replicas": [{"id": "r1", "name": "main-replica", "region": "fra1",
+                             "status": "online"}]}
+DB_BACKUPS = {"backups": [{"created_at": "2026-08-24T01:00:00Z", "size_gigabytes": 2.5}]}
 # One App Platform app: a service and a static site, with a deployment that has
 # gone live and another rolling out over it. The static site is the component
 # App Platform runs no instances for.
@@ -150,6 +158,8 @@ BUCKET_USAGE = {"x-rgw-object-count": "2", "x-rgw-bytes-used": "3072"}
 ROUTES = {"/v2/customers/my/balance": BALANCE,
           "/v2/apps": APPS,
           "/v2/databases": DATABASES,
+          "/v2/databases/1/replicas": DB_REPLICAS,
+          "/v2/databases/1/backups": DB_BACKUPS,
           "/v2/droplets": DROPLETS,
           "/v2/kubernetes/clusters": CLUSTERS,
           "/v2/kubernetes/clusters/c1/upgrades": UPGRADES,
@@ -315,6 +325,12 @@ for metric in \
   digitalocean_droplet_created_timestamp_seconds \
   digitalocean_database_status \
   digitalocean_database_storage_bytes \
+  digitalocean_database_users \
+  digitalocean_database_storage_autoscale_enabled \
+  digitalocean_database_cluster_info \
+  digitalocean_database_replicas \
+  digitalocean_database_replica_status \
+  digitalocean_database_last_backup_timestamp_seconds \
   digitalocean_kubernetes_cluster_up \
   digitalocean_kubernetes_node_pool_nodes_running \
   digitalocean_kubernetes_node_state \
