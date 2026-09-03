@@ -1627,6 +1627,24 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>Extra command-line flags for the exporter, appended after the ones the chart renders. This is for a flag that has no value of its own here yet, such as <code>--do.timeout=20s</code>. It cannot override one the chart already renders: the flag parser rejects a repeated flag and the container then crash-loops.</td>
 </tr>
 <tr>
+<td>extraEnv</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Extra environment entries for the container, in Kubernetes <code>env</code> form, so <code>valueFrom</code> works as well as plain <code>value</code>. This is for what the cluster imposes — a proxy, a resource attribute for a tracing sidecar — not for credentials: the token stays in the mounted Secret, where it cannot leak through <code>kubectl describe pod</code>.</td>
+</tr>
+<tr>
+<td>extraVolumeMounts</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Extra volume mounts for the container. The container's root filesystem is read-only, so any file the exporter must read — a web configuration, a private CA bundle — has to arrive through one of these.</td>
+</tr>
+<tr>
+<td>extraVolumes</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Extra volumes for the pod, in Kubernetes <code>volumes</code> form — e.g. a Secret holding an exporter-toolkit web configuration for TLS or basic auth. Pair each entry with one in <code>extraVolumeMounts</code>.</td>
+</tr>
+<tr>
 <td>fullnameOverride</td>
 <td>string</td>
 <td><code>""</code></td>
@@ -1699,6 +1717,24 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>Overrides the chart name used in resource names and in the <code>app.kubernetes.io/name</code> label.</td>
 </tr>
 <tr>
+<td>networkPolicy.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Create a NetworkPolicy for the pod. Off by default because it only does anything on a cluster whose CNI enforces NetworkPolicy — on one that does not, it renders and is silently ignored. When on, egress is limited to DNS and to TCP 443, which is all the exporter needs: the DigitalOcean API and Spaces both live behind HTTPS. Ingress is limited to the metrics port, from whatever the two selectors below allow.</td>
+</tr>
+<tr>
+<td>networkPolicy.ingress.namespaceSelector</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Namespaces allowed to scrape the metrics port, as a label selector. The empty selector allows every namespace; narrow it to where your Prometheus runs, e.g. <code>{matchLabels: {kubernetes.io/metadata.name: monitoring}}</code>.</td>
+</tr>
+<tr>
+<td>networkPolicy.ingress.podSelector</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Pods within those namespaces allowed to scrape, as a label selector. The empty selector allows every pod.</td>
+</tr>
+<tr>
 <td>nodeSelector</td>
 <td>object</td>
 <td><code>{}</code></td>
@@ -1711,10 +1747,22 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>Extra annotations for the pod. The chart already sets a checksum of the Secret here, and merges these on top of it.</td>
 </tr>
 <tr>
+<td>podLabels</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Extra labels for the pod, merged over the chart's own — for whatever your cluster tooling selects pods on, such as a cost allocation or network policy label. Do not repeat a label the chart already sets.</td>
+</tr>
+<tr>
 <td>priorityClassName</td>
 <td>string</td>
 <td><code>""</code></td>
 <td>PriorityClass for the pod. An exporter is worth less than what it watches, so a cluster with priority classes usually wants a low one here rather than the default.</td>
+</tr>
+<tr>
+<td>probes.scheme</td>
+<td>string</td>
+<td><code>"HTTP"</code></td>
+<td>Scheme the liveness and readiness probes use, <code>HTTP</code> or <code>HTTPS</code>. Switch it to <code>HTTPS</code> whenever a web configuration passed through <code>extraArgs</code> turns TLS on: the toolkit serves every path over TLS, probes included, and a probe left on plain HTTP fails against the TLS listener until the pod crash-loops. The kubelet skips certificate verification on HTTPS probes, so a self-signed pair works.</td>
 </tr>
 <tr>
 <td>prometheusRule.enabled</td>
@@ -1727,6 +1775,12 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>object</td>
 <td><code>{}</code></td>
 <td>Extra labels for the PrometheusRule, for whatever your Prometheus selects rules on. For kube-prometheus-stack that is usually <code>release: &lt;release name&gt;</code>.</td>
+</tr>
+<tr>
+<td>prometheusRule.namespace</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Namespace to create the PrometheusRule in. Empty means the release namespace. Some Prometheus installations only pick up rules from their own namespace (<code>ruleNamespaceSelector</code> unset with Prometheus running elsewhere), which is when this is worth setting.</td>
 </tr>
 <tr>
 <td>resources</td>
@@ -1753,16 +1807,46 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>Create a Prometheus Operator ServiceMonitor. Requires the CRD to exist in the cluster.</td>
 </tr>
 <tr>
+<td>serviceMonitor.honorLabels</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Keep the label values the exporter serves when they collide with the target labels Prometheus attaches. The exporter's own metrics collide with nothing, so the default off is the safe one; turn it on only if a relabeling here creates a collision on purpose.</td>
+</tr>
+<tr>
 <td>serviceMonitor.interval</td>
 <td>string</td>
 <td><code>"60s"</code></td>
 <td>Scrape interval. Collectors refresh in the background, so this is independent of how often the DigitalOcean API is called.</td>
 </tr>
 <tr>
+<td>serviceMonitor.jobLabel</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Label on the Service whose value becomes the <code>job</code> label of every scraped series. Empty keeps the operator's default, which is the Service name.</td>
+</tr>
+<tr>
 <td>serviceMonitor.labels</td>
 <td>object</td>
 <td><code>{}</code></td>
 <td>Extra labels for the ServiceMonitor, for whatever your Prometheus selects on.</td>
+</tr>
+<tr>
+<td>serviceMonitor.metricRelabelings</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Relabelings applied to the scraped samples before ingestion — the place to drop a metric you do not want to store, such as the Go runtime series.</td>
+</tr>
+<tr>
+<td>serviceMonitor.namespaceSelector</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Namespaces the ServiceMonitor discovers the Service in, e.g. <code>{matchNames: [monitoring]}</code>. Empty means the ServiceMonitor's own namespace, which is right whenever it is installed alongside the chart; set it only when the ServiceMonitor lives somewhere else, such as a central monitoring namespace.</td>
+</tr>
+<tr>
+<td>serviceMonitor.relabelings</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Relabelings applied to the discovered targets before scraping, in Prometheus Operator <code>RelabelConfig</code> form.</td>
 </tr>
 <tr>
 <td>serviceMonitor.scrapeTimeout</td>
@@ -1801,6 +1885,12 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>Spaces secret key that pairs with <code>spaces.accessKey</code>.</td>
 </tr>
 <tr>
+<td>strategy</td>
+<td>object</td>
+<td><code>{"type":"Recreate"}</code></td>
+<td>Deployment update strategy. Recreate rather than Kubernetes' RollingUpdate default, because with one replica the rolling surge runs two exporters side by side through every upgrade — and every token rotation, since the Secret checksum annotation rolls the pod — doubling the API spend and reporting the same account twice for as long as both live, which is exactly what running a single replica is meant to avoid. The cost is a metrics gap of one pod start, and a failed scrape or two is the honest picture of an exporter restarting.</td>
+</tr>
+<tr>
 <td>tolerations</td>
 <td>list</td>
 <td><code>[]</code></td>
@@ -1828,7 +1918,23 @@ reason — it needs a Spaces key pair rather than the API token — and <code>fi
 cost.</p>
 <p><strong><code>serviceMonitor.labels</code></strong> must match your Prometheus' <code>serviceMonitorSelector</code>, or the
 ServiceMonitor is created and quietly ignored. For <code>kube-prometheus-stack</code> that is usually
-<code>release: &lt;release name&gt;</code>.</p>
+<code>release: &lt;release name&gt;</code>. The rest of the ServiceMonitor's knobs —
+<code>namespaceSelector</code>, <code>jobLabel</code>, <code>honorLabels</code>, <code>relabelings</code>, <code>metricRelabelings</code> —
+default to rendering nothing, which leaves the operator's own defaults in charge; the one
+most worth knowing about is <code>metricRelabelings</code>, the place to drop series you do not want
+to store.</p>
+<p><strong><code>strategy</code></strong> defaults to <code>Recreate</code>, not Kubernetes' <code>RollingUpdate</code>. With one replica
+the rolling surge runs two exporters side by side through every upgrade and token
+rotation, doubling the API spend and reporting the account twice — see
+<a href="../#one-replica">one replica</a>.</p>
+<p><strong><code>networkPolicy.enabled</code></strong> creates a NetworkPolicy allowing only DNS and TCP 443 out and
+the metrics port in; <code>networkPolicy.ingress.namespaceSelector</code> and
+<code>networkPolicy.ingress.podSelector</code> narrow who may scrape. Off by default, because it only
+does anything on a cluster whose CNI enforces it. See
+<a href="../#networkpolicy">NetworkPolicy</a>.</p>
+<p><strong><code>probes.scheme</code></strong> exists for one case: a web configuration in <code>extraArgs</code> that turns TLS
+on also turns it on for the probe endpoints, and the kubelet has to be told to probe over
+HTTPS or the pod crash-loops. See <a href="../#tls-and-basic-auth">TLS and basic auth</a>.</p>
 <p><strong><code>resources</code></strong> are sized for what the exporter does: hold one snapshot per collector in
 memory and sleep. The defaults are generous for accounts of any size; the one thing that
 grows is the number of series, which is bounded by how many resources you own.</p>
@@ -1840,10 +1946,18 @@ value of its own for. It cannot override one it does render: the exporter's flag
 rejects a flag given twice rather than taking the later one, so the container would
 crash-loop. A collector is switched off with <code>collectors.&lt;name&gt;.enabled: false</code>, which
 renders <code>--no-collector.&lt;name&gt;</code>, and never through this list.</p>
-<p><strong><code>imagePullSecrets</code>, <code>podAnnotations</code> and <code>priorityClassName</code></strong> are the escape hatches for
-what a cluster imposes rather than what the exporter needs: a private mirror of the image, a
-pod annotation something else in the cluster reads, and a priority low enough that the
-exporter is evicted before what it watches. All three render nothing when unset.</p>
+<p><strong><code>imagePullSecrets</code>, <code>podAnnotations</code>, <code>podLabels</code> and <code>priorityClassName</code></strong> are the
+escape hatches for what a cluster imposes rather than what the exporter needs: a private
+mirror of the image, a pod annotation or label something else in the cluster reads, and a
+priority low enough that the exporter is evicted before what it watches. All of them
+render nothing when unset.</p>
+<p><strong><code>extraEnv</code>, <code>extraVolumes</code> and <code>extraVolumeMounts</code></strong> are the same kind of hatch for the
+pod spec itself, in the corresponding Kubernetes forms — <code>extraEnv</code> entries take
+<code>valueFrom</code> as well as <code>value</code>. Their main use together is mounting an exporter-toolkit
+web configuration for TLS, worked through in
+<a href="../#tls-and-basic-auth">TLS and basic auth</a>. Credentials do not belong in
+<code>extraEnv</code>; the token travels as a mounted file so it cannot leak through
+<code>kubectl describe pod</code>.</p>
 
 
 

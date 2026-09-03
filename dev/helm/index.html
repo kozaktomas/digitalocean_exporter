@@ -879,10 +879,32 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tls-and-basic-auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TLS and basic auth
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#one-replica" class="md-nav__link">
     <span class="md-ellipsis">
       
         One replica
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#networkpolicy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NetworkPolicy
       
     </span>
   </a>
@@ -1371,10 +1393,32 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tls-and-basic-auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TLS and basic auth
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#one-replica" class="md-nav__link">
     <span class="md-ellipsis">
       
         One replica
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#networkpolicy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NetworkPolicy
       
     </span>
   </a>
@@ -1487,6 +1531,10 @@ This section documents the chart itself.</p>
 <td>when <code>prometheusRule.enabled</code> is true</td>
 </tr>
 <tr>
+<td><code>NetworkPolicy</code></td>
+<td>when <code>networkPolicy.enabled</code> is true</td>
+</tr>
+<tr>
 <td><code>ConfigMap</code> (dashboards)</td>
 <td>when <code>grafana.dashboards.enabled</code> is true, one per bundled dashboard</td>
 </tr>
@@ -1519,13 +1567,15 @@ partly to keep you out of it.</p>
 <h2 id="probes">Probes<a class="headerlink" href="#probes" title="Permanent link">&para;</a></h2>
 <p>The two probes point at different endpoints because they answer different questions.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">livenessProbe</span><span class="p">:</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">httpGet</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="nv">/healthz</span><span class="p p-Indicator">,</span><span class="nt"> port</span><span class="p">:</span><span class="w"> </span><span class="nv">metrics</span><span class="p p-Indicator">}</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">httpGet</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="nv">/healthz</span><span class="p p-Indicator">,</span><span class="nt"> port</span><span class="p">:</span><span class="w"> </span><span class="nv">metrics</span><span class="p p-Indicator">,</span><span class="nt"> scheme</span><span class="p">:</span><span class="w"> </span><span class="nv">HTTP</span><span class="p p-Indicator">}</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nt">readinessProbe</span><span class="p">:</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nt">httpGet</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="nv">/readyz</span><span class="p p-Indicator">,</span><span class="nt"> port</span><span class="p">:</span><span class="w"> </span><span class="nv">metrics</span><span class="p p-Indicator">}</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nt">httpGet</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="nv">/readyz</span><span class="p p-Indicator">,</span><span class="nt"> port</span><span class="p">:</span><span class="w"> </span><span class="nv">metrics</span><span class="p p-Indicator">,</span><span class="nt"> scheme</span><span class="p">:</span><span class="w"> </span><span class="nv">HTTP</span><span class="p p-Indicator">}</span>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nt">initialDelaySeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">periodSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="nt">failureThreshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">45</span>
 </code></pre></div>
+<p>The scheme is <code>probes.scheme</code>, and moves to <code>HTTPS</code> together with a TLS web
+configuration — see <a href="#tls-and-basic-auth">TLS and basic auth</a>.</p>
 <p><code>/healthz</code> answers without consulting a collector, which is what liveness wants: a refresh
 that cannot reach the DigitalOcean API is not fixed by killing the pod, and killing it throws
 away the snapshots every other collector holds.</p>
@@ -1549,9 +1599,69 @@ spaces collector is on, mounts the same way at <code>/etc/digitalocean-exporter-
 Kubernetes API, so a token for it would be one more credential sitting in the container
 for nothing.</p>
 <p>See <a href="secrets/">secrets</a> for the two ways to supply it.</p>
+<h2 id="tls-and-basic-auth">TLS and basic auth<a class="headerlink" href="#tls-and-basic-auth" title="Permanent link">&para;</a></h2>
+<p><code>/metrics</code> is plain HTTP inside the cluster. If your cluster's rules require TLS or basic
+auth on it, the exporter supports both through an
+<a href="../configuration/#serving-metrics">exporter-toolkit web configuration</a> —
+the chart has no <code>tls</code> value of its own, but the three escape hatches compose into it.
+Put the web configuration (and the certificate pair it references) in a Secret, mount it
+with <code>extraVolumes</code> and <code>extraVolumeMounts</code>, and pass the flag through <code>extraArgs</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">extraVolumes</span><span class="p">:</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">web-config</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nt">secret</span><span class="p">:</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">      </span><span class="nt">secretName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">exporter-web-config</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="nt">extraVolumeMounts</span><span class="p">:</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">web-config</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="nt">mountPath</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/digitalocean-exporter-web</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="nt">readOnly</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="nt">extraArgs</span><span class="p">:</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">--web.config.file=/etc/digitalocean-exporter-web/web-config.yml</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="nt">probes</span><span class="p">:</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">  </span><span class="nt">scheme</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HTTPS</span>
+</code></pre></div>
+<p>Mount it beside the token mount, not inside it: kubelet manages each secret volume's
+contents with atomic symlink swaps, and a mount point nested in one is needlessly fragile.</p>
+<p>Two consequences of the toolkit serving <em>every</em> path through that configuration, probes
+included:</p>
+<ul>
+<li><strong>TLS needs <code>probes.scheme: HTTPS</code></strong>, as in the example. Without it the kubelet keeps
+  probing plain HTTP against a listener that only speaks TLS, liveness fails, and the pod
+  crash-loops. The kubelet skips certificate verification on HTTPS probes, so a
+  self-signed pair works. Move the scrape to HTTPS as well — the scheme and any
+  credentials are set on the Prometheus side.</li>
+<li><strong>Basic auth alone does not fit in a cluster</strong>: the toolkit answers 401 on <code>/healthz</code>
+  and <code>/readyz</code> too, the probes have no credentials to offer, and the pod is killed as
+  unhealthy. Inside a cluster, restricting who may scrape is the
+  <a href="#networkpolicy">NetworkPolicy</a>'s job; save basic auth for an exporter exposed outside
+  one.</li>
+</ul>
 <h2 id="one-replica">One replica<a class="headerlink" href="#one-replica" title="Permanent link">&para;</a></h2>
 <p>Do not raise <code>replicaCount</code> — there is deliberately no such value. Each replica refreshes
 independently, so a second one doubles the API requests and reports the same account twice.</p>
+<p>The Deployment's update strategy is <code>Recreate</code> for the same reason. The RollingUpdate
+default would surge a second pod during every upgrade — and every token rotation, because
+the Secret checksum annotation rolls the pod — and for as long as both pods live the API
+spend doubles and every series is reported twice. <code>Recreate</code> trades that for a metrics gap
+of one pod start, which is the honest picture of an exporter restarting. It can be put back
+with <code>strategy.type=RollingUpdate</code> if a gap is worse for you than the overlap.</p>
+<h2 id="networkpolicy">NetworkPolicy<a class="headerlink" href="#networkpolicy" title="Permanent link">&para;</a></h2>
+<p><code>networkPolicy.enabled=true</code> creates a NetworkPolicy that allows the pod exactly what it
+needs and nothing else: egress to DNS and to TCP 443 (the DigitalOcean API, and Spaces when
+that collector is on), and ingress only on the metrics port. Who may scrape that port is
+narrowed with the two selectors, which default to allowing everything:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">networkPolicy</span><span class="p">:</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="nt">ingress</span><span class="p">:</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="nt">namespaceSelector</span><span class="p">:</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">      </span><span class="nt">matchLabels</span><span class="p">:</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">        </span><span class="nt">kubernetes.io/metadata.name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monitoring</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="nt">podSelector</span><span class="p">:</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">      </span><span class="nt">matchLabels</span><span class="p">:</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">        </span><span class="nt">app.kubernetes.io/name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prometheus</span>
+</code></pre></div>
+<p>It is off by default because it only does anything on a cluster whose CNI enforces
+NetworkPolicy; on one that does not, it renders and is silently ignored, which is worse
+than absent — it reads as protection that is not there.</p>
 <h2 id="dashboards">Dashboards<a class="headerlink" href="#dashboards" title="Permanent link">&para;</a></h2>
 <p>The chart can render the bundled Grafana dashboards as ConfigMaps for the Grafana sidecar to
 pick up, with <code>grafana.dashboards.enabled=true</code>. It is off by default. See
