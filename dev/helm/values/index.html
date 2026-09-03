@@ -1672,7 +1672,7 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>digitalocean.rateLimit</td>
 <td>int</td>
 <td><code>4</code></td>
-<td>Client-side limit on API requests per second, shared by every collector. DigitalOcean allows 250 requests a minute, and the collectors would otherwise spend their refreshes in bursts; 4 a second is 240 a minute, just inside it. Set it to <code>0</code> to turn the limiter off.</td>
+<td>Client-side limit on API requests per second, shared by every collector. DigitalOcean allows 250 requests a minute, and the collectors would otherwise spend their refreshes in bursts; 4 a second is 240 a minute, just inside it. Set it to <code>0</code> to turn the limiter off; a negative value is rejected at startup.</td>
 </tr>
 <tr>
 <td>digitalocean.token</td>

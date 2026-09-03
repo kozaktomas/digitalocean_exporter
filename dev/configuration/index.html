@@ -1714,10 +1714,17 @@ API requests per second the exporter makes, across every collector at once. Four
 240 a minute, just inside the limit, and requests are paced evenly rather than let out in a
 clump — an even trickle is what the burst limit is asking for. It applies to the DigitalOcean
 API only; the <code>spaces</code> collector talks to the S3-compatible endpoint, which has limits of its
-own. Set it to <code>0</code> to turn it off, which is what a stub API deserves and a real one does not.</p>
+own. Set it to <code>0</code> to turn it off, which is what a stub API deserves and a real one does not.
+<strong>A negative value is refused at startup</strong>, naming the flag, rather than read as another way
+of writing <code>0</code>: turning the pacing off is a deliberate thing to do, and an exporter that did
+it because of a stray minus sign would announce it by being rejected by DigitalOcean.</p>
 <p>Lowering it below the default is the lever to reach for when
 <a href="monitoring-api/"><code>dropletmetrics</code></a> makes a large account uncomfortable; raising it above
-<code>4</code> moves the exporter towards being rejected rather than throttled.</p>
+<code>4</code> moves the exporter towards being rejected rather than throttled. A request that would
+have to queue for longer than the refresh has left is refused there and then, as a deadline
+exceeded: waiting for a turn that arrives after the collector's timeout achieves nothing,
+and the collectors that measure a resource at a time can tell from it that the resource was
+skipped rather than measured, and start the next refresh with it.</p>
 <p><strong>Retries.</strong> A request rejected with <code>429</code>, or failed with a <code>5xx</code>, is tried again — three
 attempts in total. What the exporter waits between them is whatever the response asks for:</p>
 <ul>
@@ -1826,7 +1833,7 @@ web configuration, which is how you get TLS and basic auth:</p>
 <td><code>--do.rate-limit</code></td>
 <td><code>DO_RATE_LIMIT</code></td>
 <td><code>4</code></td>
-<td>API requests per second, over all collectors; <code>0</code> disables it</td>
+<td>API requests per second, over all collectors; <code>0</code> disables it, a negative value is rejected</td>
 </tr>
 <tr>
 <td><code>--log.level</code></td>
