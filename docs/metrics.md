@@ -618,6 +618,32 @@ metrics per load balancer. **Off by default.**
 | `digitalocean_loadbalancer_metrics_up` | `id`, `name` | 1 if the last fetch succeeded |
 | `digitalocean_loadbalancer_metrics_timestamp_seconds` | `id`, `name` | Unix time of the newest sample |
 
+With [`--collector.loadbalancermetrics.extended`](configuration/monitoring-api.md#the-extended-metric-set)
+the rest of what the monitoring API offers per load balancer is read as well:
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_loadbalancer_frontend_http_requests_per_second` | `id`, `name` | Rate of HTTP requests received |
+| `digitalocean_loadbalancer_frontend_network_throughput_http_bytes_per_second` | `id`, `name` | HTTP throughput through the frontend |
+| `digitalocean_loadbalancer_frontend_network_throughput_udp_bytes_per_second` | `id`, `name` | UDP throughput through the frontend |
+| `digitalocean_loadbalancer_frontend_network_throughput_tcp_bytes_per_second` | `id`, `name` | TCP throughput through the frontend |
+| `digitalocean_loadbalancer_frontend_nlb_tcp_network_throughput_bytes_per_second` | `id`, `name` | TCP throughput, network load balancers |
+| `digitalocean_loadbalancer_frontend_nlb_udp_network_throughput_bytes_per_second` | `id`, `name` | UDP throughput, network load balancers |
+| `digitalocean_loadbalancer_frontend_firewall_dropped_bytes_per_second` | `id`, `name` | Bytes the firewall dropped, network load balancers |
+| `digitalocean_loadbalancer_frontend_firewall_dropped_packets_per_second` | `id`, `name` | Packets the firewall dropped, network load balancers |
+| `digitalocean_loadbalancer_frontend_tls_connections_current` | `id`, `name` | Rate of new TLS connections |
+| `digitalocean_loadbalancer_frontend_tls_connections_limit` | `id`, `name` | Maximum TLS connection rate allowed |
+| `digitalocean_loadbalancer_frontend_tls_connections_exceeding_rate_limit` | `id`, `name` | TLS connections closed for exceeding that rate |
+| `digitalocean_loadbalancer_droplets_connections` | `id`, `name`, `server` | Active connections to one backend |
+| `digitalocean_loadbalancer_droplets_queue_size` | `id`, `name` | HTTP requests queued waiting for a backend |
+| `digitalocean_loadbalancer_droplets_http_responses_per_second` | `id`, `name`, `code` | Rate of backend HTTP responses, by code class |
+| `digitalocean_loadbalancer_droplets_http_session_duration_avg_seconds` | `id`, `name` | Average backend HTTP session duration |
+| `digitalocean_loadbalancer_droplets_http_session_duration_p50_seconds` | `id`, `name` | Median backend HTTP session duration |
+| `digitalocean_loadbalancer_droplets_http_session_duration_p95_seconds` | `id`, `name` | 95th percentile backend HTTP session duration |
+| `digitalocean_loadbalancer_droplets_http_response_time_avg_seconds` | `id`, `name` | Average backend response time |
+| `digitalocean_loadbalancer_droplets_http_response_time_p50_seconds` | `id`, `name` | Median backend response time |
+| `digitalocean_loadbalancer_droplets_http_response_time_p99_seconds` | `id`, `name` | 99th percentile backend response time |
+
 Unlike droplet metrics, none of this is available anywhere else: a load balancer cannot run
 `node_exporter`. The metric that earns the collector its keep is
 `digitalocean_loadbalancer_droplets_health_checks`, which names the **individual backend**
@@ -643,16 +669,21 @@ Nothing this API returns for a load balancer is cumulative, so every metric here
 ### Units
 
 The units are those DigitalOcean's own API specification states: percent for frontend CPU,
-seconds for the 95th percentile response time. For the backend health check and downtime the
-specification says only "status" and gives no unit, so none is claimed here either — the
-observed values are 100 for a healthy backend and 0 for downtime on one that is up.
+seconds for the response times and session durations, bytes per second for the network
+throughputs. For the backend health check and downtime the specification says only "status"
+and gives no unit, so none is claimed here either — the observed values are 100 for a
+healthy backend and 0 for downtime on one that is up. The TLS connection metrics are rates —
+the specification calls the current one a "TLS connections rate", and the limit is the rate
+cap the load balancer's size allows — but it names no unit for them, so their names carry
+none, like `frontend_connections_current`.
 
 ### Cost, and what an empty result means
 
-Seven requests per load balancer per refresh, plus one listing. That is far cheaper than the
-droplet equivalent simply because an account has far fewer load balancers; three of them at
-the default interval cost 264 requests an hour against the limit of 5000. It is off by
-default anyway, so that enabling monitoring is always deliberate.
+Seven requests per load balancer per refresh, plus one listing — 27 with the
+[extended set](configuration/monitoring-api.md#the-extended-metric-set) on. That is far
+cheaper than the droplet equivalent simply because an account has far fewer load balancers;
+three of them at the default interval cost 264 requests an hour against the limit of 5000.
+It is off by default anyway, so that enabling monitoring is always deliberate.
 
 An empty result is normal rather than exceptional here. A load balancer with no traffic has
 no HTTP response series at all, and a network load balancer never has the HTTP metrics. Such

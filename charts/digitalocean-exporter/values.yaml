@@ -277,6 +277,12 @@ collectors:
     timeout: 2m
     # -- How many load balancers are queried at once.
     concurrency: 4
+    # -- Also read the extended metric set per load balancer: TLS connections,
+    # request queue size, latency percentiles (p50/p95/p99 and averages),
+    # network throughput and firewall drops. Off by default because it raises
+    # the cost from 7 to 27 monitoring API requests per load balancer per
+    # refresh.
+    extended: false
 
 log:
   # -- Log level: `debug`, `info`, `warn` or `error`.

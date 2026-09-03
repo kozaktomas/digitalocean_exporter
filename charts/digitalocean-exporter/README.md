@@ -58,6 +58,7 @@ helm install digitalocean-exporter digitalocean-exporter/digitalocean-exporter \
 | collectors.limits.interval | string | `"5m"` | How often the limits collector refreshes. |
 | collectors.loadbalancermetrics.concurrency | int | `4` | How many load balancers are queried at once. |
 | collectors.loadbalancermetrics.enabled | bool | `false` | Report traffic and per-backend health per load balancer, at 7 monitoring API requests per load balancer per refresh. Off by default, but an account has far fewer load balancers than droplets, so the cost is usually small — and a load balancer cannot run node_exporter, which makes this the only source for its traffic and for which backend droplet is failing its check. |
+| collectors.loadbalancermetrics.extended | bool | `false` | Also read the extended metric set per load balancer: TLS connections, request queue size, latency percentiles (p50/p95/p99 and averages), network throughput and firewall drops. Off by default because it raises the cost from 7 to 27 monitoring API requests per load balancer per refresh. |
 | collectors.loadbalancermetrics.interval | string | `"5m"` | How often the loadbalancermetrics collector refreshes. |
 | collectors.loadbalancermetrics.timeout | string | `"2m"` | Timeout of one full loadbalancermetrics refresh. |
 | collectors.loadbalancers.enabled | bool | `true` | Report the state, backend count and billed size of every load balancer. Traffic through them belongs to the loadbalancermetrics collector. |

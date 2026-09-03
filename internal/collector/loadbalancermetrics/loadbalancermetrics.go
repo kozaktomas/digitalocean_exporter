@@ -10,7 +10,10 @@
 // The cost is the same shape as the droplet metrics collector's — one request
 // per metric per load balancer — but far smaller, since an account has orders
 // of magnitude fewer load balancers than droplets. It is off by default all the
-// same, so that enabling monitoring is always a deliberate act.
+// same, so that enabling monitoring is always a deliberate act. The extended
+// metric set — TLS connections, request queue, latency percentiles, network
+// throughput, firewall drops — nearly quadruples that cost, so it hides behind
+// a flag of its own for the same reason.
 //
 // An empty result is normal here rather than exceptional: a load balancer with
 // no traffic has no HTTP response series at all, and a network load balancer
@@ -95,6 +98,7 @@ type Collector struct {
 	client      *godo.Client
 	logger      *slog.Logger
 	concurrency int
+	extended    bool
 	filter      filter.Filter
 
 	mu   sync.RWMutex
@@ -109,13 +113,18 @@ type Collector struct {
 // only the load balancers f matches — a rejected one is not measured at all,
 // so the filter cuts this collector's request cost, not just its output.
 // Concurrency caps how many load balancers are measured at once and is raised
-// to 1 if it is lower; logger receives a warning for each one that could not
-// be measured, since that failure never reaches the scheduler.
-func New(client *godo.Client, concurrency int, f filter.Filter, logger *slog.Logger) *Collector {
+// to 1 if it is lower; extended adds the extended metric set to every fetch;
+// logger receives a warning for each load balancer that could not be measured,
+// since that failure never reaches the scheduler.
+func New(
+	client *godo.Client, concurrency int, extended bool, f filter.Filter, logger *slog.Logger,
+) *Collector {
 	if concurrency < 1 {
 		concurrency = 1
 	}
-	return &Collector{client: client, logger: logger, concurrency: concurrency, filter: f}
+	return &Collector{
+		client: client, logger: logger, concurrency: concurrency, extended: extended, filter: f,
+	}
 }
 
 // Name implements collector.Collector.
@@ -296,9 +305,15 @@ dispatch:
 	return results
 }
 
-// measure fetches every metric of one load balancer. Any failed request fails
-// the load balancer: a partial reading would mix fresh numbers with stale ones
-// under the same timestamp.
+// measure fetches every metric of one load balancer. A failed base request
+// fails the load balancer: a partial reading would mix fresh numbers with
+// stale ones under the same timestamp. A failed extended request is contained
+// instead — logged, its metric absent for this load balancer, the rest kept —
+// so one metric the API will not answer does not blank a load balancer's whole
+// reading refresh after refresh. Absent is honest where stale is not: the
+// other metrics are fresh, so replaying an old value for this one would mix
+// timestamps under one load balancer. Running out of time is not contained:
+// that failure is the refresh's, not the metric's.
 func (c *Collector) measure(
 	ctx context.Context, ref reference, start, end time.Time,
 ) (loadBalancer, error) {
@@ -306,30 +321,54 @@ func (c *Collector) measure(
 	req := &godo.LoadBalancerMetricsRequest{LoadBalancerID: ref.id, Start: start, End: end}
 
 	for _, s := range specs {
-		resp, _, err := s.fetch(ctx, c.client, req)
-		if err != nil {
-			return loadBalancer{}, fmt.Errorf("fetch %s: %w", s.name, err)
-		}
-		samples, err := timeseries.Latest(resp)
-		if err != nil {
-			return loadBalancer{}, fmt.Errorf("read %s: %w", s.name, err)
-		}
-
-		for _, sample := range samples {
-			labels := make([]string, 0, len(identity)+len(s.seriesLabels))
-			labels = append(labels, ref.id, ref.name)
-			for _, name := range s.seriesLabels {
-				labels = append(labels, sample.Label(name))
-			}
-			out.points = append(out.points,
-				point{desc: s.desc, labels: labels, value: sample.Value})
-
-			if at := float64(sample.Time.Unix()); at > out.sampled {
-				out.sampled = at
-			}
+		if err := c.fetch(ctx, &out, s, req); err != nil {
+			return loadBalancer{}, err
 		}
 	}
+	if !c.extended {
+		return out, nil
+	}
+	for _, s := range extendedSpecs {
+		err := c.fetch(ctx, &out, s, req)
+		if err == nil {
+			continue
+		}
+		if starved(err) {
+			return loadBalancer{}, err
+		}
+		c.logger.Warn("fetching an extended metric failed, leaving it absent",
+			"loadbalancer", ref.name, "id", ref.id, "error", err)
+	}
 	return out, nil
+}
+
+// fetch performs one metric request and appends what came back to out.
+func (c *Collector) fetch(
+	ctx context.Context, out *loadBalancer, s spec, req *godo.LoadBalancerMetricsRequest,
+) error {
+	resp, _, err := s.fetch(ctx, c.client, req)
+	if err != nil {
+		return fmt.Errorf("fetch %s: %w", s.name, err)
+	}
+	samples, err := timeseries.Latest(resp)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", s.name, err)
+	}
+
+	for _, sample := range samples {
+		labels := make([]string, 0, len(identity)+len(s.seriesLabels))
+		labels = append(labels, out.id, out.name)
+		for _, name := range s.seriesLabels {
+			labels = append(labels, sample.Label(name))
+		}
+		out.points = append(out.points,
+			point{desc: s.desc, labels: labels, value: sample.Value})
+
+		if at := float64(sample.Time.Unix()); at > out.sampled {
+			out.sampled = at
+		}
+	}
+	return nil
 }
 
 // merge replaces the snapshot with the results, keeping the previous readings

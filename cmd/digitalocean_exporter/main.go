@@ -170,7 +170,8 @@ func registerCollectors(
 			})
 		}},
 		{"loadbalancermetrics", func() collector.Collector {
-			return loadbalancermetrics.New(client, cfg.LoadBalancerMetricsConcurrency, flt, logger)
+			return loadbalancermetrics.New(client, cfg.LoadBalancerMetricsConcurrency,
+				cfg.LoadBalancerMetricsExtended, flt, logger)
 		}},
 	}
 

@@ -763,6 +763,9 @@ func TestLoadBalancerMetricsCollectorDefaultsOff(t *testing.T) {
 	if cfg.LoadBalancerMetricsConcurrency != 4 {
 		t.Errorf("LoadBalancerMetricsConcurrency = %d, want 4", cfg.LoadBalancerMetricsConcurrency)
 	}
+	if cfg.LoadBalancerMetricsExtended {
+		t.Error("LoadBalancerMetricsExtended = enabled by default, want disabled")
+	}
 
 	cfg, err = config.Parse([]string{"--do.token", "secret", "--collector.loadbalancermetrics"})
 	if err != nil {
@@ -770,6 +773,19 @@ func TestLoadBalancerMetricsCollectorDefaultsOff(t *testing.T) {
 	}
 	if !cfg.Collectors["loadbalancermetrics"].Enabled {
 		t.Error("loadbalancermetrics collector = disabled, want enabled")
+	}
+}
+
+// The extended metric set nearly quadruples the collector's request cost, so
+// it is an opt-in of its own on top of the collector's.
+func TestLoadBalancerMetricsExtendedFlag(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret",
+		"--collector.loadbalancermetrics", "--collector.loadbalancermetrics.extended"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !cfg.LoadBalancerMetricsExtended {
+		t.Error("LoadBalancerMetricsExtended = disabled, want enabled")
 	}
 }
 

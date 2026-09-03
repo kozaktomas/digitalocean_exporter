@@ -14,7 +14,8 @@ these collectors costs:
 | Collector | Requests per refresh |
 |---|---|
 | `dropletmetrics` | 1 droplet listing + **10 per droplet** |
-| `loadbalancermetrics` | **7 per load balancer** |
+| `loadbalancermetrics` | 1 load balancer listing + **7 per load balancer** |
+| `loadbalancermetrics` with [`--collector.loadbalancermetrics.extended`](#the-extended-metric-set) | 1 load balancer listing + **27 per load balancer** |
 
 Turned into an hourly figure:
 
@@ -36,7 +37,8 @@ account before enabling it**, and if the number is uncomfortable, lengthen the i
 `15m` cuts it to a third.
 
 Load balancers are different in practice only because accounts have far fewer of them. Ten
-load balancers at `5m` is 12 × 70 = 840 requests an hour, which is affordable.
+load balancers at `5m` is 12 × 71 = 852 requests an hour, which is affordable — 12 × 271 =
+3,252 with the extended set, which is the arithmetic to do before switching that on.
 
 !!! danger "The per-minute limit bites first"
 
@@ -179,5 +181,33 @@ answered with no series at all — a network load balancer has no HTTP metrics e
 with nothing under it.
 
 This collector honours [filtering](index.md#filtering) the same way `dropletmetrics` does:
-a load balancer the tag and region filter rejects is never measured, so its seven requests
-per refresh are never spent.
+a load balancer the tag and region filter rejects is never measured, so its requests per
+refresh — seven, or 27 with the extended set — are never spent.
+
+### The extended metric set
+
+The seven metrics above are a subset of what the monitoring API offers per load balancer.
+`--collector.loadbalancermetrics.extended` (default off) reads the other twenty as well:
+TLS connections (current rate, the rate limit, and connections closed for exceeding it),
+the backend request queue, response time and session duration percentiles (average, p50,
+p95, p99), per-backend connections and response codes, frontend network throughput per
+protocol, and the bytes and packets a network load balancer's firewall dropped. The
+[metrics reference](../metrics.md#load-balancer-metrics) lists them all.
+
+```bash
+digitalocean_exporter --collector.loadbalancermetrics --collector.loadbalancermetrics.extended
+```
+
+Each of those is **one more request per load balancer per refresh** — that is the entire
+reason they are opt-in. With the flag set, a refresh costs 27 requests per load balancer
+instead of 7; redo the budget arithmetic above before enabling it.
+
+Many of the extended metrics apply to one kind of load balancer only: the `nlb_` throughputs
+and the firewall drops exist for network load balancers, everything HTTP and TLS for
+regional ones. The API answers an inapplicable metric with an empty result, which is not a
+failure — the series is simply absent, exactly like an idle load balancer's HTTP metrics.
+
+Failures are contained per metric rather than per load balancer: an extended metric the API
+refuses is logged and left absent for that load balancer this refresh, while its other
+readings stay fresh and `digitalocean_loadbalancer_metrics_up` stays 1. A failing *base*
+metric still fails the whole load balancer, exactly as without the flag.

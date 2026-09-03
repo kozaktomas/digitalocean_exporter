@@ -228,6 +228,11 @@ spec:
             - --collector.loadbalancermetrics.interval={{ .Values.collectors.loadbalancermetrics.interval }}
             - --collector.loadbalancermetrics.timeout={{ .Values.collectors.loadbalancermetrics.timeout }}
             - --collector.loadbalancermetrics.concurrency={{ .Values.collectors.loadbalancermetrics.concurrency }}
+            {{- if .Values.collectors.loadbalancermetrics.extended }}
+            - --collector.loadbalancermetrics.extended
+            {{- else }}
+            - --no-collector.loadbalancermetrics.extended
+            {{- end }}
             {{- else }}
             - --no-collector.loadbalancermetrics
             {{- end }}

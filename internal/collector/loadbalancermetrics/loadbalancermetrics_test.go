@@ -71,6 +71,70 @@ var bodies = map[string]string{
 	),
 }
 
+// extendedBodies is what the extended metric set returns, kept apart from
+// bodies so that len(bodies) stays the request cost of a base fetch. The two
+// nlb throughputs answer empty, as they do for a regional load balancer.
+var extendedBodies = map[string]string{
+	"/v2/monitoring/metrics/load_balancer/frontend_http_requests_per_second": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "88.2"),
+	),
+	"/v2/monitoring/metrics/load_balancer/frontend_network_throughput_http": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "150000"),
+	),
+	"/v2/monitoring/metrics/load_balancer/frontend_network_throughput_udp": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "0"),
+	),
+	"/v2/monitoring/metrics/load_balancer/frontend_network_throughput_tcp": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "173310.35"),
+	),
+	"/v2/monitoring/metrics/load_balancer/frontend_nlb_tcp_network_throughput": empty,
+	"/v2/monitoring/metrics/load_balancer/frontend_nlb_udp_network_throughput": empty,
+	"/v2/monitoring/metrics/load_balancer/frontend_firewall_dropped_bytes": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "11.65"),
+	),
+	"/v2/monitoring/metrics/load_balancer/frontend_firewall_dropped_packets": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "0.15"),
+	),
+	"/v2/monitoring/metrics/load_balancer/frontend_tls_connections_current": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "3.4"),
+	),
+	"/v2/monitoring/metrics/load_balancer/frontend_tls_connections_limit": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "250"),
+	),
+	"/v2/monitoring/metrics/load_balancer/frontend_tls_connections_exceeding_rate_limit": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "0"),
+	),
+	"/v2/monitoring/metrics/load_balancer/droplets_connections": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1","server":"node-1"}`, "18"),
+		point(`{"lb_id":"lb-1","region":"fra1","server":"node-2"}`, "26"),
+	),
+	"/v2/monitoring/metrics/load_balancer/droplets_queue_size": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "2"),
+	),
+	"/v2/monitoring/metrics/load_balancer/droplets_http_responses": matrix(
+		point(`{"code":"2xx","lb_id":"lb-1","region":"fra1"}`, "10.5"),
+		point(`{"code":"5xx","lb_id":"lb-1","region":"fra1"}`, "0.1"),
+	),
+	"/v2/monitoring/metrics/load_balancer/droplets_http_session_duration_avg": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "70.95"),
+	),
+	"/v2/monitoring/metrics/load_balancer/droplets_http_session_duration_50p": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "36.4"),
+	),
+	"/v2/monitoring/metrics/load_balancer/droplets_http_session_duration_95p": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "269.4"),
+	),
+	"/v2/monitoring/metrics/load_balancer/droplets_http_response_time_avg": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "0.007"),
+	),
+	"/v2/monitoring/metrics/load_balancer/droplets_http_response_time_50p": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "0.004"),
+	),
+	"/v2/monitoring/metrics/load_balancer/droplets_http_response_time_99p": matrix(
+		point(`{"lb_id":"lb-1","region":"fra1"}`, "0.093"),
+	),
+}
+
 const oneLoadBalancerJSON = `{"load_balancers":[{"id":"lb-1","name":"public"}],"meta":{"total":1}}`
 
 const wantMetrics = `
@@ -106,17 +170,94 @@ digitalocean_loadbalancer_metrics_timestamp_seconds{id="lb-1",name="public"} 1.7
 digitalocean_loadbalancer_metrics_up{id="lb-1",name="public"} 1
 `
 
+// wantExtendedMetrics is wantMetrics plus everything the extended flag adds.
+// The nlb throughputs are absent, not zero: their stubs answer empty.
+const wantExtendedMetrics = wantMetrics + `
+# HELP digitalocean_loadbalancer_droplets_connections Active connections to a backend droplet.
+# TYPE digitalocean_loadbalancer_droplets_connections gauge
+digitalocean_loadbalancer_droplets_connections{id="lb-1",name="public",server="node-1"} 18
+digitalocean_loadbalancer_droplets_connections{id="lb-1",name="public",server="node-2"} 26
+# HELP digitalocean_loadbalancer_droplets_http_response_time_avg_seconds Average backend response time.
+# TYPE digitalocean_loadbalancer_droplets_http_response_time_avg_seconds gauge
+digitalocean_loadbalancer_droplets_http_response_time_avg_seconds{id="lb-1",name="public"} 0.007
+# HELP digitalocean_loadbalancer_droplets_http_response_time_p50_seconds Median backend response time.
+# TYPE digitalocean_loadbalancer_droplets_http_response_time_p50_seconds gauge
+digitalocean_loadbalancer_droplets_http_response_time_p50_seconds{id="lb-1",name="public"} 0.004
+# HELP digitalocean_loadbalancer_droplets_http_response_time_p99_seconds 99th percentile backend response time.
+# TYPE digitalocean_loadbalancer_droplets_http_response_time_p99_seconds gauge
+digitalocean_loadbalancer_droplets_http_response_time_p99_seconds{id="lb-1",name="public"} 0.093
+# HELP digitalocean_loadbalancer_droplets_http_responses_per_second Rate of backend HTTP responses, by code class.
+# TYPE digitalocean_loadbalancer_droplets_http_responses_per_second gauge
+digitalocean_loadbalancer_droplets_http_responses_per_second{code="2xx",id="lb-1",name="public"} 10.5
+digitalocean_loadbalancer_droplets_http_responses_per_second{code="5xx",id="lb-1",name="public"} 0.1
+# HELP digitalocean_loadbalancer_droplets_http_session_duration_avg_seconds Average backend session duration.
+# TYPE digitalocean_loadbalancer_droplets_http_session_duration_avg_seconds gauge
+digitalocean_loadbalancer_droplets_http_session_duration_avg_seconds{id="lb-1",name="public"} 70.95
+# HELP digitalocean_loadbalancer_droplets_http_session_duration_p50_seconds Median backend session duration.
+# TYPE digitalocean_loadbalancer_droplets_http_session_duration_p50_seconds gauge
+digitalocean_loadbalancer_droplets_http_session_duration_p50_seconds{id="lb-1",name="public"} 36.4
+# HELP digitalocean_loadbalancer_droplets_http_session_duration_p95_seconds 95th percentile backend session duration.
+# TYPE digitalocean_loadbalancer_droplets_http_session_duration_p95_seconds gauge
+digitalocean_loadbalancer_droplets_http_session_duration_p95_seconds{id="lb-1",name="public"} 269.4
+# HELP digitalocean_loadbalancer_droplets_queue_size HTTP requests queued waiting for a backend.
+# TYPE digitalocean_loadbalancer_droplets_queue_size gauge
+digitalocean_loadbalancer_droplets_queue_size{id="lb-1",name="public"} 2
+# HELP digitalocean_loadbalancer_frontend_firewall_dropped_bytes_per_second Bytes dropped by the frontend firewall.
+# TYPE digitalocean_loadbalancer_frontend_firewall_dropped_bytes_per_second gauge
+digitalocean_loadbalancer_frontend_firewall_dropped_bytes_per_second{id="lb-1",name="public"} 11.65
+# HELP digitalocean_loadbalancer_frontend_firewall_dropped_packets_per_second Packets dropped by the frontend firewall.
+# TYPE digitalocean_loadbalancer_frontend_firewall_dropped_packets_per_second gauge
+digitalocean_loadbalancer_frontend_firewall_dropped_packets_per_second{id="lb-1",name="public"} 0.15
+# HELP digitalocean_loadbalancer_frontend_http_requests_per_second Rate of HTTP requests received.
+# TYPE digitalocean_loadbalancer_frontend_http_requests_per_second gauge
+digitalocean_loadbalancer_frontend_http_requests_per_second{id="lb-1",name="public"} 88.2
+# HELP digitalocean_loadbalancer_frontend_network_throughput_http_bytes_per_second HTTP throughput through the frontend.
+# TYPE digitalocean_loadbalancer_frontend_network_throughput_http_bytes_per_second gauge
+digitalocean_loadbalancer_frontend_network_throughput_http_bytes_per_second{id="lb-1",name="public"} 150000
+# HELP digitalocean_loadbalancer_frontend_network_throughput_tcp_bytes_per_second TCP throughput through the frontend.
+# TYPE digitalocean_loadbalancer_frontend_network_throughput_tcp_bytes_per_second gauge
+digitalocean_loadbalancer_frontend_network_throughput_tcp_bytes_per_second{id="lb-1",name="public"} 173310.35
+# HELP digitalocean_loadbalancer_frontend_network_throughput_udp_bytes_per_second UDP throughput through the frontend.
+# TYPE digitalocean_loadbalancer_frontend_network_throughput_udp_bytes_per_second gauge
+digitalocean_loadbalancer_frontend_network_throughput_udp_bytes_per_second{id="lb-1",name="public"} 0
+# HELP digitalocean_loadbalancer_frontend_tls_connections_current Rate of new TLS connections to the frontend.
+# TYPE digitalocean_loadbalancer_frontend_tls_connections_current gauge
+digitalocean_loadbalancer_frontend_tls_connections_current{id="lb-1",name="public"} 3.4
+# HELP digitalocean_loadbalancer_frontend_tls_connections_exceeding_rate_limit TLS connections the rate limit closed.
+# TYPE digitalocean_loadbalancer_frontend_tls_connections_exceeding_rate_limit gauge
+digitalocean_loadbalancer_frontend_tls_connections_exceeding_rate_limit{id="lb-1",name="public"} 0
+# HELP digitalocean_loadbalancer_frontend_tls_connections_limit Maximum TLS connection rate the frontend allows.
+# TYPE digitalocean_loadbalancer_frontend_tls_connections_limit gauge
+digitalocean_loadbalancer_frontend_tls_connections_limit{id="lb-1",name="public"} 250
+`
+
 // newTestCollector wires an unfiltered collector to a fake DigitalOcean API.
 func newTestCollector(
 	t *testing.T, concurrency int, handler http.HandlerFunc,
 ) *loadbalancermetrics.Collector {
 	t.Helper()
-	return newFilteredCollector(t, concurrency, filter.Filter{}, handler)
+	return newCollector(t, concurrency, false, filter.Filter{}, handler)
+}
+
+// newExtendedCollector is newTestCollector with the extended metric set on.
+func newExtendedCollector(
+	t *testing.T, concurrency int, handler http.HandlerFunc,
+) *loadbalancermetrics.Collector {
+	t.Helper()
+	return newCollector(t, concurrency, true, filter.Filter{}, handler)
 }
 
 // newFilteredCollector is newTestCollector with a filter set.
 func newFilteredCollector(
 	t *testing.T, concurrency int, f filter.Filter, handler http.HandlerFunc,
+) *loadbalancermetrics.Collector {
+	t.Helper()
+	return newCollector(t, concurrency, false, f, handler)
+}
+
+// newCollector wires a collector to a fake DigitalOcean API.
+func newCollector(
+	t *testing.T, concurrency int, extended bool, f filter.Filter, handler http.HandlerFunc,
 ) *loadbalancermetrics.Collector {
 	t.Helper()
 	srv := httptest.NewServer(handler)
@@ -132,7 +273,7 @@ func newFilteredCollector(
 		t.Fatalf("new client: %v", err)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return loadbalancermetrics.New(client, concurrency, f, logger)
+	return loadbalancermetrics.New(client, concurrency, extended, f, logger)
 }
 
 // okHandler serves one load balancer and a full set of readings for it.
@@ -149,6 +290,16 @@ func okHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
 }
 
+// extendedOkHandler is okHandler serving the extended metric set as well.
+func extendedOkHandler(w http.ResponseWriter, r *http.Request) {
+	if body, ok := extendedBodies[r.URL.Path]; ok {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+		return
+	}
+	okHandler(w, r)
+}
+
 func TestCollectAfterRefresh(t *testing.T) {
 	c := newTestCollector(t, 4, okHandler)
 	if err := c.Refresh(context.Background()); err != nil {
@@ -156,6 +307,103 @@ func TestCollectAfterRefresh(t *testing.T) {
 	}
 
 	if err := testutil.CollectAndCompare(c, strings.NewReader(wantMetrics)); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+}
+
+func TestExtendedCollectAfterRefresh(t *testing.T) {
+	c := newExtendedCollector(t, 4, extendedOkHandler)
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	if err := testutil.CollectAndCompare(c, strings.NewReader(wantExtendedMetrics)); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+}
+
+// Without the extended flag the collector must not just hide the extended
+// metrics but never ask for them: the exposition stays exactly the base set
+// even against an API that would answer, and the request cost per load
+// balancer stays at len(specs).
+func TestWithoutExtendedFlagOnlyBaseMetricsAreFetched(t *testing.T) {
+	var mu sync.Mutex
+	requests := 0
+	c := newTestCollector(t, 1, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v2/load_balancers" {
+			mu.Lock()
+			requests++
+			mu.Unlock()
+		}
+		extendedOkHandler(w, r)
+	})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	if want := len(bodies); requests != want {
+		t.Errorf("metric requests without the extended flag = %d, want %d", requests, want)
+	}
+	if err := testutil.CollectAndCompare(c, strings.NewReader(wantMetrics)); err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+}
+
+// A failed extended metric is contained: it is absent for that load balancer,
+// the load balancer stays up and every other metric keeps its reading.
+func TestFailedExtendedMetricLeavesTheRestStanding(t *testing.T) {
+	c := newExtendedCollector(t, 1, func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "droplets_queue_size") {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		extendedOkHandler(w, r)
+	})
+
+	if err := c.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh with one failing extended metric: %v", err)
+	}
+
+	const want = `
+# HELP digitalocean_loadbalancer_frontend_tls_connections_limit Maximum TLS connection rate the frontend allows.
+# TYPE digitalocean_loadbalancer_frontend_tls_connections_limit gauge
+digitalocean_loadbalancer_frontend_tls_connections_limit{id="lb-1",name="public"} 250
+# HELP digitalocean_loadbalancer_metrics_up Whether the load balancer's last metrics fetch succeeded.
+# TYPE digitalocean_loadbalancer_metrics_up gauge
+digitalocean_loadbalancer_metrics_up{id="lb-1",name="public"} 1
+`
+	err := testutil.CollectAndCompare(c, strings.NewReader(want),
+		"digitalocean_loadbalancer_droplets_queue_size",
+		"digitalocean_loadbalancer_frontend_tls_connections_limit",
+		"digitalocean_loadbalancer_metrics_up")
+	if err != nil {
+		t.Errorf("unexpected metrics: %v", err)
+	}
+}
+
+// A failed base metric still fails the whole load balancer, extended set or
+// not: the leniency belongs to the extended metrics alone.
+func TestFailedBaseMetricStillFailsTheLoadBalancerWhenExtended(t *testing.T) {
+	c := newExtendedCollector(t, 1, func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "frontend_cpu_utilization") {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		extendedOkHandler(w, r)
+	})
+
+	if err := c.Refresh(context.Background()); err == nil {
+		t.Fatal("expected the refresh to fail when the only load balancer's base fetch fails")
+	}
+
+	const want = `
+# HELP digitalocean_loadbalancer_metrics_up Whether the load balancer's last metrics fetch succeeded.
+# TYPE digitalocean_loadbalancer_metrics_up gauge
+digitalocean_loadbalancer_metrics_up{id="lb-1",name="public"} 0
+`
+	const metric = "digitalocean_loadbalancer_metrics_up"
+	if err := testutil.CollectAndCompare(c, strings.NewReader(want), metric); err != nil {
 		t.Errorf("unexpected metrics: %v", err)
 	}
 }
@@ -413,7 +661,7 @@ func TestDescribeCoversEveryMetric(t *testing.T) {
 	for range ch {
 		count++
 	}
-	if want := 9; count != want {
+	if want := 29; count != want {
 		t.Errorf("Describe sent %d descriptors, want %d", count, want)
 	}
 }

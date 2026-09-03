@@ -130,6 +130,10 @@ type Config struct {
 	// LoadBalancerMetricsConcurrency caps how many load balancers the load
 	// balancer metrics collector measures at once.
 	LoadBalancerMetricsConcurrency int
+	// LoadBalancerMetricsExtended adds the extended metric set to the load
+	// balancer metrics collector, at 20 more API requests per load balancer
+	// per refresh.
+	LoadBalancerMetricsExtended bool
 	// KubernetesUpgrades lets the Kubernetes collector ask what each cluster
 	// can be upgraded to, at one API request per cluster per refresh.
 	KubernetesUpgrades bool
@@ -176,6 +180,7 @@ type flags struct {
 	lbmInterval      *time.Duration
 	lbmTimeout       *time.Duration
 	lbmConcurrency   *int
+	lbmExtended      *bool
 	spaces           *bool
 	spacesInterval   *time.Duration
 	spacesTimeout    *time.Duration
@@ -406,7 +411,8 @@ func bindMonitoring(app *kingpin.Application, f *flags) {
 			"An agent installed after the droplet was created does not set that feature.").
 		Envar("COLLECTOR_DROPLETMETRICS_AGENT_ONLY").Default("false").Bool()
 	f.lbMetrics = app.Flag("collector.loadbalancermetrics",
-		"Enable the load balancer metrics collector. Costs 7 API requests per load balancer.").
+		"Enable the load balancer metrics collector. Costs 7 API requests per load balancer, "+
+			"27 with the extended set.").
 		Envar("COLLECTOR_LOADBALANCERMETRICS").Default("false").Bool()
 	f.lbmInterval = app.Flag("collector.loadbalancermetrics.interval",
 		"Refresh interval of the load balancer metrics collector. The API samples every 2m.").
@@ -417,6 +423,11 @@ func bindMonitoring(app *kingpin.Application, f *flags) {
 	f.lbmConcurrency = app.Flag("collector.loadbalancermetrics.concurrency",
 		"How many load balancers to measure at once.").
 		Envar("COLLECTOR_LOADBALANCERMETRICS_CONCURRENCY").Default("4").Int()
+	f.lbmExtended = app.Flag("collector.loadbalancermetrics.extended",
+		"Also read the extended metric set: TLS connections, request queue, latency "+
+			"percentiles, network throughput and firewall drops. Raises the cost from "+
+			"7 to 27 API requests per load balancer per refresh.").
+		Envar("COLLECTOR_LOADBALANCERMETRICS_EXTENDED").Default("false").Bool()
 }
 
 // bindSpaces declares the flags of the Spaces collector, which brings its own
@@ -501,6 +512,7 @@ func (f *flags) config() (*Config, error) {
 		DropletMetricsConcurrency:      *f.dmConcurrency,
 		DropletMetricsAgentOnly:        *f.dmAgentOnly,
 		LoadBalancerMetricsConcurrency: *f.lbmConcurrency,
+		LoadBalancerMetricsExtended:    *f.lbmExtended,
 		KubernetesUpgrades:             *f.k8sUpgrades,
 		DatabaseDetails:                *f.dbDetails,
 	}, nil
