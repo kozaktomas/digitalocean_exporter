@@ -502,6 +502,27 @@ groups:
             Replace it by hand.
           runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#certificates-and-firewalls
 
+      - alert: DigitalOceanLoadBalancerCertificateExpiring
+        expr: >-
+          (digitalocean_certificate_expiry_timestamp_seconds - time()) / 86400 < 14
+          and on (id)
+          label_replace(digitalocean_loadbalancer_forwarding_rule_info{certificate_id!=""},
+          "id", "$1", "certificate_id", "(.+)")
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: Certificate {{ $labels.name }} on a load balancer expires in under 14 days
+          description: >-
+            A certificate that a load balancer's forwarding rule terminates TLS with is
+            within two weeks of expiry. This narrows DigitalOceanCertificateExpiringSoon
+            to the certificates actually serving traffic: when it fires, expiry means TLS
+            errors on a live frontend, not an unused certificate lapsing quietly. It joins
+            the forwarding rules to the certificate inventory, so it needs both the
+            loadbalancers collector and the certificates collector, which is off by
+            default.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#certificates-and-firewalls
+
       - alert: DigitalOceanCertificateError
         expr: digitalocean_certificate_info{state="error"} == 1
         for: 1h

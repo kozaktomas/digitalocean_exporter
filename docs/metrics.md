@@ -234,7 +234,14 @@ Collected by `loadbalancers` from `/v2/load_balancers`, one set of metrics per l
 | `digitalocean_loadbalancer_droplets` | `id`, `name`, `ip` | Number of droplets it proxies to |
 | `digitalocean_loadbalancer_size_units` | `id`, `name`, `ip` | Size units the load balancer is billed for |
 | `digitalocean_loadbalancer_forwarding_rules` | `id`, `name`, `ip` | Number of forwarding rules configured |
-| `digitalocean_loadbalancer_info` | `id`, `name`, `ip`, `region`, `size`, `type`, `algorithm`, `vpc_uuid` | Always 1 |
+| `digitalocean_loadbalancer_info` | `id`, `name`, `ip`, `region`, `size`, `type`, `algorithm`, `vpc_uuid`, `tag` | Always 1. `tag` is the droplet tag the load balancer selects its backends by, empty when they are listed by ID |
+| `digitalocean_loadbalancer_forwarding_rule_info` | `id`, `name`, `ip`, `entry_protocol`, `entry_port`, `target_protocol`, `target_port`, `certificate_id`, `tls_passthrough` | Always 1, one series per forwarding rule |
+| `digitalocean_loadbalancer_health_check_info` | `id`, `name`, `ip`, `protocol`, `port`, `path` | Always 1. How the load balancer probes its backends |
+| `digitalocean_loadbalancer_health_check_interval_seconds` | `id`, `name`, `ip` | Seconds between two health checks of the same backend |
+| `digitalocean_loadbalancer_health_check_timeout_seconds` | `id`, `name`, `ip` | Seconds the health check waits for a response before counting a failure |
+| `digitalocean_loadbalancer_health_check_healthy_threshold` | `id`, `name`, `ip` | Consecutive successes before a backend rejoins the rotation |
+| `digitalocean_loadbalancer_health_check_unhealthy_threshold` | `id`, `name`, `ip` | Consecutive failures before a backend leaves the rotation |
+| `digitalocean_loadbalancer_firewall_rules` | `id`, `name`, `ip`, `kind` | Rules of that `kind` (`allow` or `deny`) on the load balancer's own firewall |
 
 The prefix is `digitalocean_loadbalancer_`, without the underscore the rest of the exporter
 would suggest, because that is what the older exporter used. Its two metrics — `status` and
@@ -253,6 +260,24 @@ a newly created one trips this too.
 `size_units` is what the load balancer costs: DigitalOcean bills a node-based load balancer
 per unit, and a balancer scaled up for a traffic spike and never scaled back down is a
 standing charge that nothing else in the account makes visible.
+
+The configuration series — forwarding rules, health check settings and firewall rule counts —
+all come out of the same list response as the rest, so they cost no extra requests. The
+useful join is the forwarding rule's `certificate_id`: it matches the `id` label of the
+[certificates collector](#certificates)'s expiry metric, so a query can find the certificates
+that are actually terminating TLS on a load balancer:
+
+```promql
+digitalocean_certificate_expiry_timestamp_seconds
+and on (id) label_replace(
+  digitalocean_loadbalancer_forwarding_rule_info{certificate_id!=""},
+  "id", "$1", "certificate_id", "(.+)")
+```
+
+A load balancer with no health check configured — a `REGIONAL_NETWORK` one passes packets
+through — emits no health check series at all, rather than zeros. The firewall counts are the
+load balancer's *own* allow and deny lists, not the account's cloud firewalls; both are 0
+when none is configured.
 
 Traffic through the load balancer is not here. It comes from the monitoring API, which is a
 different kind of request with a different cost, and lives in the `loadbalancermetrics`

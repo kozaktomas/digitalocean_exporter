@@ -16,14 +16,23 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
 )
 
-// Two load balancers: an active regional one with droplet backends, and one
-// still being created that selects its backends by tag and so reports none.
+// Two load balancers: an active regional one with droplet backends, a fully
+// configured health check, its own firewall and two forwarding rules — one
+// terminating TLS with a certificate, one passing TLS through — and one still
+// being created that selects its backends by tag and so reports none, with no
+// health check and no firewall of its own.
 const loadBalancersJSON = `{"load_balancers":[` +
 	`{"id":"lb-1","name":"public","ip":"10.0.0.1","status":"active","size_unit":2,` +
 	`"type":"REGIONAL","algorithm":"round_robin","size":"lb-small",` +
 	`"vpc_uuid":"vpc-1","region":{"slug":"fra1"},"droplet_ids":[1,2,3],` +
-	`"forwarding_rules":[{"entry_protocol":"https","entry_port":443},` +
-	`{"entry_protocol":"http","entry_port":80}]},` +
+	`"forwarding_rules":[{"entry_protocol":"https","entry_port":443,` +
+	`"target_protocol":"http","target_port":80,"certificate_id":"cert-1"},` +
+	`{"entry_protocol":"https","entry_port":8443,"target_protocol":"https",` +
+	`"target_port":8443,"tls_passthrough":true}],` +
+	`"health_check":{"protocol":"http","port":80,"path":"/healthz",` +
+	`"check_interval_seconds":10,"response_timeout_seconds":5,` +
+	`"healthy_threshold":3,"unhealthy_threshold":5},` +
+	`"firewall":{"allow":["cidr:10.0.0.0/8","ip:192.0.2.7"],"deny":["ip:198.51.100.9"]}},` +
 	`{"id":"lb-2","name":"pending","ip":"","status":"new","size_unit":1,` +
 	`"type":"REGIONAL_NETWORK","algorithm":"least_connections","size":"",` +
 	`"vpc_uuid":"vpc-1","region":{"slug":"ams3"},"tag":"web","droplet_ids":[],` +
@@ -35,17 +44,62 @@ const loadBalancerMetrics = `
 # TYPE digitalocean_loadbalancer_droplets gauge
 digitalocean_loadbalancer_droplets{id="lb-1",ip="10.0.0.1",name="public"} 3
 digitalocean_loadbalancer_droplets{id="lb-2",ip="",name="pending"} 0
-# HELP digitalocean_loadbalancer_forwarding_rules Number of forwarding rules configured on the load balancer.
+` +
+	`# HELP digitalocean_loadbalancer_firewall_rules Number of rules of that kind on the load balancer's ` +
+	`own firewall: kind is allow or deny, and both are 0 when no firewall is configured.` + "\n" +
+	`# TYPE digitalocean_loadbalancer_firewall_rules gauge
+digitalocean_loadbalancer_firewall_rules{id="lb-1",ip="10.0.0.1",kind="allow",name="public"} 2
+digitalocean_loadbalancer_firewall_rules{id="lb-1",ip="10.0.0.1",kind="deny",name="public"} 1
+digitalocean_loadbalancer_firewall_rules{id="lb-2",ip="",kind="allow",name="pending"} 0
+digitalocean_loadbalancer_firewall_rules{id="lb-2",ip="",kind="deny",name="pending"} 0
+` +
+	`# HELP digitalocean_loadbalancer_forwarding_rule_info Always 1, one series per forwarding rule. ` +
+	`certificate_id joins the rule to digitalocean_certificate_expiry_timestamp_seconds ` +
+	`on that collector's id label.` + "\n" +
+	`# TYPE digitalocean_loadbalancer_forwarding_rule_info gauge` + "\n" +
+	`digitalocean_loadbalancer_forwarding_rule_info{certificate_id="",entry_port="8443",` +
+	`entry_protocol="https",id="lb-1",ip="10.0.0.1",name="public",target_port="8443",` +
+	`target_protocol="https",tls_passthrough="true"} 1` + "\n" +
+	`digitalocean_loadbalancer_forwarding_rule_info{certificate_id="cert-1",entry_port="443",` +
+	`entry_protocol="https",id="lb-1",ip="10.0.0.1",name="public",target_port="80",` +
+	`target_protocol="http",tls_passthrough="false"} 1` + "\n" +
+	`# HELP digitalocean_loadbalancer_forwarding_rules Number of forwarding rules configured on the load balancer.
 # TYPE digitalocean_loadbalancer_forwarding_rules gauge
 digitalocean_loadbalancer_forwarding_rules{id="lb-1",ip="10.0.0.1",name="public"} 2
 digitalocean_loadbalancer_forwarding_rules{id="lb-2",ip="",name="pending"} 0
-# HELP digitalocean_loadbalancer_info Always 1. Its labels describe the load balancer's placement and configuration.
-# TYPE digitalocean_loadbalancer_info gauge
 ` +
+	`# HELP digitalocean_loadbalancer_health_check_healthy_threshold Consecutive successful health checks ` +
+	`before a backend is put back into rotation.` + "\n" +
+	`# TYPE digitalocean_loadbalancer_health_check_healthy_threshold gauge
+digitalocean_loadbalancer_health_check_healthy_threshold{id="lb-1",ip="10.0.0.1",name="public"} 3
+` +
+	`# HELP digitalocean_loadbalancer_health_check_info Always 1. Its labels describe how the load balancer ` +
+	`probes its backends.` + "\n" +
+	`# TYPE digitalocean_loadbalancer_health_check_info gauge` + "\n" +
+	`digitalocean_loadbalancer_health_check_info{id="lb-1",ip="10.0.0.1",name="public",` +
+	`path="/healthz",port="80",protocol="http"} 1` + "\n" +
+	`# HELP digitalocean_loadbalancer_health_check_interval_seconds Seconds between two health checks ` +
+	`of the same backend.` + "\n" +
+	`# TYPE digitalocean_loadbalancer_health_check_interval_seconds gauge
+digitalocean_loadbalancer_health_check_interval_seconds{id="lb-1",ip="10.0.0.1",name="public"} 10
+` +
+	`# HELP digitalocean_loadbalancer_health_check_timeout_seconds Seconds the health check waits for ` +
+	`a backend to respond before counting a failure.` + "\n" +
+	`# TYPE digitalocean_loadbalancer_health_check_timeout_seconds gauge
+digitalocean_loadbalancer_health_check_timeout_seconds{id="lb-1",ip="10.0.0.1",name="public"} 5
+` +
+	`# HELP digitalocean_loadbalancer_health_check_unhealthy_threshold Consecutive failed health checks ` +
+	`before a backend is taken out of rotation.` + "\n" +
+	`# TYPE digitalocean_loadbalancer_health_check_unhealthy_threshold gauge
+digitalocean_loadbalancer_health_check_unhealthy_threshold{id="lb-1",ip="10.0.0.1",name="public"} 5
+` +
+	`# HELP digitalocean_loadbalancer_info Always 1. Its labels describe the load balancer's placement ` +
+	`and configuration; tag is the droplet tag it selects its backends by, empty when they are listed by ID.` + "\n" +
+	`# TYPE digitalocean_loadbalancer_info gauge` + "\n" +
 	`digitalocean_loadbalancer_info{algorithm="round_robin",id="lb-1",ip="10.0.0.1",` +
-	`name="public",region="fra1",size="lb-small",type="REGIONAL",vpc_uuid="vpc-1"} 1` + "\n" +
+	`name="public",region="fra1",size="lb-small",tag="",type="REGIONAL",vpc_uuid="vpc-1"} 1` + "\n" +
 	`digitalocean_loadbalancer_info{algorithm="least_connections",id="lb-2",ip="",` +
-	`name="pending",region="ams3",size="",type="REGIONAL_NETWORK",vpc_uuid="vpc-1"} 1` + "\n" +
+	`name="pending",region="ams3",size="",tag="web",type="REGIONAL_NETWORK",vpc_uuid="vpc-1"} 1` + "\n" +
 	`# HELP digitalocean_loadbalancer_size_units Number of size units the load balancer is billed for.
 # TYPE digitalocean_loadbalancer_size_units gauge
 digitalocean_loadbalancer_size_units{id="lb-1",ip="10.0.0.1",name="public"} 2
@@ -198,7 +252,7 @@ func TestDescribeCoversEveryMetric(t *testing.T) {
 	for range ch {
 		count++
 	}
-	if want := 5; count != want {
+	if want := 12; count != want {
 		t.Errorf("Describe sent %d descriptors, want %d", count, want)
 	}
 }

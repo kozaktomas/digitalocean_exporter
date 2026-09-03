@@ -245,7 +245,10 @@ with fewer than 200 images — which is nearly all of them — therefore costs e
 
 ## loadbalancers
 
-Every load balancer: state, region, the number of droplets behind it, and its billed size.
+Every load balancer: state, region, the number of droplets behind it, and its billed size —
+plus its configuration: each forwarding rule with its certificate, the health check
+settings, and the rule counts of the load balancer's own firewall. The configuration series
+come out of the same list response as the rest, so they add nothing to the collector's cost.
 
 The backend count is worth an alert of its own — a load balancer with zero backends is
 usually a deploy that went wrong rather than a deliberate configuration.

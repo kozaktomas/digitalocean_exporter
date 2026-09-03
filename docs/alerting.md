@@ -218,6 +218,7 @@ limit scales with the load balancer's size units, and resizing is applied withou
 | `DigitalOceanCertificateExpiringSoon` | warning | 1h | A certificate has under 14 days left |
 | `DigitalOceanCertificateExpiringCritical` | critical | 1h | A certificate has under 3 days left |
 | `DigitalOceanCertificateError` | warning | 1h | A certificate's state is `error` — a failed issuance or renewal, weeks before expiry would say so |
+| `DigitalOceanLoadBalancerCertificateExpiring` | warning | 1h | A certificate a load balancer's forwarding rule terminates TLS with has under 14 days left (needs `certificates`, off by default) |
 | `DigitalOceanFirewallChangesPending` | warning | 15m | A firewall's ruleset has not reached every droplet |
 | `DigitalOceanFirewallOpenRulesChanged` | info | — | The number of inbound rules open to the internet moved in the last day |
 
@@ -234,6 +235,15 @@ turns to `error`, which is why both alert on time remaining rather than on state
 three: a renewal fails weeks before the old certificate runs out, usually because DNS no
 longer points where the domain validation expects. Fixed while this is the only alert
 firing, it costs nothing; left alone, it matures into the two expiry alerts above.
+
+`DigitalOceanLoadBalancerCertificateExpiring` narrows the fourteen-day warning to the
+certificates actually serving traffic: it joins the expiry series to
+`digitalocean_loadbalancer_forwarding_rule_info` through its `certificate_id` label, so it
+only fires for a certificate some load balancer terminates TLS with. When it fires, expiry
+means TLS errors on a live frontend rather than an unused certificate lapsing quietly. The
+forwarding-rule side comes from the always-on `loadbalancers` collector, but the expiry side
+needs the `certificates` collector, which is off by default — without it this alert never
+fires.
 
 `DigitalOceanFirewallOpenRulesChanged` has no `for` and is deliberately `info`. The count of
 rules open to the internet is not a fault — a public web server needs one — so the alert is on
