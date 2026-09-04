@@ -210,6 +210,7 @@ func exportedMetrics(t *testing.T) map[string]map[string]bool {
 		"--collector.firewalls",
 		"--collector.certificates",
 		"--collector.spaces",
+		"--collector.uptime",
 		"--spaces.access-key", "key",
 		"--spaces.secret-key", "secret",
 		"--spaces.region", "fra1",

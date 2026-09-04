@@ -168,10 +168,40 @@ PROJECT_RESOURCES = {"resources": [{"urn": "do:droplet:1"}, {"urn": "do:volume:v
 # of those routes, which is enough to prove the two monitoring collectors read
 # it, merge it and report a resource as up. The sample is stamped now, since
 # both collectors ask for a window ending at the current time.
+def uptime_state(path):
+    return UPTIME_STATES.get(path.split("/")[-2], {"state": {"regions": {},
+                                                            "previous_outage": {}}})
+
 def monitoring():
     return {"status": "success",
             "data": {"resultType": "matrix",
                      "result": [{"metric": {}, "values": [[int(time.time()), "1"]]}]}}
+
+# Two Uptime checks. The list answers only the configuration; the per-check
+# state endpoint below is where the regions and the previous outage live, which
+# is the fan-out the uptime collector's own timeout bounds.
+UPTIME_CHECKS = {"checks": [{"id": "chk-1", "name": "web", "type": "https",
+                             "target": "https://example.com",
+                             "regions": ["eu_west", "us_east"], "enabled": True},
+                            {"id": "chk-2", "name": "gateway", "type": "ping",
+                             "target": "gw.example.com",
+                             "regions": ["eu_west"], "enabled": False}],
+                 "meta": {"total": 2}}
+# One region down and an outage on the first check, so the DOWN status series
+# and both previous-outage metrics are exercised rather than only the happy path.
+UPTIME_STATES = {
+    "chk-1": {"state": {"regions": {
+        "eu_west": {"status": "DOWN", "status_changed_at": "2026-08-24T12:00:00Z",
+                    "thirty_day_uptime_percentage": 99.5},
+        "us_east": {"status": "UP", "status_changed_at": "2026-08-01T00:00:00Z",
+                    "thirty_day_uptime_percentage": 100}},
+        "previous_outage": {"region": "eu_west", "started_at": "2026-08-24T11:00:00Z",
+                            "ended_at": "2026-08-24T11:02:00Z", "duration_seconds": 120}}},
+    "chk-2": {"state": {"regions": {
+        "eu_west": {"status": "UP", "status_changed_at": "2026-08-01T00:00:00Z",
+                    "thirty_day_uptime_percentage": 100}},
+        "previous_outage": {}}},
+}
 
 # One bucket of two objects. Spaces reports a bucket's usage in the Ceph
 # gateway's own headers on a HEAD, which is all the Spaces collector asks for.
@@ -201,12 +231,14 @@ ROUTES = {"/v2/customers/my/balance": BALANCE,
           "/v2/registries": REGISTRIES,
           "/v2/registries/subscription": SUBSCRIPTION,
           "/v2/registries/smoke/repositoriesV2": repositories("smoke"),
-          "/v2/registries/smoke-nyc/repositoriesV2": repositories("smoke-nyc")}
+          "/v2/registries/smoke-nyc/repositoriesV2": repositories("smoke-nyc"),
+          "/v2/uptime/checks": UPTIME_CHECKS}
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?")[0]
         body = monitoring() if path.startswith("/v2/monitoring/metrics/") \
+            else uptime_state(path) if path.endswith("/state") \
             else ROUTES.get(path, ACCOUNT)
         self.respond(json.dumps(body).encode(), "application/json")
 
@@ -269,7 +301,8 @@ DO_SPACES_ENDPOINT="http://127.0.0.1:${API_PORT}" \
          --spaces.access-key=smoke --spaces.secret-key=smoke \
          --spaces.region=fra1 --collector.spaces.bucket=smoke \
          --collector.dropletmetrics --collector.dropletmetrics.interval=1s \
-         --collector.loadbalancermetrics --collector.loadbalancermetrics.interval=1s &
+         --collector.loadbalancermetrics --collector.loadbalancermetrics.interval=1s \
+         --collector.uptime --collector.uptime.interval=1s &
 EXPORTER_PID=$!
 
 for _ in $(seq 1 50); do
@@ -278,14 +311,14 @@ for _ in $(seq 1 50); do
 done
 
 # Every collector this run enables: the defaults plus spaces, firewalls,
-# certificates and the two monitoring-API ones — every collector there is, so
+# certificates, uptime and the two monitoring-API ones — every collector there is, so
 # nothing ships untested end to end. The count is
 # spelled out because collector_success is a GaugeVec whose per-collector
 # sample only appears once that collector's first refresh has finished. Waiting
 # for "no sample equals 0" would therefore pass while a collector had not
 # started yet, and the assertions below would race it — a flake that looks
 # exactly like a broken collector. Bump this when adding a collector.
-EXPECTED_COLLECTORS=22
+EXPECTED_COLLECTORS=23
 
 # Poll until all of them have reported a successful refresh.
 METRICS=""
@@ -391,7 +424,13 @@ for metric in \
   digitalocean_certificate_expiry_timestamp_seconds \
   digitalocean_certificate_dns_names \
   digitalocean_droplet_metrics_up \
-  digitalocean_loadbalancer_metrics_up
+  digitalocean_loadbalancer_metrics_up \
+  digitalocean_uptime_check_info \
+  digitalocean_uptime_check_region_status \
+  digitalocean_uptime_check_uptime_ratio \
+  digitalocean_uptime_check_previous_outage_start_timestamp_seconds \
+  digitalocean_uptime_check_previous_outage_duration_seconds \
+  digitalocean_uptime_check_up
 do
   if grep -q "^${metric}" <<<"$METRICS"; then
     echo "ok   ${metric}"

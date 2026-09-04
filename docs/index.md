@@ -68,13 +68,16 @@ Three things follow from that, and they are worth knowing before you tune anythi
 | [`spaces`](configuration/spaces.md) | Bucket size and object count | **off** |
 | [`dropletmetrics`](configuration/monitoring-api.md#dropletmetrics) | CPU, memory, disk and load per droplet | **off** |
 | [`loadbalancermetrics`](configuration/monitoring-api.md#loadbalancermetrics) | Traffic and backend health per load balancer | **off** |
+| [`uptime`](configuration/collectors.md#uptime) | Uptime checks, per-region status and the last outage | **off** |
 
-The five that are off are off for three different reasons. `dropletmetrics` and
+The six that are off are off for four different reasons. `dropletmetrics` and
 `loadbalancermetrics` cost far more API requests than the rest — the page linked above does
 the arithmetic. `spaces` costs one request per bucket, but it needs a Spaces key pair, which
-is a separate credential from the API token. `firewalls` and `certificates` cost one request
-each, the same as the collectors that default on, and are off only because a ruleset or a
-certificate changes on human timescales rather than continuously.
+is a separate credential from the API token. `uptime` costs one request per check and reads
+a paid feature, so on an account without Uptime every refresh would spend a request being
+told so. `firewalls` and `certificates` cost one request each, the same as the collectors
+that default on, and are off only because a ruleset or a certificate changes on human
+timescales rather than continuously.
 
 A token scoped `api:read` runs all of them and can change nothing;
 [token permissions](configuration/permissions.md) covers scoping it more tightly.

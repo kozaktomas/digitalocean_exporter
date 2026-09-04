@@ -57,6 +57,7 @@ one needs exactly the read scope for the resource it reports:
 | [`certificates`](collectors.md#certificates) | `certificate:read` |
 | [`dropletmetrics`](monitoring-api.md#dropletmetrics) | `monitoring:read`, `droplet:read` |
 | [`loadbalancermetrics`](monitoring-api.md#loadbalancermetrics) | `monitoring:read`, `load_balancer:read` |
+| [`uptime`](collectors.md#uptime) | `uptime:read` |
 | [`spaces`](spaces.md) | none — it uses a Spaces key, not the token |
 
 Scope names follow DigitalOcean's own convention of `<resource>:<action>`, where a `GET`

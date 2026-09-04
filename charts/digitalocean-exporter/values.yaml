@@ -284,6 +284,21 @@ collectors:
     # the cost from 7 to 27 monitoring API requests per load balancer per
     # refresh.
     extended: false
+  uptime:
+    # -- Report DigitalOcean Uptime checks: what each one probes, the status and
+    # thirty-day uptime each probing region measured, and the previous outage.
+    # Off by default because the check list answers only the configuration —
+    # everything a region observed costs one further request per check per
+    # refresh — and because Uptime is a paid feature an account may not have,
+    # where every refresh would spend a request being told so.
+    enabled: false
+    # -- How often the uptime collector refreshes. DigitalOcean probes on the
+    # order of a minute, so two minutes keeps a region's status roughly one
+    # probe old without doubling the request cost.
+    interval: 2m
+    # -- Timeout of one full uptime refresh, every check together. Separate from
+    # the global `--do.timeout` because the collector fans out over checks.
+    timeout: 1m
 
 log:
   # -- Log level: `debug`, `info`, `warn` or `error`.

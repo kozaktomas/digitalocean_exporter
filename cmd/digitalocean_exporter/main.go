@@ -43,6 +43,7 @@ import (
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/reservedips"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/spaces"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/tags"
+	"github.com/kozaktomas/digitalocean_exporter/internal/collector/uptime"
 	"github.com/kozaktomas/digitalocean_exporter/internal/collector/volumes"
 	"github.com/kozaktomas/digitalocean_exporter/internal/config"
 	"github.com/kozaktomas/digitalocean_exporter/internal/doclient"
@@ -173,6 +174,7 @@ func registerCollectors(
 			return loadbalancermetrics.New(client, cfg.LoadBalancerMetricsConcurrency,
 				cfg.LoadBalancerMetricsExtended, flt, logger)
 		}},
+		{"uptime", func() collector.Collector { return uptime.New(client, logger) }},
 	}
 
 	for _, a := range available {

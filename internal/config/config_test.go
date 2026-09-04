@@ -789,6 +789,56 @@ func TestLoadBalancerMetricsExtendedFlag(t *testing.T) {
 	}
 }
 
+// The Uptime collector fans out with one state request per check, and Uptime
+// is a paid feature many accounts do not have, so it is off until asked for.
+func TestUptimeCollectorDefaultsOff(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	up, ok := cfg.Collectors["uptime"]
+	if !ok {
+		t.Fatal("uptime collector missing from config")
+	}
+	if up.Enabled {
+		t.Error("uptime collector = enabled by default, want disabled")
+	}
+	if up.Interval != 2*time.Minute || up.Timeout != time.Minute {
+		t.Errorf("uptime = %+v, want a 2m interval and a 1m timeout", up)
+	}
+
+	cfg, err = config.Parse([]string{"--do.token", "secret", "--collector.uptime",
+		"--collector.uptime.interval", "30s", "--collector.uptime.timeout", "20s"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	up = cfg.Collectors["uptime"]
+	if !up.Enabled || up.Interval != 30*time.Second || up.Timeout != 20*time.Second {
+		t.Errorf("uptime = %+v, want enabled with a 30s interval and a 20s timeout", up)
+	}
+}
+
+// The negated form is the only way to switch a kingpin boolean off, and the
+// Helm chart renders it, so it has to keep parsing.
+func TestUptimeCollectorTakesTheNegatedFlag(t *testing.T) {
+	cfg, err := config.Parse([]string{"--do.token", "secret", "--no-collector.uptime"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Collectors["uptime"].Enabled {
+		t.Error("uptime collector = enabled, want disabled")
+	}
+}
+
+// A non-positive timeout on the uptime collector is caught like any other, and
+// it is reachable from a Helm value.
+func TestParseRejectsAZeroUptimeTimeout(t *testing.T) {
+	_, err := config.Parse([]string{"--do.token", "secret", "--collector.uptime.timeout", "0s"})
+	if !errors.Is(err, config.ErrNonPositiveTimeout) {
+		t.Errorf("error = %v, want ErrNonPositiveTimeout", err)
+	}
+}
+
 // A zero interval reaches time.NewTicker, which panics — in a goroutine started
 // after the metrics server has already bound its port. Fail at startup instead.
 func TestParseRejectsAZeroInterval(t *testing.T) {

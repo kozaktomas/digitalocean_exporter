@@ -236,6 +236,13 @@ spec:
             {{- else }}
             - --no-collector.loadbalancermetrics
             {{- end }}
+            {{- if .Values.collectors.uptime.enabled }}
+            - --collector.uptime
+            - --collector.uptime.interval={{ .Values.collectors.uptime.interval }}
+            - --collector.uptime.timeout={{ .Values.collectors.uptime.timeout }}
+            {{- else }}
+            - --no-collector.uptime
+            {{- end }}
             {{- /*
             Last, so it reads as an addition to what the chart renders. It
             cannot override any of it: the flag parser rejects a flag given

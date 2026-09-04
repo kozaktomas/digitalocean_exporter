@@ -6,14 +6,16 @@ when to turn it off. The metric names themselves are in the [metrics reference](
 Seventeen collectors are on by default. They are on because each costs a few API requests
 per refresh, which is negligible against the limit of 5000 an hour.
 
-Five are off. Three of them — [`spaces`](spaces.md),
+Six are off. Three of them — [`spaces`](spaces.md),
 [`dropletmetrics`](monitoring-api.md#dropletmetrics) and
 [`loadbalancermetrics`](monitoring-api.md#loadbalancermetrics) — have pages of their own,
 because enabling them takes more than flipping a switch: arithmetic for the two
-monitoring-API collectors, a second credential for `spaces`. The other two,
-[`firewalls`](#firewalls) and [`certificates`](#certificates), cost no more than the
-collectors that default on; they are off because what they report changes when somebody
-deploys or renews something, not continuously, so most accounts have no use for them.
+monitoring-API collectors, a second credential for `spaces`. [`uptime`](#uptime) is off
+because it costs one request per check and reads a paid feature most accounts do not have.
+The last two, [`firewalls`](#firewalls) and [`certificates`](#certificates), cost no more
+than the collectors that default on; they are off because what they report changes when
+somebody deploys or renews something, not continuously, so most accounts have no use for
+them.
 
 Every collector reports `digitalocean_exporter_collector_success` and
 `digitalocean_exporter_collector_duration_seconds`, so the health of each one is visible
@@ -459,3 +461,46 @@ certificate changes when it is renewed and not otherwise. Enable it if you termi
 DigitalOcean load balancer or CDN endpoint.
 
 **Cost:** one request per refresh.
+
+---
+
+## uptime
+
+DigitalOcean Uptime checks: what each one probes, what every probing region currently sees,
+the thirty-day uptime behind that, and the last outage recorded.
+
+This is the one collector that does not report the account. Everything else here reads what
+DigitalOcean holds; this reads what DigitalOcean's probes see of a target from the outside,
+which may be a host that has nothing to do with the account at all.
+
+The check list answers only the configuration — name, type, target, whether it is enabled.
+Everything a region has observed lives behind a per-check state endpoint, so the refresh
+costs one further request per check.
+
+`digitalocean_uptime_check_region_status` carries one series per known status (`UP`, `DOWN`,
+`CHECKING`), the current one at 1 and the rest at 0, rather than a single series whose value
+encodes the status. An alert can then be written against the status it looks for and have a
+series to match before any region has ever entered it.
+
+A check whose state lookup fails keeps the region statuses and uptime of its last successful
+lookup and reports `digitalocean_uptime_check_up 0`; the checks that succeeded are
+unaffected, and the failure is logged with its reason. A check never read successfully
+reports only `digitalocean_uptime_check_up 0`, because zeros there would read as down from
+every region while nothing had been observed at all. The collector's own
+`collector_success` drops to 0 only when the check list itself fails.
+
+There is no latency metric. DigitalOcean's Uptime alerts can be configured against a latency
+threshold, but the API exposes no latency reading to go with the status, so there is nothing
+to export.
+
+**Off by default** for two reasons. The per-check request cost grows with the number of
+checks, the way the [monitoring-API collectors](monitoring-api.md) grow with the account.
+And Uptime is a paid feature: on an account without it, every refresh would spend a request
+being told there is nothing to report. Enable it if you pay for Uptime and want its verdict
+next to the rest of the account, in the same Prometheus, rather than in DigitalOcean's
+console.
+
+It refreshes every two minutes rather than the usual five, because DigitalOcean probes on
+roughly that cadence and a status held for five minutes is most of an outage.
+
+**Cost:** one request per refresh, plus one per check.

@@ -26,6 +26,7 @@ func TestRegisterCollectorsCoversEveryConfiguredCollector(t *testing.T) {
 		"--collector.firewalls",
 		"--collector.certificates",
 		"--collector.spaces",
+		"--collector.uptime",
 		"--spaces.access-key", "key",
 		"--spaces.secret-key", "secret",
 		"--spaces.region", "fra1",

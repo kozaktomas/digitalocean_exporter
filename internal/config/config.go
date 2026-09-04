@@ -201,6 +201,9 @@ type flags struct {
 	spacesSecretFile *string
 	spacesRegion     *string
 	k8sUpgrades      *bool
+	uptime           *bool
+	uptimeInterval   *time.Duration
+	uptimeTimeout    *time.Duration
 }
 
 // defaultInterval is how often a collector refreshes unless it asks for
@@ -337,6 +340,7 @@ func bind(app *kingpin.Application) *flags {
 	bindProjects(app, f)
 	bindMonitoring(app, f)
 	bindSpaces(app, f)
+	bindUptime(app, f)
 	return f
 }
 
@@ -467,6 +471,28 @@ func bindSpaces(app *kingpin.Application, f *flags) {
 		Envar("SPACES_REGION").Default("").String()
 }
 
+// bindUptime declares the flags of the Uptime collector. It is not in
+// simpleCollectors because its refresh fans out over the account — one state
+// request per check on top of the list — which is what the timeout bounds.
+//
+// It is off by default for the same reason the monitoring-API collectors are:
+// the cost grows with the number of checks, and Uptime is a paid feature an
+// account may not have at all, in which case every refresh would spend a
+// request to be told so.
+func bindUptime(app *kingpin.Application, f *flags) {
+	f.uptime = app.Flag("collector.uptime",
+		"Enable the Uptime checks collector, which reports each check's per-region status, "+
+			"thirty-day uptime and previous outage. "+
+			"Costs one extra API request per check per refresh.").
+		Envar("COLLECTOR_UPTIME").Default("false").Bool()
+	f.uptimeInterval = app.Flag("collector.uptime.interval",
+		"Refresh interval of the uptime collector.").
+		Envar("COLLECTOR_UPTIME_INTERVAL").Default("2m").Duration()
+	f.uptimeTimeout = app.Flag("collector.uptime.timeout",
+		"Timeout of one full uptime refresh, including the per-check state lookups.").
+		Envar("COLLECTOR_UPTIME_TIMEOUT").Default("1m").Duration()
+}
+
 // config validates the parsed flags and assembles the configuration.
 func (f *flags) config() (*Config, error) {
 	// Durations first: the check is pure flag validation, and a value that
@@ -489,7 +515,7 @@ func (f *flags) config() (*Config, error) {
 		return nil, err
 	}
 
-	collectors := make(map[string]CollectorConfig, len(f.simple)+5)
+	collectors := make(map[string]CollectorConfig, len(f.simple)+6)
 	for name, bound := range f.simple {
 		collectors[name] = CollectorConfig{Enabled: *bound.enabled, Interval: *bound.interval}
 	}
@@ -507,6 +533,9 @@ func (f *flags) config() (*Config, error) {
 	}
 	collectors["spaces"] = CollectorConfig{
 		Enabled: *f.spaces, Interval: *f.spacesInterval, Timeout: *f.spacesTimeout,
+	}
+	collectors["uptime"] = CollectorConfig{
+		Enabled: *f.uptime, Interval: *f.uptimeInterval, Timeout: *f.uptimeTimeout,
 	}
 
 	return &Config{
@@ -564,6 +593,7 @@ func (f *flags) validateDurations() error {
 		{"dropletmetrics", *f.dmInterval, *f.dmTimeout},
 		{"loadbalancermetrics", *f.lbmInterval, *f.lbmTimeout},
 		{"spaces", *f.spacesInterval, *f.spacesTimeout},
+		{"uptime", *f.uptimeInterval, *f.uptimeTimeout},
 	} {
 		if err := requirePositive("collector."+c.name+".interval",
 			c.interval, ErrNonPositiveInterval); err != nil {

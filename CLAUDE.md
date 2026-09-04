@@ -80,11 +80,11 @@ would stop the scrape that reports the failure. `/healthz` is the liveness probe
 consults a collector.
 
 **A panic in a `Refresh` is a failed refresh, not a dead process.** The scheduler recovers
-it, logs the value and the stack, and records it exactly like any other failure — twenty-two
-collectors share one process, and one unexpected API response must not stop the other
-twenty, restart after restart. A refresh cut short by shutdown is the opposite case: once
-the run context is cancelled the error is not recorded and not logged as one, so the last
-lines before a restart do not read as an API outage.
+it, logs the value and the stack, and records it exactly like any other failure —
+twenty-three collectors share one process, and one unexpected API response must not stop
+the other twenty-two, restart after restart. A refresh cut short by shutdown is the opposite
+case: once the run context is cancelled the error is not recorded and not logged as one, so
+the last lines before a restart do not read as an API outage.
 
 ## Adding a collector
 

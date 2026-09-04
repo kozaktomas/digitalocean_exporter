@@ -1,6 +1,6 @@
 # Dashboards
 
-Ten Grafana dashboards ship with the exporter, in
+Eleven Grafana dashboards ship with the exporter, in
 [`charts/digitalocean-exporter/dashboards/`](https://github.com/kozaktomas/digitalocean_exporter/tree/main/charts/digitalocean-exporter/dashboards).
 Between them they cover every collector, so the metrics in the
 [metrics reference](metrics.md) can be looked at rather than read about.
@@ -19,6 +19,7 @@ Nothing about them is Helm-specific: the JSON imports into any Grafana.
 | `apps.json` | App Platform: tier and region per app, the phase of the deployment being served, how long ago it went live, and the instances each component asks for | `apps` |
 | `storage.json` | Volumes, including those attached to nothing, stored images by type and the oldest of them, and container registry repositories | `volumes`, `images`, `registry` |
 | `spaces.json` | Bucket size and object count, and how fast a bucket is growing | `spaces` |
+| `uptime.json` | What DigitalOcean's probes see of each Uptime check from the outside: how many regions call it down, the thirty-day uptime behind that, the status of every check-and-region pair, and the last outage recorded | `uptime` |
 | `exporter.json` | Is the exporter itself healthy? Refresh durations, last success, API requests and latency per collector, and how much of the rate-limit budget is left before it resets | none; self-metrics only |
 | `billing.json` | What the account costs: balance, month-to-date usage, droplet run rate, registry overage | `balance`, `droplets`, `loadbalancers`, `volumes`, `registry` |
 | `security.json` | Certificates about to expire, firewall rules open to the internet, changes that have not landed | `certificates`, `firewalls` |

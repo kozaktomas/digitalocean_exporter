@@ -505,6 +505,41 @@ groups:
             not a spike.
           runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#monitoring-api
 
+  - name: digitalocean-uptime
+    rules:
+      - alert: DigitalOceanUptimeCheckDown
+        expr: digitalocean_uptime_check_region_status{status="DOWN"} == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: >-
+            Uptime check {{ $labels.name }} is down as seen from {{ $labels.region }}
+          description: >-
+            DigitalOcean probes the target from this region and it has been failing for
+            five minutes. This is the outside view: unlike every other alert here it says
+            nothing about the account, only that the target did not answer. One region
+            firing while the others stay quiet is usually the path rather than the target
+            — check whether the same alert is up for the check's other regions before
+            treating it as an outage. The uptime collector is off by default, so this
+            fires only where `--collector.uptime` was passed.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#uptime-checks
+
+      - alert: DigitalOceanUptimeCheckStateUnavailable
+        expr: digitalocean_uptime_check_up == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: Uptime check {{ $labels.name }} could not be read
+          description: >-
+            The per-check state lookup has been failing, so the check keeps the region
+            statuses and the thirty-day uptime of its last successful lookup. Those values
+            are stale rather than missing, which is what makes this worth its own alert:
+            DigitalOceanUptimeCheckDown cannot fire on a frozen snapshot, and the
+            collector reports success because one check failing does not fail the refresh.
+          runbook_url: https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/#uptime-checks
+
   - name: digitalocean-security
     rules:
       - alert: DigitalOceanCertificateExpiringSoon

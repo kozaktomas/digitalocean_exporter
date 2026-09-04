@@ -985,6 +985,46 @@ discovery mode. It never lists or reads an object, so an access key with **Limit
 and **Read** on the observed buckets is enough. Listing all buckets is a full-access
 capability, so a limited key must be given an explicit bucket list.
 
+## Uptime checks
+
+Collected by `uptime`, which is **off by default**: one paged list request per refresh, plus
+one state request per check.
+
+| Metric | Labels | Description |
+|---|---|---|
+| `digitalocean_uptime_check_info` | `id`, `name`, `type`, `target`, `enabled` | Always 1; the labels describe what the check probes |
+| `digitalocean_uptime_check_region_status` | `id`, `name`, `region`, `status` | 1 for the region's current status, 0 for every other known one |
+| `digitalocean_uptime_check_uptime_ratio` | `id`, `name`, `region` | Thirty-day uptime measured from the region, as a ratio between 0 and 1 |
+| `digitalocean_uptime_check_previous_outage_start_timestamp_seconds` | `id`, `name`, `region` | Unix time the previous outage began |
+| `digitalocean_uptime_check_previous_outage_duration_seconds` | `id`, `name`, `region` | How long the previous outage lasted |
+| `digitalocean_uptime_check_up` | `id`, `name` | 1 if the check's last state lookup succeeded, else 0 |
+
+`status` takes the values the API spells: `UP`, `DOWN` and `CHECKING`. All three are reported
+for every region on every scrape, the current one at 1 and the others at 0, so
+`digitalocean_uptime_check_region_status{status="DOWN"} == 1` has a series to match before a
+region has ever been down. A status DigitalOcean adds later is reported beside the three;
+dropping it would leave every status of that region reading 0, which is what a region going
+away looks like.
+
+The thirty-day uptime is a ratio here and a percentage in the API, divided by 100 on the way
+in so it fits Grafana's `percentunit` and reads the same way as every other ratio in this
+exporter. It is computed by DigitalOcean over a fixed thirty days, so it moves slowly and
+keeps counting an outage for a month after the check recovers.
+
+The previous outage is absent, rather than zero, for a check that has never gone down: the
+API reports an empty object, and an outage that started at the Unix epoch and lasted no time
+is worse than no series. `region` on those two metrics is the region that saw the outage,
+which need not be a region currently reporting anything wrong.
+
+A check whose state lookup fails keeps its last good region statuses, uptime and outage and
+reports `digitalocean_uptime_check_up 0`; one that has never been read successfully reports
+only that. Either way the checks around it are unaffected and `collector_success` stays 1 —
+the check list is what has to fail for that to drop. Alert on
+`digitalocean_uptime_check_up`, not on `collector_success`.
+
+Nothing here reports the account. The target of a check is whatever URL or host it was
+pointed at, so these metrics can describe infrastructure DigitalOcean does not host.
+
 ## Exporter health
 
 | Metric | Labels | Description |

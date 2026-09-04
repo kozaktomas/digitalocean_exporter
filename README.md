@@ -28,7 +28,7 @@ actually deserves.
 
 ## Status
 
-Early. This release ships the exporter, the full build and release pipeline, and twenty-two
+Early. This release ships the exporter, the full build and release pipeline, and twenty-three
 collectors:
 
 | Collector | State |
@@ -55,8 +55,9 @@ collectors:
 | `certificates` — TLS certificates and when each one expires (off by default) | available |
 | `dropletmetrics` — CPU, memory, disk and load per droplet (off by default) | available |
 | `loadbalancermetrics` — traffic and backend health per load balancer (off by default) | available |
+| `uptime` — Uptime checks, their per-region status and the last outage (off by default) | available |
 
-Ten Grafana dashboards ship with it, covering every collector. Import the JSON from
+Eleven Grafana dashboards ship with it, covering every collector. Import the JSON from
 `charts/digitalocean-exporter/dashboards/`, or let the chart render them as ConfigMaps for
 the Grafana sidecar — see the
 [dashboards page](https://kozaktomas.github.io/digitalocean_exporter/latest/dashboards/).

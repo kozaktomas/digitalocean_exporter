@@ -222,6 +222,30 @@ frontend metrics beside it are stale rather than current.
 which from the client's side is the site being down while every backend stays healthy. The
 limit scales with the load balancer's size units, and resizing is applied without downtime.
 
+## Uptime checks
+
+| Alert | Severity | For | Fires when |
+|---|---|---|---|
+| `DigitalOceanUptimeCheckDown` | critical | 5m | A probing region reports the check's target down (needs `uptime`, off by default) |
+| `DigitalOceanUptimeCheckStateUnavailable` | warning | 30m | A check's state lookup keeps failing, so its values are frozen (needs `uptime`, off by default) |
+
+Both read the [`uptime` collector](configuration/collectors.md#uptime), which is **off by
+default** — it costs one request per check per refresh and Uptime is a paid feature — so
+they stay silent until it is switched on.
+
+`DigitalOceanUptimeCheckDown` is the only alert here that says nothing about the account.
+Every other rule reports what DigitalOcean holds; this one reports what DigitalOcean's
+probes see of a target from the outside, and that target may not be hosted on DigitalOcean
+at all. It fires per check and per region, so one real outage arrives as one alert per
+probing region — Alertmanager groups them, and the count is the useful part. A single region
+firing while the others stay quiet is usually the network path rather than the target.
+
+`DigitalOceanUptimeCheckStateUnavailable` covers the failure that would otherwise be
+invisible. One check's state lookup failing does not fail the refresh, so
+`collector_success` stays 1; the check simply keeps its last good statuses, and
+`DigitalOceanUptimeCheckDown` cannot fire on a frozen snapshot however long the target has
+been down. Thirty minutes of that is worth knowing about.
+
 ## Certificates and firewalls
 
 | Alert | Severity | For | Fires when |
