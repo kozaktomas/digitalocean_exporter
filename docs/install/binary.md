@@ -11,7 +11,7 @@ Tarballs for `linux/amd64` and `linux/arm64` are on the
 with a `checksums.txt`.
 
 ```bash
-VERSION=0.3.0
+VERSION=0.4.0
 ARCH=arm64   # or amd64
 
 curl -sSLO "https://github.com/kozaktomas/digitalocean_exporter/releases/download/v${VERSION}/digitalocean_exporter_${VERSION}_linux_${ARCH}.tar.gz"
@@ -36,7 +36,7 @@ transparency log. Verifying takes cosign 2.x or newer.
 Verify the signature on `checksums.txt`, then let the checksums vouch for the tarball:
 
 ```bash
-VERSION=0.3.0
+VERSION=0.4.0
 
 curl -sSLO "https://github.com/kozaktomas/digitalocean_exporter/releases/download/v${VERSION}/digitalocean_exporter_${VERSION}_checksums.txt.sig"
 curl -sSLO "https://github.com/kozaktomas/digitalocean_exporter/releases/download/v${VERSION}/digitalocean_exporter_${VERSION}_checksums.txt.pem"
@@ -81,7 +81,7 @@ make build
 ```
 
 ```
-digitalocean_exporter, version 0.3.0 (commit 57f5e48, go1.26.1)
+digitalocean_exporter, version 0.4.0 (commit 57f5e48, go1.26.1)
 ```
 
 `make build` stamps the version and commit into the binary, so the three values above are
@@ -92,7 +92,7 @@ The same build metadata is in the first log line at startup and in a metric, whi
 you check what a running exporter is:
 
 ```
-digitalocean_exporter_build_info{commit="57f5e48",goversion="go1.26.1",version="0.3.0"} 1
+digitalocean_exporter_build_info{commit="57f5e48",goversion="go1.26.1",version="0.4.0"} 1
 ```
 
 ## Supervising it yourself

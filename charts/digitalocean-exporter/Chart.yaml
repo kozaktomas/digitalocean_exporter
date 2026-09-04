@@ -2,8 +2,8 @@ apiVersion: v2
 name: digitalocean-exporter
 description: Prometheus exporter for DigitalOcean
 type: application
-version: 0.3.0
-appVersion: "0.3.0"
+version: 0.4.0
+appVersion: "0.4.0"
 home: https://github.com/kozaktomas/digitalocean_exporter
 sources:
   - https://github.com/kozaktomas/digitalocean_exporter

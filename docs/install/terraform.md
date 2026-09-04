@@ -9,7 +9,7 @@ resource "helm_release" "digitalocean_exporter" {
   namespace  = kubernetes_namespace.monitoring.metadata[0].name
   repository = "https://kozaktomas.github.io/digitalocean_exporter"
   chart      = "digitalocean-exporter"
-  version    = "0.3.0"
+  version    = "0.4.0"
 }
 ```
 
@@ -37,7 +37,7 @@ resource "helm_release" "digitalocean_exporter" {
   namespace  = kubernetes_namespace.monitoring.metadata[0].name
   repository = "https://kozaktomas.github.io/digitalocean_exporter"
   chart      = "digitalocean-exporter"
-  version    = "0.3.0"
+  version    = "0.4.0"
 
   values = [
     templatefile("${path.module}/values/digitalocean-exporter.yaml", {

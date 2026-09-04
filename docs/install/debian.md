@@ -15,7 +15,7 @@ Download the `.deb` for your architecture from the
 [releases page](https://github.com/kozaktomas/digitalocean_exporter/releases), then:
 
 ```bash
-sudo dpkg -i digitalocean-exporter_0.3.0_linux_arm64.deb
+sudo dpkg -i digitalocean-exporter_0.4.0_linux_arm64.deb
 sudoedit /etc/digitalocean-exporter/digitalocean-exporter.env   # set DIGITALOCEAN_TOKEN
 sudo systemctl start digitalocean-exporter
 curl -s localhost:9212/metrics | head
@@ -118,7 +118,7 @@ journalctl -u digitalocean-exporter -f
 ## Upgrading and removing
 
 ```bash
-sudo dpkg -i digitalocean-exporter_0.3.0_linux_arm64.deb   # keeps the env file
+sudo dpkg -i digitalocean-exporter_0.4.0_linux_arm64.deb   # keeps the env file
 ```
 
 An upgrade leaves the service alone in the sense that matters: if it was running it is

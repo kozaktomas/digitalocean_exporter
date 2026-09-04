@@ -12,7 +12,7 @@ docker run --rm -p 9212:9212 \
 
 | Tag | What it is |
 |---|---|
-| `0.3.0` | An exact release. Use this in production. |
+| `0.4.0` | An exact release. Use this in production. |
 | `latest` | Whatever `main` last built. Moves without warning. |
 
 ## Verify the image
@@ -25,7 +25,7 @@ no maintainer key to trust. Verifying takes cosign 2.x or newer.
 For a release tag:
 
 ```bash
-VERSION=0.3.0
+VERSION=0.4.0
 
 cosign verify \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
@@ -61,7 +61,7 @@ container actually is without guessing from its tag:
 
 ```bash
 docker inspect --format '{{ json .Config.Labels }}' \
-  ghcr.io/kozaktomas/digitalocean_exporter:0.3.0
+  ghcr.io/kozaktomas/digitalocean_exporter:0.4.0
 ```
 
 ## Passing the token as a file
@@ -84,7 +84,7 @@ docker run --rm -p 9212:9212 \
 ```yaml
 services:
   digitalocean-exporter:
-    image: ghcr.io/kozaktomas/digitalocean_exporter:0.3.0
+    image: ghcr.io/kozaktomas/digitalocean_exporter:0.4.0
     restart: unless-stopped
     ports:
       - "9212:9212"
@@ -112,6 +112,6 @@ Anything after the image name is passed to the exporter:
 ```bash
 docker run --rm -p 9212:9212 \
   -e DIGITALOCEAN_TOKEN=dop_v1_... \
-  ghcr.io/kozaktomas/digitalocean_exporter:0.3.0 \
+  ghcr.io/kozaktomas/digitalocean_exporter:0.4.0 \
   --no-collector.balance --log.format=json --collector.droplets.interval=10m
 ```

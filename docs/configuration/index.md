@@ -7,7 +7,7 @@ holding:
 
 ```console
 $ digitalocean_exporter --version
-digitalocean_exporter, version 0.3.0 (commit 57f5e48, go1.26.1)
+digitalocean_exporter, version 0.4.0 (commit 57f5e48, go1.26.1)
 ```
 
 The version, commit and Go version are whatever your build was stamped with; the line above
