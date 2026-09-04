@@ -1645,6 +1645,24 @@ out of date — so it cannot drift from the chart it documents.</p>
 <td>How often the tags collector refreshes. A tag set changes on deploys rather than continuously, so ten minutes is plenty.</td>
 </tr>
 <tr>
+<td>collectors.uptime.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Report DigitalOcean Uptime checks: what each one probes, the status and thirty-day uptime each probing region measured, and the previous outage. Off by default because the check list answers only the configuration — everything a region observed costs one further request per check per refresh — and because Uptime is a paid feature an account may not have, where every refresh would spend a request being told so.</td>
+</tr>
+<tr>
+<td>collectors.uptime.interval</td>
+<td>string</td>
+<td><code>"2m"</code></td>
+<td>How often the uptime collector refreshes. DigitalOcean probes on the order of a minute, so two minutes keeps a region's status roughly one probe old without doubling the request cost.</td>
+</tr>
+<tr>
+<td>collectors.uptime.timeout</td>
+<td>string</td>
+<td><code>"1m"</code></td>
+<td>Timeout of one full uptime refresh, every check together. Separate from the global <code>--do.timeout</code> because the collector fans out over checks.</td>
+</tr>
+<tr>
 <td>collectors.volumes.enabled</td>
 <td>bool</td>
 <td><code>true</code></td>

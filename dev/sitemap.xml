@@ -2,98 +2,98 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/alerting/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/dashboards/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/development/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/metrics/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/operations/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/configuration/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/configuration/collectors/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/configuration/monitoring-api/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/configuration/permissions/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/configuration/spaces/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/design/2026-08-24-spaces-collector/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/design/2026-08-25-documentation-site-and-chart-repository/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/design/2026-08-26-grafana-dashboards/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/design/2026-08-26-spaces-bucket-usage-headers/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/helm/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/helm/secrets/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/helm/values/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/install/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/install/binary/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/install/debian/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/install/docker/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/install/kubernetes/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
     <url>
          <loc>https://kozaktomas.github.io/digitalocean_exporter/latest/install/terraform/</loc>
-         <lastmod>2026-09-03</lastmod>
+         <lastmod>2026-09-04</lastmod>
     </url>
 </urlset>

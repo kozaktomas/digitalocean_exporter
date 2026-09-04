@@ -1033,6 +1033,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#uptime-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uptime checks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#certificates-and-firewalls" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1384,6 +1395,17 @@
     <span class="md-ellipsis">
       
         Monitoring API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#uptime-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uptime checks
       
     </span>
   </a>
@@ -1838,6 +1860,45 @@ frontend metrics beside it are stale rather than current.</p>
 <p><code>DigitalOceanLoadBalancerConnectionsNearLimit</code> pages before connections start being refused,
 which from the client's side is the site being down while every backend stays healthy. The
 limit scales with the load balancer's size units, and resizing is applied without downtime.</p>
+<h2 id="uptime-checks">Uptime checks<a class="headerlink" href="#uptime-checks" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Alert</th>
+<th>Severity</th>
+<th>For</th>
+<th>Fires when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DigitalOceanUptimeCheckDown</code></td>
+<td>critical</td>
+<td>5m</td>
+<td>A probing region reports the check's target down (needs <code>uptime</code>, off by default)</td>
+</tr>
+<tr>
+<td><code>DigitalOceanUptimeCheckStateUnavailable</code></td>
+<td>warning</td>
+<td>30m</td>
+<td>A check's state lookup keeps failing, so its values are frozen (needs <code>uptime</code>, off by default)</td>
+</tr>
+</tbody>
+</table>
+<p>Both read the <a href="../configuration/collectors/#uptime"><code>uptime</code> collector</a>, which is <strong>off by
+default</strong> — it costs one request per check per refresh and Uptime is a paid feature — so
+they stay silent until it is switched on.</p>
+<p><code>DigitalOceanUptimeCheckDown</code> is the only alert here that says nothing about the account.
+Every other rule reports what DigitalOcean holds; this one reports what DigitalOcean's
+probes see of a target from the outside, and that target may not be hosted on DigitalOcean
+at all. It fires per check and per region, so one real outage arrives as one alert per
+probing region — Alertmanager groups them, and the count is the useful part. A single region
+firing while the others stay quiet is usually the network path rather than the target.</p>
+<p><code>DigitalOceanUptimeCheckStateUnavailable</code> covers the failure that would otherwise be
+invisible. One check's state lookup failing does not fail the refresh, so
+<code>collector_success</code> stays 1; the check simply keeps its last good statuses, and
+<code>DigitalOceanUptimeCheckDown</code> cannot fire on a frozen snapshot however long the target has
+been down. Thirty minutes of that is worth knowing about.</p>
 <h2 id="certificates-and-firewalls">Certificates and firewalls<a class="headerlink" href="#certificates-and-firewalls" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

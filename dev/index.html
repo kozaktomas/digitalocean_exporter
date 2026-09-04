@@ -1510,14 +1510,21 @@ snapshot.</p>
 <td>Traffic and backend health per load balancer</td>
 <td><strong>off</strong></td>
 </tr>
+<tr>
+<td><a href="configuration/collectors/#uptime"><code>uptime</code></a></td>
+<td>Uptime checks, per-region status and the last outage</td>
+<td><strong>off</strong></td>
+</tr>
 </tbody>
 </table>
-<p>The five that are off are off for three different reasons. <code>dropletmetrics</code> and
+<p>The six that are off are off for four different reasons. <code>dropletmetrics</code> and
 <code>loadbalancermetrics</code> cost far more API requests than the rest — the page linked above does
 the arithmetic. <code>spaces</code> costs one request per bucket, but it needs a Spaces key pair, which
-is a separate credential from the API token. <code>firewalls</code> and <code>certificates</code> cost one request
-each, the same as the collectors that default on, and are off only because a ruleset or a
-certificate changes on human timescales rather than continuously.</p>
+is a separate credential from the API token. <code>uptime</code> costs one request per check and reads
+a paid feature, so on an account without Uptime every refresh would spend a request being
+told so. <code>firewalls</code> and <code>certificates</code> cost one request each, the same as the collectors
+that default on, and are off only because a ruleset or a certificate changes on human
+timescales rather than continuously.</p>
 <p>A token scoped <code>api:read</code> runs all of them and can change nothing;
 <a href="configuration/permissions/">token permissions</a> covers scoping it more tightly.</p>
 <h2 id="versioning">Versioning<a class="headerlink" href="#versioning" title="Permanent link">&para;</a></h2>

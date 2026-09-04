@@ -1239,6 +1239,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#uptime-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uptime checks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#exporter-health" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1921,6 +1932,17 @@
     <span class="md-ellipsis">
       
         Spaces
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#uptime-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uptime checks
       
     </span>
   </a>
@@ -3612,6 +3634,71 @@ bucket at all could be measured.</p>
 discovery mode. It never lists or reads an object, so an access key with <strong>Limited access</strong>
 and <strong>Read</strong> on the observed buckets is enough. Listing all buckets is a full-access
 capability, so a limited key must be given an explicit bucket list.</p>
+<h2 id="uptime-checks">Uptime checks<a class="headerlink" href="#uptime-checks" title="Permanent link">&para;</a></h2>
+<p>Collected by <code>uptime</code>, which is <strong>off by default</strong>: one paged list request per refresh, plus
+one state request per check.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>digitalocean_uptime_check_info</code></td>
+<td><code>id</code>, <code>name</code>, <code>type</code>, <code>target</code>, <code>enabled</code></td>
+<td>Always 1; the labels describe what the check probes</td>
+</tr>
+<tr>
+<td><code>digitalocean_uptime_check_region_status</code></td>
+<td><code>id</code>, <code>name</code>, <code>region</code>, <code>status</code></td>
+<td>1 for the region's current status, 0 for every other known one</td>
+</tr>
+<tr>
+<td><code>digitalocean_uptime_check_uptime_ratio</code></td>
+<td><code>id</code>, <code>name</code>, <code>region</code></td>
+<td>Thirty-day uptime measured from the region, as a ratio between 0 and 1</td>
+</tr>
+<tr>
+<td><code>digitalocean_uptime_check_previous_outage_start_timestamp_seconds</code></td>
+<td><code>id</code>, <code>name</code>, <code>region</code></td>
+<td>Unix time the previous outage began</td>
+</tr>
+<tr>
+<td><code>digitalocean_uptime_check_previous_outage_duration_seconds</code></td>
+<td><code>id</code>, <code>name</code>, <code>region</code></td>
+<td>How long the previous outage lasted</td>
+</tr>
+<tr>
+<td><code>digitalocean_uptime_check_up</code></td>
+<td><code>id</code>, <code>name</code></td>
+<td>1 if the check's last state lookup succeeded, else 0</td>
+</tr>
+</tbody>
+</table>
+<p><code>status</code> takes the values the API spells: <code>UP</code>, <code>DOWN</code> and <code>CHECKING</code>. All three are reported
+for every region on every scrape, the current one at 1 and the others at 0, so
+<code>digitalocean_uptime_check_region_status{status="DOWN"} == 1</code> has a series to match before a
+region has ever been down. A status DigitalOcean adds later is reported beside the three;
+dropping it would leave every status of that region reading 0, which is what a region going
+away looks like.</p>
+<p>The thirty-day uptime is a ratio here and a percentage in the API, divided by 100 on the way
+in so it fits Grafana's <code>percentunit</code> and reads the same way as every other ratio in this
+exporter. It is computed by DigitalOcean over a fixed thirty days, so it moves slowly and
+keeps counting an outage for a month after the check recovers.</p>
+<p>The previous outage is absent, rather than zero, for a check that has never gone down: the
+API reports an empty object, and an outage that started at the Unix epoch and lasted no time
+is worse than no series. <code>region</code> on those two metrics is the region that saw the outage,
+which need not be a region currently reporting anything wrong.</p>
+<p>A check whose state lookup fails keeps its last good region statuses, uptime and outage and
+reports <code>digitalocean_uptime_check_up 0</code>; one that has never been read successfully reports
+only that. Either way the checks around it are unaffected and <code>collector_success</code> stays 1 —
+the check list is what has to fail for that to drop. Alert on
+<code>digitalocean_uptime_check_up</code>, not on <code>collector_success</code>.</p>
+<p>Nothing here reports the account. The target of a check is whatever URL or host it was
+pointed at, so these metrics can describe infrastructure DigitalOcean does not host.</p>
 <h2 id="exporter-health">Exporter health<a class="headerlink" href="#exporter-health" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

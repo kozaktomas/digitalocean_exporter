@@ -1372,7 +1372,7 @@
 
 
 <h1 id="dashboards">Dashboards<a class="headerlink" href="#dashboards" title="Permanent link">&para;</a></h1>
-<p>Ten Grafana dashboards ship with the exporter, in
+<p>Eleven Grafana dashboards ship with the exporter, in
 <a href="https://github.com/kozaktomas/digitalocean_exporter/tree/main/charts/digitalocean-exporter/dashboards"><code>charts/digitalocean-exporter/dashboards/</code></a>.
 Between them they cover every collector, so the metrics in the
 <a href="../metrics/">metrics reference</a> can be looked at rather than read about.</p>
@@ -1422,6 +1422,11 @@ Nothing about them is Helm-specific: the JSON imports into any Grafana.</p>
 <td><code>spaces.json</code></td>
 <td>Bucket size and object count, and how fast a bucket is growing</td>
 <td><code>spaces</code></td>
+</tr>
+<tr>
+<td><code>uptime.json</code></td>
+<td>What DigitalOcean's probes see of each Uptime check from the outside: how many regions call it down, the thirty-day uptime behind that, the status of every check-and-region pair, and the last outage recorded</td>
+<td><code>uptime</code></td>
 </tr>
 <tr>
 <td><code>exporter.json</code></td>
